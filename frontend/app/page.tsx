@@ -176,7 +176,7 @@ export default function LandingPage() {
           </motion.p>
           <motion.div initial="hidden" animate="visible" variants={fadeUp} custom={3} className="flex flex-wrap items-center justify-center gap-4">
             <Button size="lg" onClick={() => router.push("/signup")}>Get Started <ArrowRight className="ml-2 h-4 w-4" /></Button>
-            <Button size="lg" variant="outline" onClick={() => router.push("/demo")}>Watch Demo</Button>
+            <Button size="lg" variant="outline">Watch Demo</Button>
           </motion.div>
 
           <motion.div initial="hidden" animate="visible" variants={fadeUp} custom={4} className="flex flex-wrap items-center justify-center gap-8 mt-16">
