@@ -1,0 +1,6 @@
+export const faqs = [
+    { q: "How does the AI Interview Coach work?", a: "Our AI simulates real interview scenarios using speech-to-text technology. It analyzes your responses for content quality, communication clarity, filler words, and confidence levels, then provides a detailed performance report." },
+    { q: "Is my data secure?", a: "Absolutely. All data is encrypted at rest and in transit. We never share your personal information with third parties. Your interview recordings are processed securely and can be deleted at any time." },
+    { q: "Can I use ElevateAI for different roles?", a: "Yes! ElevateAI supports technical, managerial, and HR interview modes. You can create role-specific resume versions and get tailored career roadmaps for any target position." },
+    { q: "What makes ElevateAI different from other tools?", a: "ElevateAI uses a multi-agent AI architecture where specialized agents collaborate to provide unified career insights. Our long-term memory system tracks your progress and adapts recommendations over time." },
+];
