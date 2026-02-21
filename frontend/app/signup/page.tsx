@@ -156,7 +156,7 @@ export default function SignupPage() {
                                 <Input
                                     id="name"
                                     icon={User}
-                                    placeholder="John Doe"
+                                    placeholder="Bhargava Krishna"
                                     value={name}
                                     onChange={(e: React.ChangeEvent<HTMLInputElement>) => setName(e.target.value)}
                                     required
