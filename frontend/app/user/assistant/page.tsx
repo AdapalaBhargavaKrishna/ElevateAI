@@ -41,7 +41,7 @@ export default function AssistantPage() {
         setMessages((prev) => [
             ...prev,
             { role: "user", content: text },
-            { role: "assistant", content: "Demo mode - Connect to Lovable Cloud for AI responses! 🚀" },
+            { role: "assistant", content: "Demo mode - Connect to Elevate Cloud for AI responses! 🚀" },
         ]);
         setInput("");
     };
