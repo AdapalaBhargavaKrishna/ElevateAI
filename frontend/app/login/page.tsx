@@ -32,6 +32,7 @@ export default function LoginPage() {
     }, []);
 
     useEffect(() => {
+        // console.log(session);
         if (status === "authenticated" && session) {
             if (session.user?.isNewUser) {
                 router.push("/onboarding/user");
