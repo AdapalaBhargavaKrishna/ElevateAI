@@ -164,7 +164,7 @@ export default function LandingPage() {
         <div className="max-w-5xl mx-auto text-center relative z-10">
           <motion.div initial="hidden" animate="visible" variants={fadeUp} custom={0}
             className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full border border-primary/20 bg-primary/5 text-primary text-sm font-medium mb-8">
-            <Zap className="h-3.5 w-3.5" /> Introducing ElevateAI Beta
+            <Zap className="h-3.5 w-3.5" /> Introducing ElevateAI
           </motion.div>
           <motion.h1 initial="hidden" animate="visible" variants={fadeUp} custom={1}
             className="text-4xl sm:text-5xl lg:text-7xl font-extrabold tracking-tight leading-[1.1] mb-6">
@@ -172,7 +172,7 @@ export default function LandingPage() {
           </motion.h1>
           <motion.p initial="hidden" animate="visible" variants={fadeUp} custom={2}
             className="text-lg sm:text-xl text-muted-foreground max-w-2xl mx-auto mb-10 leading-relaxed">
-            We're building the future of career preparation. Join our beta and be among the first to experience AI-powered interview coaching.
+            We're building the future of career preparation. Join and be among the first to experience AI-powered interview coaching.
           </motion.p>
           <motion.div initial="hidden" animate="visible" variants={fadeUp} custom={3} className="flex flex-wrap items-center justify-center gap-4">
             <Button size="lg" onClick={() => router.push("/signup")}>Get Started <ArrowRight className="ml-2 h-4 w-4" /></Button>
@@ -338,10 +338,6 @@ export default function LandingPage() {
               helping students and professionals ace interviews with intelligent,
               real-time feedback.
             </p>
-
-            <p className="text-xs text-muted-foreground mt-4">
-              🚀 Currently in Beta
-            </p>
           </div>
 
           <div>
@@ -373,14 +369,14 @@ export default function LandingPage() {
               Stay Connected
             </h4>
             <p className="text-sm text-muted-foreground mb-3">
-              Join early access and be part of the journey.
+              Join and be part of the journey.
             </p>
 
             <button
               onClick={() => router.push("/signup")}
               className="gradient-bg text-primary-foreground px-4 py-2 rounded-md text-sm hover:opacity-90 transition"
             >
-              Get Early Access
+              Get Access
             </button>
           </div>
         </div>
