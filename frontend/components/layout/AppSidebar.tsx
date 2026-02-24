@@ -131,6 +131,7 @@ const mainNav = [
 
 const secondaryNav = [
     { to: '/user/assistant', icon: MessageSquare, label: 'AI Assistant', badge: 'New' },
+    { to: '/user/myinfo', icon: User, label: 'MyInfo' },
     { to: '/user/settings', icon: Settings, label: 'Settings' },
 ];
 
