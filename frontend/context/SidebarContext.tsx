@@ -4,29 +4,45 @@ import React, { createContext, useContext, useState, useEffect } from 'react';
 
 interface SidebarContextType {
     collapsed: boolean;
+    setCollapsed: (collapsed: boolean) => void;
     toggle: () => void;
+    mobileOpen: boolean;
+    setMobileOpen: (open: boolean) => void;
+    toggleMobile: () => void;
 }
 
 const SidebarContext = createContext<SidebarContextType | undefined>(undefined);
 
 export function SidebarProvider({ children }: { children: React.ReactNode }) {
     const [collapsed, setCollapsed] = useState(false);
+    const [mobileOpen, setMobileOpen] = useState(false);
 
+    // Close mobile sidebar on resize if screen becomes larger
     useEffect(() => {
-        const saved = localStorage.getItem('sidebar-collapsed');
-        if (saved) {
-            setCollapsed(JSON.parse(saved));
-        }
-    }, []);
+        const handleResize = () => {
+            if (window.innerWidth >= 768 && mobileOpen) {
+                setMobileOpen(false);
+            }
+        };
 
-    useEffect(() => {
-        localStorage.setItem('sidebar-collapsed', JSON.stringify(collapsed));
-    }, [collapsed]);
+        window.addEventListener('resize', handleResize);
+        return () => window.removeEventListener('resize', handleResize);
+    }, [mobileOpen]);
 
-    const toggle = () => setCollapsed(prev => !prev);
+    const toggle = () => setCollapsed(!collapsed);
+    const toggleMobile = () => setMobileOpen(!mobileOpen);
 
     return (
-        <SidebarContext.Provider value={{ collapsed, toggle }}>
+        <SidebarContext.Provider
+            value={{
+                collapsed,
+                setCollapsed,
+                toggle,
+                mobileOpen,
+                setMobileOpen,
+                toggleMobile,
+            }}
+        >
             {children}
         </SidebarContext.Provider>
     );
