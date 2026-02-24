@@ -219,7 +219,7 @@ export default function ProfilePage() {
                                                 <span className="flex items-center gap-1.5 text-xs sm:text-sm text-muted-foreground">
                                                     <Briefcase className="h-3.5 w-3.5 sm:h-4 sm:w-4 text-primary" /> {userInfo.experience}
                                                 </span>
-                                                <Badge variant="success" className="text-xs px-2 py-0.5 sm:px-3 sm:py-1">
+                                                <Badge variant="secondary" className="text-xs px-2 py-0.5 sm:px-3 sm:py-1 bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400">
                                                     <Sparkles className="h-3 w-3 mr-1" /> {userInfo.availability}
                                                 </Badge>
                                             </div>
@@ -503,7 +503,7 @@ export default function ProfilePage() {
                                                         )}
                                                     </div>
                                                 </div>
-                                                <Badge variant="success" className="text-[10px] px-1.5 py-0.5">
+                                                <Badge variant="secondary" className="text-[10px] px-1.5 py-0.5 bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400">
                                                     <CheckCircle className="h-2.5 w-2.5 mr-0.5" /> Verified
                                                 </Badge>
                                             </motion.div>

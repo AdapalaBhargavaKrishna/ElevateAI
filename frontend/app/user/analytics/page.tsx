@@ -118,7 +118,7 @@ export default function AnalyticsPage() {
                                 <Icon className="h-4 w-4 text-primary" />
                             </div>
                             <Badge
-                                variant={stat.changeType === "positive" ? "success" : "destructive"}
+                                variant={stat.changeType === "positive" ? "default" : "destructive"}
                                 className="text-xs"
                             >
                                 {stat.change}
@@ -326,7 +326,7 @@ export default function AnalyticsPage() {
                                                 </TooltipContent>
                                             </Tooltip>
                                             <p className="text-xs font-medium text-foreground">{s.skill}</p>
-                                            <Badge variant="success" className="text-[8px] px-1 py-0">
+                                            <Badge variant="default" className="text-[8px] px-1 py-0">
                                                 +{((s.after - s.before) / s.before * 100).toFixed(0)}%
                                             </Badge>
                                         </div>
