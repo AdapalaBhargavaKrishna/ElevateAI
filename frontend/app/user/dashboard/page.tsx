@@ -16,6 +16,15 @@ import {
 } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { Button } from '@/components/ui/button';
+import {
+    Area,
+    AreaChart,
+    CartesianGrid,
+    ResponsiveContainer,
+    Tooltip,
+    XAxis,
+    YAxis
+} from 'recharts';
 
 const stats = [
     { title: "Profile Strength", value: "78%", change: "+5%", changeType: "positive" as const, icon: Target },
@@ -37,6 +46,36 @@ const recentActivity = [
     { title: "HR Round simulation", time: "2 days ago", score: "7.8/10", icon: Mic },
 ];
 
+// Chart data
+const chartData = [
+    { month: 'Jan', score: 40 },
+    { month: 'Feb', score: 55 },
+    { month: 'Mar', score: 45 },
+    { month: 'Apr', score: 60 },
+    { month: 'May', score: 70 },
+    { month: 'Jun', score: 65 },
+    { month: 'Jul', score: 75 },
+    { month: 'Aug', score: 80 },
+    { month: 'Sep', score: 72 },
+    { month: 'Oct', score: 85 },
+    { month: 'Nov', score: 78 },
+    { month: 'Dec', score: 88 },
+];
+
+const CustomTooltip = ({ active, payload, label }: any) => {
+    if (active && payload && payload.length) {
+        return (
+            <div className="bg-card border border-border rounded-lg shadow-lg p-3">
+                <p className="text-sm font-medium text-foreground">{label}</p>
+                <p className="text-sm text-primary">
+                    Score: <span className="font-bold">{payload[0].value}</span>
+                </p>
+            </div>
+        );
+    }
+    return null;
+};
+
 export default function DashboardPage() {
     const router = useRouter();
 
@@ -49,7 +88,7 @@ export default function DashboardPage() {
                         <h1 className="text-3xl font-bold text-foreground">Welcome back, Bhargava 👋</h1>
                         <p className="text-muted-foreground mt-1">Here's your career progress overview</p>
                     </div>
-                    <Button variant="primary" onClick={() => router.push('/user/interview')}>
+                    <Button onClick={() => router.push('/user/interview')}>
                         <Mic className="h-4 w-4 mr-2" />
                         Start Interview
                     </Button>
@@ -83,7 +122,6 @@ export default function DashboardPage() {
                 </div>
 
                 <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-
                     <div className="lg:col-span-2 space-y-6">
                         <div>
                             <h2 className="text-lg font-semibold text-foreground mb-4">Quick Actions</h2>
@@ -118,25 +156,60 @@ export default function DashboardPage() {
                             <div className="bg-card text-card-foreground rounded-xl border border-border shadow-sm p-6">
                                 <div className="flex items-center justify-between mb-6">
                                     <h3 className="font-semibold text-foreground">Performance Trend</h3>
-                                    <TrendingUp className="h-5 w-5 text-primary" />
+                                    <div className="flex items-center gap-2">
+                                        <span className="text-sm text-muted-foreground">Interview Scores</span>
+                                        <TrendingUp className="h-5 w-5 text-primary" />
+                                    </div>
                                 </div>
-                                <div className="h-48 flex items-end gap-2">
-                                    {[40, 55, 45, 60, 70, 65, 75, 80, 72, 85, 78, 88].map((height, i) => (
-                                        <motion.div
-                                            key={i}
-                                            initial={{ height: 0 }}
-                                            animate={{ height: `${height}%` }}
-                                            transition={{ delay: 0.6 + i * 0.05, duration: 0.4 }}
-                                            className="flex-1 rounded-t-md bg-primary opacity-80 hover:opacity-100 transition-opacity"
-                                        />
-                                    ))}
+
+                                <div className="h-64 w-full">
+                                    <ResponsiveContainer width="100%" height="100%">
+                                        <AreaChart
+                                            data={chartData}
+                                            margin={{ top: 10, right: 10, left: 0, bottom: 0 }}
+                                        >
+                                            <defs>
+                                                <linearGradient id="scoreGradient" x1="0" y1="0" x2="0" y2="1">
+                                                    <stop offset="5%" stopColor="hsl(var(--primary))" stopOpacity={0.3} />
+                                                    <stop offset="95%" stopColor="hsl(var(--primary))" stopOpacity={0} />
+                                                </linearGradient>
+                                            </defs>
+                                            <CartesianGrid
+                                                strokeDasharray="3 3"
+                                                stroke="hsl(var(--border))"
+                                                vertical={false}
+                                            />
+                                            <XAxis
+                                                dataKey="month"
+                                                stroke="hsl(var(--muted-foreground))"
+                                                fontSize={12}
+                                                tickLine={false}
+                                                axisLine={false}
+                                            />
+                                            <YAxis
+                                                stroke="hsl(var(--muted-foreground))"
+                                                fontSize={12}
+                                                tickLine={false}
+                                                axisLine={false}
+                                                tickFormatter={(value: number) => `${value}`}
+                                            />
+                                            <Tooltip content={<CustomTooltip />} />
+                                            <Area
+                                                type="monotone"
+                                                dataKey="score"
+                                                stroke="hsl(var(--primary))"
+                                                strokeWidth={2}
+                                                fill="url(#scoreGradient)"
+                                                animationDuration={1000}
+                                                animationBegin={600}
+                                            />
+                                        </AreaChart>
+                                    </ResponsiveContainer>
                                 </div>
-                                <div className="flex justify-between mt-3 text-xs text-muted-foreground">
-                                    <span>Jan</span>
-                                    <span>Mar</span>
-                                    <span>Jun</span>
-                                    <span>Sep</span>
-                                    <span>Dec</span>
+
+                                <div className="flex justify-between mt-4 text-xs text-muted-foreground">
+                                    <span>Monthly performance trend</span>
+                                    <span className="text-primary font-medium">↑ 120% overall growth</span>
                                 </div>
                             </div>
                         </motion.div>

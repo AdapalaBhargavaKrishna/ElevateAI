@@ -1,8 +1,13 @@
 @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap');
 @import "tailwindcss";
+@import "tw-animate-css";
+@import "shadcn/tailwind.css";
 
 @custom-variant dark (&:is(.dark *));
 
+/* =========================
+   DESIGN TOKENS (YOUR THEME)
+========================= */
 @theme {
   --font-sans: 'Inter', system-ui, -apple-system, sans-serif;
   --font-mono: 'JetBrains Mono', monospace;
@@ -22,42 +27,18 @@
   --color-accent: hsl(172 66% 94%);
   --color-accent-foreground: hsl(172 66% 25%);
   --color-destructive: hsl(0 72% 51%);
-  --color-destructive-foreground: hsl(0 0% 100%);
   --color-border: hsl(220 13% 90%);
   --color-input: hsl(220 13% 90%);
   --color-ring: hsl(172 66% 40%);
-  --color-chart-1: hsl(172 66% 40%);
-  --color-chart-2: hsl(262 60% 55%);
-  --color-chart-3: hsl(43 96% 56%);
-  --color-chart-4: hsl(200 80% 50%);
-  --color-chart-5: hsl(340 65% 55%);
-  --color-sidebar-background: hsl(220 20% 98%);
-  --color-sidebar-foreground: hsl(220 10% 30%);
-  --color-sidebar-primary: hsl(172 66% 40%);
-  --color-sidebar-primary-foreground: hsl(0 0% 100%);
-  --color-sidebar-accent: hsl(172 66% 95%);
-  --color-sidebar-accent-foreground: hsl(172 66% 25%);
-  --color-sidebar-border: hsl(220 13% 91%);
-  --color-sidebar-ring: hsl(172 66% 40%);
+
   --color-gradient-start: hsl(172 66% 40%);
   --color-gradient-end: hsl(200 80% 50%);
-  --color-success: hsl(152 60% 42%);
-  --color-success-foreground: hsl(0 0% 100%);
-  --color-warning: hsl(43 96% 56%);
-  --color-warning-foreground: hsl(43 96% 15%);
-
-  --radius-xs: 0.25rem;
-  --radius-sm: 0.3125rem;
-  --radius-md: 0.625rem;
-  --radius-lg: 0.75rem;
-  --radius-xl: 1rem;
-  --radius-2xl: 1.5rem;
-  --radius-3xl: 2rem;
-  --radius-default: 0.625rem;
 }
 
+/* =========================
+   DARK MODE TOKENS
+========================= */
 .dark {
-  /* Improved dark theme - more sophisticated */
   --color-background: hsl(240 10% 3.9%);
   --color-foreground: hsl(0 0% 95%);
   --color-card: hsl(240 10% 6%);
@@ -65,39 +46,19 @@
   --color-popover: hsl(240 10% 4%);
   --color-popover-foreground: hsl(0 0% 95%);
   --color-primary: hsl(172 70% 45%);
-  --color-primary-foreground: hsl(240 10% 3.9%);
   --color-secondary: hsl(240 5% 15%);
-  --color-secondary-foreground: hsl(0 0% 98%);
   --color-muted: hsl(240 5% 12%);
-  --color-muted-foreground: hsl(240 5% 60%);
   --color-accent: hsl(240 5% 18%);
-  --color-accent-foreground: hsl(172 70% 55%);
-  --color-destructive: hsl(0 70% 45%);
-  --color-destructive-foreground: hsl(0 0% 98%);
   --color-border: hsl(240 5% 16%);
   --color-input: hsl(240 5% 16%);
   --color-ring: hsl(172 70% 45%);
-  --color-chart-1: hsl(172 70% 45%);
-  --color-chart-2: hsl(262 70% 60%);
-  --color-chart-3: hsl(43 96% 56%);
-  --color-chart-4: hsl(200 80% 55%);
-  --color-chart-5: hsl(340 70% 60%);
-  --color-sidebar-background: hsl(240 10% 3%);
-  --color-sidebar-foreground: hsl(240 5% 70%);
-  --color-sidebar-primary: hsl(172 70% 45%);
-  --color-sidebar-primary-foreground: hsl(240 10% 3.9%);
-  --color-sidebar-accent: hsl(240 5% 12%);
-  --color-sidebar-accent-foreground: hsl(172 70% 55%);
-  --color-sidebar-border: hsl(240 5% 14%);
-  --color-sidebar-ring: hsl(172 70% 45%);
   --color-gradient-start: hsl(172 70% 45%);
   --color-gradient-end: hsl(200 80% 55%);
-  --color-success: hsl(152 60% 45%);
-  --color-success-foreground: hsl(0 0% 100%);
-  --color-warning: hsl(43 96% 56%);
-  --color-warning-foreground: hsl(240 10% 3.9%);
 }
 
+/* =========================
+   BASE STYLES
+========================= */
 @layer base {
   * {
     border-color: var(--color-border);
@@ -112,20 +73,23 @@
   }
 }
 
+/* =========================
+   UTILITIES
+========================= */
 @layer utilities {
   .gradient-text {
     -webkit-background-clip: text;
     background-clip: text;
     color: transparent;
-    background-image: linear-gradient(135deg, var(--color-gradient-start), var(--color-gradient-end));
+    background-image: linear-gradient(135deg,
+        var(--color-gradient-start),
+        var(--color-gradient-end));
   }
 
   .gradient-bg {
-    background-image: linear-gradient(135deg, var(--color-gradient-start), var(--color-gradient-end));
-  }
-
-  .gradient-border {
-    border-image: linear-gradient(135deg, var(--color-gradient-start), var(--color-gradient-end)) 1;
+    background-image: linear-gradient(135deg,
+        var(--color-gradient-start),
+        var(--color-gradient-end));
   }
 
   .glass {
@@ -139,7 +103,9 @@
   }
 }
 
-/* Add to your globals.css */
+/* =========================
+   SCROLLBAR
+========================= */
 .scrollbar-thin::-webkit-scrollbar {
   width: 4px;
 }
@@ -149,10 +115,10 @@
 }
 
 .scrollbar-thin::-webkit-scrollbar-thumb {
-  background: hsl(var(--muted-foreground) / 0.2);
+  background: hsl(220 10% 46% / 0.2);
   border-radius: 20px;
 }
 
 .scrollbar-thin::-webkit-scrollbar-thumb:hover {
-  background: hsl(var(--muted-foreground) / 0.3);
+  background: hsl(220 10% 46% / 0.3);
 }
