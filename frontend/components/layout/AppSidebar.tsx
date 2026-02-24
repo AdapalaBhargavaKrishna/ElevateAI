@@ -1,6 +1,6 @@
 'use client';
 
-import React from 'react';
+import React, { useEffect } from 'react';
 import Image from 'next/image';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
@@ -12,51 +12,110 @@ import {
     FileText,
     Map,
     BarChart3,
-    Globe,
     MessageSquare,
     Settings,
-    Sparkles,
     ChevronsLeft,
+    X,
+    Menu,
 } from 'lucide-react';
 import { useSidebar } from '@/context/SidebarContext';
 import { Button } from '@/components/ui/button';
+import {
+    Tooltip,
+    TooltipContent,
+    TooltipProvider,
+    TooltipTrigger,
+} from '@/components/ui/tooltip';
+import { Sheet, SheetContent, SheetTrigger } from '@/components/ui/sheet';
+import { ScrollArea } from '@/components/ui/scroll-area';
+import { Avatar, AvatarFallback } from '@/components/ui/avatar';
+import { Badge } from '@/components/ui/badge';
+import { Separator } from '@/components/ui/separator';
 
-const SidebarNavItem = ({ to, icon: Icon, label, badge }: { to: string; icon: any; label: string; badge?: string }) => {
+const SidebarNavItem = ({
+    to,
+    icon: Icon,
+    label,
+    badge,
+}: {
+    to: string;
+    icon: any;
+    label: string;
+    badge?: string;
+}) => {
     const pathname = usePathname();
-    const { collapsed } = useSidebar();
+    const { collapsed, mobileOpen, setMobileOpen } = useSidebar();
     const isActive = pathname === to;
 
-    return (
-        <Link href={to}>
-            <motion.div
-                whileHover={{ x: collapsed ? 0 : 4 }}
-                whileTap={{ scale: 0.98 }}
-                className={`
-          flex items-center gap-3 rounded-lg transition-all duration-200 cursor-pointer
-          ${collapsed ? 'justify-center px-2 py-3' : 'px-3 py-2.5'}
-          ${isActive
-                        ? 'bg-primary/10 text-primary border-l-2 border-primary'
-                        : 'text-muted-foreground hover:text-foreground hover:bg-muted/50'
-                    }
-        `}
-            >
-                <Icon className={`h-5 w-5 shrink-0 ${isActive ? 'text-primary' : ''}`} />
+    const handleClick = () => {
+        if (mobileOpen) {
+            setMobileOpen(false);
+        }
+    };
 
-                {!collapsed && (
-                    <>
-                        <span className="flex-1 text-sm font-medium">{label}</span>
-                        {badge && (
-                            <span className={`
-                text-[10px] font-semibold px-1.5 py-0.5 rounded-full
-                ${badge === 'AI' ? 'bg-primary/10 text-primary' : ''}
-                ${badge === 'New' ? 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400' : ''}
-              `}>
-                                {badge}
-                            </span>
-                        )}
-                    </>
-                )}
-            </motion.div>
+    const content = (
+        <div
+            className={`
+        flex items-center gap-3 rounded-lg transition-all duration-200 cursor-pointer
+        ${collapsed ? 'justify-center px-2 py-3' : 'px-3 py-2.5'}
+        ${isActive
+                    ? 'bg-primary/10 text-primary border-l-2 border-primary'
+                    : 'text-muted-foreground hover:text-foreground hover:bg-muted/50'
+                }
+      `}
+        >
+            <Icon className={`h-5 w-5 shrink-0 ${isActive ? 'text-primary' : ''}`} />
+
+            {!collapsed && (
+                <>
+                    <span className="flex-1 text-sm font-medium">{label}</span>
+                    {badge && (
+                        <Badge
+                            variant={badge === 'AI' ? 'default' : 'secondary'}
+                            className={`
+                text-[10px] px-1.5 py-0.5 h-5
+                ${badge === 'AI'
+                                    ? 'bg-primary/10 text-primary hover:bg-primary/10'
+                                    : ''
+                                }
+                ${badge === 'New'
+                                    ? 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400'
+                                    : ''
+                                }
+              `}
+                        >
+                            {badge}
+                        </Badge>
+                    )}
+                </>
+            )}
+        </div>
+    );
+
+    return collapsed && !mobileOpen ? (
+        <TooltipProvider delayDuration={0}>
+            <Tooltip>
+                <TooltipTrigger asChild>
+                    <Link href={to} onClick={handleClick}>
+                        {content}
+                    </Link>
+                </TooltipTrigger>
+                <TooltipContent side="right" className="flex items-center gap-2">
+                    <span>{label}</span>
+                    {badge && (
+                        <Badge
+                            variant="secondary"
+                            className="text-[10px] px-1 py-0 h-4 text-xs"
+                        >
+                            {badge}
+                        </Badge>
+                    )}
+                </TooltipContent>
+            </Tooltip>
+        </TooltipProvider>
+    ) : (
+        <Link href={to} onClick={handleClick}>
+            {content}
         </Link>
     );
 };
@@ -76,7 +135,13 @@ const secondaryNav = [
 ];
 
 export function AppSidebar() {
-    const { collapsed, toggle } = useSidebar();
+    const { collapsed, toggle, mobileOpen, setMobileOpen } = useSidebar();
+    const pathname = usePathname();
+
+    // Close mobile sidebar on route change
+    useEffect(() => {
+        setMobileOpen(false);
+    }, [pathname, setMobileOpen]);
 
     const handleLogoClick = () => {
         if (collapsed) {
@@ -84,7 +149,8 @@ export function AppSidebar() {
         }
     };
 
-    return (
+    // Desktop Sidebar
+    const DesktopSidebar = () => (
         <motion.aside
             initial={false}
             animate={{ width: collapsed ? 72 : 260 }}
@@ -95,14 +161,14 @@ export function AppSidebar() {
                 <div
                     className="relative shrink-0 cursor-pointer hover:opacity-80 transition-opacity"
                     onClick={handleLogoClick}
-                    title={collapsed ? "Click to expand sidebar" : ""}
+                    title={collapsed ? 'Click to expand sidebar' : ''}
                 >
                     {collapsed ? (
                         <Image
                             src="/favicon.png"
                             alt="Elevate AI"
-                            width={60}
-                            height={60}
+                            width={40}
+                            height={40}
                             className="invert dark:invert-0"
                         />
                     ) : (
@@ -110,8 +176,8 @@ export function AppSidebar() {
                             src="/logo.png"
                             alt="Elevate AI"
                             width={100}
-                            height={100}
-                            className="invert dark:invert-0"
+                            height={40}
+                            className="invert dark:invert-0 object-contain"
                         />
                     )}
                 </div>
@@ -122,7 +188,7 @@ export function AppSidebar() {
                         size="icon"
                         onClick={toggle}
                         className="h-7 w-7 text-muted-foreground hover:text-foreground"
-                        title={collapsed ? "Expand sidebar" : "Collapse sidebar"}
+                        title={collapsed ? 'Expand sidebar' : 'Collapse sidebar'}
                     >
                         <motion.div
                             animate={{ rotate: collapsed ? 180 : 0 }}
@@ -134,56 +200,60 @@ export function AppSidebar() {
                 </div>
             </div>
 
-            <nav className="flex-1 px-2 py-4 space-y-1 overflow-y-auto overflow-x-hidden">
-                <AnimatePresence>
-                    {!collapsed && (
-                        <motion.p
-                            initial={{ opacity: 0 }}
-                            animate={{ opacity: 1 }}
-                            exit={{ opacity: 0 }}
-                            transition={{ duration: 0.15 }}
-                            className="px-3 mb-2 text-[11px] font-semibold uppercase tracking-wider text-muted-foreground/60"
-                        >
-                            Main
-                        </motion.p>
-                    )}
-                </AnimatePresence>
-                <div className="space-y-0.5">
-                    {mainNav.map((item) => (
-                        <SidebarNavItem key={item.to} {...item} />
-                    ))}
-                </div>
+            <ScrollArea className="flex-1">
+                <nav className="px-2 py-4 space-y-1">
+                    <AnimatePresence>
+                        {!collapsed && (
+                            <motion.p
+                                initial={{ opacity: 0 }}
+                                animate={{ opacity: 1 }}
+                                exit={{ opacity: 0 }}
+                                transition={{ duration: 0.15 }}
+                                className="px-3 mb-2 text-[11px] font-semibold uppercase tracking-wider text-muted-foreground/60"
+                            >
+                                Main
+                            </motion.p>
+                        )}
+                    </AnimatePresence>
+                    <div className="space-y-0.5">
+                        {mainNav.map((item) => (
+                            <SidebarNavItem key={item.to} {...item} />
+                        ))}
+                    </div>
 
-                <div className="my-4 border-t border-border" />
+                    <Separator className="my-4" />
 
-                <AnimatePresence>
-                    {!collapsed && (
-                        <motion.p
-                            initial={{ opacity: 0 }}
-                            animate={{ opacity: 1 }}
-                            exit={{ opacity: 0 }}
-                            transition={{ duration: 0.15 }}
-                            className="px-3 mb-2 text-[11px] font-semibold uppercase tracking-wider text-muted-foreground/60"
-                        >
-                            Tools
-                        </motion.p>
-                    )}
-                </AnimatePresence>
-                <div className="space-y-0.5">
-                    {secondaryNav.map((item) => (
-                        <SidebarNavItem key={item.to} {...item} />
-                    ))}
-                </div>
-            </nav>
+                    <AnimatePresence>
+                        {!collapsed && (
+                            <motion.p
+                                initial={{ opacity: 0 }}
+                                animate={{ opacity: 1 }}
+                                exit={{ opacity: 0 }}
+                                transition={{ duration: 0.15 }}
+                                className="px-3 mb-2 text-[11px] font-semibold uppercase tracking-wider text-muted-foreground/60"
+                            >
+                                Tools
+                            </motion.p>
+                        )}
+                    </AnimatePresence>
+                    <div className="space-y-0.5">
+                        {secondaryNav.map((item) => (
+                            <SidebarNavItem key={item.to} {...item} />
+                        ))}
+                    </div>
+                </nav>
+            </ScrollArea>
 
             <div className="p-2 border-t border-border">
                 <div
                     className={`flex items-center gap-3 rounded-lg hover:bg-muted/50 transition-colors cursor-pointer ${collapsed ? 'justify-center px-2 py-2.5' : 'px-3 py-2'
                         }`}
                 >
-                    <div className="h-8 w-8 rounded-full bg-primary flex items-center justify-center text-xs font-bold text-primary-foreground shrink-0">
-                        BK
-                    </div>
+                    <Avatar className="h-8 w-8">
+                        <AvatarFallback className="bg-primary text-primary-foreground text-xs">
+                            BK
+                        </AvatarFallback>
+                    </Avatar>
                     <AnimatePresence>
                         {!collapsed && (
                             <motion.div
@@ -193,7 +263,9 @@ export function AppSidebar() {
                                 transition={{ duration: 0.2 }}
                                 className="flex-1 min-w-0 overflow-hidden"
                             >
-                                <p className="text-sm font-medium truncate text-foreground">Bhargava Krishna</p>
+                                <p className="text-sm font-medium truncate text-foreground">
+                                    Bhargava Krishna
+                                </p>
                                 <p className="text-xs text-muted-foreground truncate">Pro Plan</p>
                             </motion.div>
                         )}
@@ -201,5 +273,147 @@ export function AppSidebar() {
                 </div>
             </div>
         </motion.aside>
+    );
+
+    // Mobile Sidebar using shadcn Sheet
+    const MobileSidebar = () => (
+        <Sheet open={mobileOpen} onOpenChange={setMobileOpen}>
+            <SheetTrigger asChild>
+                <Button
+                    variant="ghost"
+                    size="icon"
+                    className="fixed bottom-4 right-4 z-50 md:hidden rounded-full h-12 w-12 shadow-lg bg-primary text-primary-foreground hover:bg-primary/90"
+                >
+                    <Menu className="h-5 w-5" />
+                </Button>
+            </SheetTrigger>
+            <SheetContent side="left" className="w-[280px] p-0">
+                <div className="flex flex-col h-full">
+                    <div className="flex items-center h-16 border-b border-border px-4">
+                        <Image
+                            src="/logo.png"
+                            alt="Elevate AI"
+                            width={100}
+                            height={40}
+                            className="invert dark:invert-0 object-contain"
+                        />
+                    </div>
+
+                    <ScrollArea className="flex-1">
+                        <nav className="px-2 py-4 space-y-1">
+                            <p className="px-3 mb-2 text-[11px] font-semibold uppercase tracking-wider text-muted-foreground/60">
+                                Main
+                            </p>
+                            <div className="space-y-0.5">
+                                {mainNav.map((item) => (
+                                    <Link
+                                        key={item.to}
+                                        href={item.to}
+                                        onClick={() => setMobileOpen(false)}
+                                    >
+                                        <div
+                                            className={`
+                        flex items-center gap-3 px-3 py-2.5 rounded-lg transition-all duration-200 cursor-pointer
+                        ${pathname === item.to
+                                                    ? 'bg-primary/10 text-primary border-l-2 border-primary'
+                                                    : 'text-muted-foreground hover:text-foreground hover:bg-muted/50'
+                                                }
+                      `}
+                                        >
+                                            <item.icon
+                                                className={`h-5 w-5 shrink-0 ${pathname === item.to ? 'text-primary' : ''
+                                                    }`}
+                                            />
+                                            <span className="flex-1 text-sm font-medium">
+                                                {item.label}
+                                            </span>
+                                            {item.badge && (
+                                                <Badge
+                                                    variant={item.badge === 'AI' ? 'default' : 'secondary'}
+                                                    className={`
+                            text-[10px] px-1.5 py-0.5 h-5
+                            ${item.badge === 'AI'
+                                                            ? 'bg-primary/10 text-primary hover:bg-primary/10'
+                                                            : ''
+                                                        }
+                            ${item.badge === 'New'
+                                                            ? 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400'
+                                                            : ''
+                                                        }
+                          `}
+                                                >
+                                                    {item.badge}
+                                                </Badge>
+                                            )}
+                                        </div>
+                                    </Link>
+                                ))}
+                            </div>
+
+                            <Separator className="my-4" />
+
+                            <p className="px-3 mb-2 text-[11px] font-semibold uppercase tracking-wider text-muted-foreground/60">
+                                Tools
+                            </p>
+                            <div className="space-y-0.5">
+                                {secondaryNav.map((item) => (
+                                    <Link
+                                        key={item.to}
+                                        href={item.to}
+                                        onClick={() => setMobileOpen(false)}
+                                    >
+                                        <div
+                                            className={`
+                        flex items-center gap-3 px-3 py-2.5 rounded-lg transition-all duration-200 cursor-pointer
+                        ${pathname === item.to
+                                                    ? 'bg-primary/10 text-primary border-l-2 border-primary'
+                                                    : 'text-muted-foreground hover:text-foreground hover:bg-muted/50'
+                                                }
+                      `}
+                                        >
+                                            <item.icon
+                                                className={`h-5 w-5 shrink-0 ${pathname === item.to ? 'text-primary' : ''
+                                                    }`}
+                                            />
+                                            <span className="flex-1 text-sm font-medium">
+                                                {item.label}
+                                            </span>
+                                            {item.badge && (
+                                                <Badge variant="secondary" className="text-[10px] px-1.5 py-0.5 h-5">
+                                                    {item.badge}
+                                                </Badge>
+                                            )}
+                                        </div>
+                                    </Link>
+                                ))}
+                            </div>
+                        </nav>
+                    </ScrollArea>
+
+                    <div className="p-4 border-t border-border">
+                        <div className="flex items-center gap-3">
+                            <Avatar className="h-10 w-10">
+                                <AvatarFallback className="bg-primary text-primary-foreground">
+                                    BK
+                                </AvatarFallback>
+                            </Avatar>
+                            <div className="flex-1 min-w-0">
+                                <p className="text-sm font-medium truncate text-foreground">
+                                    Bhargava Krishna
+                                </p>
+                                <p className="text-xs text-muted-foreground truncate">Pro Plan</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </SheetContent>
+        </Sheet>
+    );
+
+    return (
+        <>
+            <DesktopSidebar />
+            <MobileSidebar />
+        </>
     );
 }
