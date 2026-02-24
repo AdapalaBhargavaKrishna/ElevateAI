@@ -7,7 +7,6 @@
   --font-sans: 'Inter', system-ui, -apple-system, sans-serif;
   --font-mono: 'JetBrains Mono', monospace;
 
-  /* Light mode - keeping as is */
   --color-background: hsl(220 20% 97%);
   --color-foreground: hsl(220 20% 10%);
   --color-card: hsl(0 0% 100%);
