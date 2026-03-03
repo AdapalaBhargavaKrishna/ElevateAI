@@ -22,9 +22,7 @@ export async function signup(req: Request, res: Response) {
             return res.status(400).json({ message: 'Password must be atleast 8 characters' })
         }
 
-        const existing = await prisma.user.findUnique({
-            where: { email }
-        });
+        const existing = await prisma.user.findUnique({ where: { email } });
 
         if (existing && existing.provider === "google") {
             return res.status(409).json({
@@ -38,12 +36,7 @@ export async function signup(req: Request, res: Response) {
         const hasedPassword = await bcrypt.hash(password, 12)
 
         const user = await prisma.user.create({
-            data: {
-                email,
-                password: hasedPassword,
-                fullName,
-                provider: "local"
-            }
+            data: { email, password: hasedPassword, fullName, provider: "local" }
         });
 
         const accessToken = generateAccessToken(user.id);
@@ -58,7 +51,7 @@ export async function signup(req: Request, res: Response) {
 
     } catch (err) {
         console.log("Sign Up Error:", err)
-        res.status(500).json({ message: "Something went wrong, Please try again" })
+        return res.status(500).json({ message: "Something went wrong, Please try again" })
     }
 }
 
@@ -70,13 +63,12 @@ export async function login(req: Request, res: Response) {
             return res.status(400).json({ message: 'All fields are required' })
         }
 
-        const user = await prisma.user.findUnique({
-            where: { email }
-        });
+        const user = await prisma.user.findUnique({ where: { email } });
+
         if (!user) {
             return res.status(400).json({ message: 'User does not exist' })
         }
-        if (user && user.provider === "google") {
+        if (user.provider === "google") {
             return res.status(401).json({
                 message: "This account uses Google sign in. Please continue with Google."
             });
@@ -99,7 +91,7 @@ export async function login(req: Request, res: Response) {
 
     } catch (err) {
         console.log("Login Error:", err)
-        res.status(500).json({ message: "Something went wrong, Please try again" })
+        return res.status(500).json({ message: "Something went wrong, Please try again" })
     }
 }
 
@@ -107,7 +99,6 @@ export async function logout(_req: Request, res: Response) {
     res.clearCookie("access_token", COOKIE_OPTIONS)
     res.clearCookie("refresh_token", COOKIE_OPTIONS)
     return res.status(200).json({ message: "Logged out." });
-
 }
 
 export async function refresh(req: Request, res: Response) {
@@ -122,23 +113,40 @@ export async function refresh(req: Request, res: Response) {
         return res.status(200).json({ message: "Token refreshed." });
 
     } catch (err) {
-        console.log("refresh Error:", err)
-        res.status(500).json({ message: "Something went wrong, Please try again" })
+        console.log("Refresh Error:", err)
+        return res.status(500).json({ message: "Something went wrong, Please try again" })
     }
 }
 
 export async function me(req: Request, res: Response) {
     try {
-
         const user = await prisma.user.findUnique({
             where: { id: (req as any).userId },
             select: { id: true, email: true, fullName: true, createdAt: true }
         })
 
         if (!user) return res.status(404).json({ message: "User not found." });
-
         return res.status(200).json({ user })
     } catch (err) {
-        res.status(500).json({ message: "Something went wrong, Please try again" })
+        return res.status(500).json({ message: "Something went wrong, Please try again" })
     }
+}
+
+export async function googleCallback(req: Request, res: Response) {
+    const user = req.user as any;
+
+    if (!user) {
+        return res.redirect(`${process.env.FRONTEND_URL}/login?error=google_failed`);
+    }
+
+    const accessToken = generateAccessToken(user.id);
+    const refreshToken = generateRefreshToken(user.id);
+
+    res.cookie("access_token", accessToken, { ...COOKIE_OPTIONS, maxAge: 15 * 60 * 1000 });
+    res.cookie("refresh_token", refreshToken, { ...COOKIE_OPTIONS, maxAge: 7 * 24 * 60 * 60 * 1000 });
+
+    if (user.isNewUser) {
+        return res.redirect(`${process.env.FRONTEND_URL}/onboarding/user`);
+    }
+    return res.redirect(`${process.env.FRONTEND_URL}/user/dashboard`);
 }
