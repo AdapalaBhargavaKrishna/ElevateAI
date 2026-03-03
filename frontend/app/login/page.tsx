@@ -13,9 +13,9 @@ import {
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { useTheme } from "next-themes";
-import { signIn, useSession } from "next-auth/react";
 import Link from "next/link";
 import Image from "next/image";
+import { api } from '../lib/axios'
 
 // Import shadcn components
 import { Button } from "@/components/ui/button";
@@ -38,7 +38,7 @@ import {
 
 export default function LoginPage() {
     const router = useRouter();
-    const { data: session, status } = useSession();
+    const [error, setError] = useState(null);
     const [mounted, setMounted] = useState(false);
     const [showPassword, setShowPassword] = useState(false);
     const [email, setEmail] = useState("");
@@ -50,45 +50,39 @@ export default function LoginPage() {
         setMounted(true);
     }, []);
 
-    useEffect(() => {
-        if (status === "authenticated" && session) {
-            if (session.user?.isNewUser) {
-                router.push("/onboarding/user");
-            } else {
-                router.push("/user/dashboard");
-            }
-        }
-    }, [status, session, router]);
+    // useEffect(() => {
+    //     if (status === "authenticated" && session) {
+    //         if (session.user?.isNewUser) {
+    //             router.push("/onboarding/user");
+    //         } else {
+    //             router.push("/user/dashboard");
+    //         }
+    //     }
+    // }, [status, session, router]);
 
     const toggleTheme = () => {
         setTheme(theme === 'dark' ? 'light' : 'dark');
     };
 
-    const handleSubmit = (e: React.FormEvent) => {
+    const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
-        // Add actual login logic here
-        console.log("Login attempt with:", { email, password });
-        // router.push("/user/dashboard");
-    };
-
-    const handleGoogleSignIn = async () => {
-        setIsLoading(true);
+        setIsLoading(true)
+        setError(null);
         try {
-            await signIn("google", { callbackUrl: "/login" });
-        } catch (error) {
-            console.error("Google sign in error:", error);
+            const res = await api.post('/auth/login', {
+                email,
+                password,
+            });
+            router.replace("/user/dashboard");
+        } catch (err: any) {
+            setError(err.response?.data?.message || "Something went wrong.");
         } finally {
             setIsLoading(false);
         }
     };
-
-    if (status === "loading") {
-        return (
-            <div className="min-h-screen flex items-center justify-center">
-                <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
-            </div>
-        );
-    }
+    const handleGoogleSignIn = () => {
+        window.location.href = `${process.env.NEXT_PUBLIC_API_URL}/auth/google`;
+    };
 
     return (
         <TooltipProvider>
@@ -167,12 +161,7 @@ export default function LoginPage() {
                                 <div className="space-y-2">
                                     <div className="flex items-center justify-between">
                                         <Label htmlFor="password">Password</Label>
-                                        <Link
-                                            href="/forgot-password"
-                                            className="text-xs text-primary hover:underline"
-                                        >
-                                            Forgot password?
-                                        </Link>
+
                                     </div>
                                     <div className="relative">
                                         <Lock className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
@@ -196,6 +185,9 @@ export default function LoginPage() {
                                         </Button>
                                     </div>
                                 </div>
+                                {error && (
+                                    <p className="text-sm text-destructive">{error}</p>
+                                )}
                                 <Button
                                     type="submit"
                                     className="w-full h-11"

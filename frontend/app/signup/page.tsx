@@ -17,6 +17,7 @@ import { useTheme } from "next-themes";
 import { signIn, useSession } from "next-auth/react";
 import Link from "next/link";
 import Image from "next/image";
+import { api } from '../lib/axios'
 
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -38,6 +39,7 @@ import {
 
 export default function SignupPage() {
     const router = useRouter();
+    const [error, setError] = useState(null);
     const { data: session, status } = useSession();
     const [mounted, setMounted] = useState(false);
     const [showPassword, setShowPassword] = useState(false);
@@ -65,9 +67,23 @@ export default function SignupPage() {
         setTheme(theme === 'dark' ? 'light' : 'dark');
     };
 
-    const handleSubmit = (e: React.FormEvent) => {
+    const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
-        router.push("/onboarding/user");
+        setIsLoading(true);
+        setError(null);
+
+        try {
+            await api.post('/auth/signup', {
+                email,
+                password,
+                fullName: name
+            });
+            router.push("/onboarding/user");
+        } catch (error: any) {
+            setError(error.response?.data?.message || "Something went wrong");
+        } finally {
+            setIsLoading(false);
+        }
     };
 
     const handleGoogleSignIn = async () => {
