@@ -4,19 +4,37 @@ generator client {
 
 datasource db {
   provider  = "postgresql"
-  url       = env("DIRECT_URL")
+  url       = env("DATABASE_URL")
 }
 
 model User {
-  id        String   @id @default(cuid())
-  email     String   @unique
-  password  String?
-  fullName  String
-  provider  String   @default("local")
-  googleId  String?  @unique
-  avatar    String?
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  id          String       @id @default(cuid())
+  email       String       @unique
+  password    String?
+  fullName    String
+  isNewUser   Boolean      @default(true)
+  provider    String       @default("local")
+  googleId    String?      @unique
+  avatar      String?
+  createdAt   DateTime     @default(now())
+  updatedAt   DateTime     @updatedAt
+  preferences Preferences?
 
   @@map("users")
+}
+
+model Preferences {
+  id              String   @id @default(cuid())
+  userId          String   @unique
+  careerGoal      String
+  experienceLevel String
+  preparingFor    String
+  skills          String[]
+  timeCommitment  String
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("preferences")
 }

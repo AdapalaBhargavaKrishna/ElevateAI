@@ -86,7 +86,7 @@ export async function login(req: Request, res: Response) {
         res.cookie("refresh_token", refreshToken, { ...COOKIE_OPTIONS, maxAge: 7 * 24 * 60 * 60 * 1000 });
 
         return res.status(200).json({
-            user: { id: user.id, email: user.email, fullName: user.fullName },
+            user: { id: user.id, email: user.email, fullName: user.fullName, isNewUser: user.isNewUser },
         });
 
     } catch (err) {
@@ -149,4 +149,27 @@ export async function googleCallback(req: Request, res: Response) {
         return res.redirect(`${process.env.FRONTEND_URL}/onboarding/user`);
     }
     return res.redirect(`${process.env.FRONTEND_URL}/user/dashboard`);
+}
+
+export async function completeOnboarding(req: Request, res: Response) {
+    try {
+        const { careerGoal, experienceLevel, skills, preparingFor, timeCommitment } = req.body;
+        const userId = (req as any).userId;
+
+        await prisma.preferences.upsert({
+            where: { userId },
+            update: { careerGoal, experienceLevel, skills, preparingFor, timeCommitment },
+            create: { userId, careerGoal, experienceLevel, skills, preparingFor, timeCommitment },
+        });
+
+        await prisma.user.update({
+            where: { id: userId },
+            data: { isNewUser: false }
+        });
+
+        return res.status(200).json({ message: "Onboarding complete." });
+    } catch (err) {
+        console.error("Onboarding error:", err);
+        return res.status(500).json({ message: "Something went wrong." });
+    }
 }

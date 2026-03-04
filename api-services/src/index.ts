@@ -1,11 +1,11 @@
+import dotenv from "dotenv";
+dotenv.config()
 import express from "express";
 import cors from "cors";
 import cookieParser from "cookie-parser";
-import dotenv from "dotenv";
 import authRoutes from "./routes/auth.routes";
 import passport from "./utils/passport";
 
-dotenv.config()
 
 const app = express()
 const PORT = process.env.PORT || 5000
