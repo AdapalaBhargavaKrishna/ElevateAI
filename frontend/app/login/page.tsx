@@ -69,11 +69,13 @@ export default function LoginPage() {
         setIsLoading(true)
         setError(null);
         try {
-            const res = await api.post('/auth/login', {
-                email,
-                password,
-            });
-            router.replace("/user/dashboard");
+            const { data } = await api.post('/auth/login', { email, password, });
+            console.log(data)
+            if (data.isNewUser) {
+                router.replace("/onboarding/user");
+            } else {
+                router.replace("/onboarding/user");
+            }
         } catch (err: any) {
             setError(err.response?.data?.message || "Something went wrong.");
         } finally {

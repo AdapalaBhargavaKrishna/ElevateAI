@@ -14,7 +14,6 @@ import {
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { useTheme } from "next-themes";
-import { signIn, useSession } from "next-auth/react";
 import Link from "next/link";
 import Image from "next/image";
 import { api } from '../lib/axios'
@@ -40,7 +39,6 @@ import {
 export default function SignupPage() {
     const router = useRouter();
     const [error, setError] = useState(null);
-    const { data: session, status } = useSession();
     const [mounted, setMounted] = useState(false);
     const [showPassword, setShowPassword] = useState(false);
     const [email, setEmail] = useState("");
@@ -53,15 +51,6 @@ export default function SignupPage() {
         setMounted(true);
     }, []);
 
-    useEffect(() => {
-        if (status === "authenticated" && session) {
-            if (session.user?.isNewUser) {
-                router.push("/onboarding/user");
-            } else {
-                router.push("/user/dashboard");
-            }
-        }
-    }, [status, session, router]);
 
     const toggleTheme = () => {
         setTheme(theme === 'dark' ? 'light' : 'dark');
@@ -87,23 +76,8 @@ export default function SignupPage() {
     };
 
     const handleGoogleSignIn = async () => {
-        setIsLoading(true);
-        try {
-            await signIn("google", { callbackUrl: "/login" });
-        } catch (error) {
-            console.error("Google sign in error:", error);
-        } finally {
-            setIsLoading(false);
-        }
+        window.location.href = `${process.env.NEXT_PUBLIC_API_URL}/auth/google`;
     };
-
-    if (status === "loading") {
-        return (
-            <div className="min-h-screen flex items-center justify-center">
-                <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
-            </div>
-        );
-    }
 
     return (
         <TooltipProvider>

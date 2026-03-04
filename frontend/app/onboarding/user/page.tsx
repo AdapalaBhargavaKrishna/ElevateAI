@@ -2,9 +2,10 @@
 
 import React, { useState } from 'react';
 import Image from 'next/image'
+import { api } from '../../lib/axios';
 import { motion, AnimatePresence } from "framer-motion";
 import {
-    Sparkles, ArrowRight, ArrowLeft, Target, Briefcase, Code,
+    ArrowRight, ArrowLeft, Target, Briefcase, Code,
     GraduationCap, Clock, CheckCircle2, Rocket, Sun, Moon
 } from "lucide-react";
 import { useRouter } from 'next/navigation';
@@ -83,11 +84,11 @@ const topSkills = [
     "Machine Learning", "Data Analysis", "System Design", "DevOps",
 ];
 
-const learningPreferences = [
-    { label: "Structured Roadmaps", desc: "Step-by-step plans with clear milestones", value: "roadmap" },
-    { label: "Practice-First", desc: "Learn by coding challenges and projects", value: "practice" },
-    { label: "Interview Prep", desc: "Focus on cracking interviews ASAP", value: "interview" },
-    { label: "Balanced Approach", desc: "Mix of theory, practice, and interview prep", value: "balanced" },
+const preparationGoals = [
+    { label: "Software engineering jobs", value: "jobs" },
+    { label: "Product-based company interviews", value: "product_interviews" },
+    { label: "Building real-world projects", value: "projects" },
+    { label: "Improving coding skills", value: "coding_skills" },
 ];
 
 const timeCommitments = [
@@ -106,7 +107,7 @@ export default function OnboardingPage() {
     const [customGoal, setCustomGoal] = useState("");
     const [expLevel, setExpLevel] = useState("");
     const [selectedSkills, setSelectedSkills] = useState<string[]>([]);
-    const [learningPref, setLearningPref] = useState("");
+    const [prepGoal, setPrepGoal] = useState("");
     const [timeCommitment, setTimeCommitment] = useState("");
 
     const totalSteps = 5;
@@ -123,21 +124,29 @@ export default function OnboardingPage() {
             case 0: return careerGoal !== "";
             case 1: return expLevel !== "";
             case 2: return selectedSkills.length >= 3;
-            case 3: return learningPref !== "";
+            case 3: return prepGoal !== "";
             case 4: return timeCommitment !== "";
             default: return true;
         }
     };
 
-    const handleFinish = () => {
-        console.log({
+    const HandleOnboardingComplete = async () => {
+        const finalData = {
             careerGoal: careerGoal === "Other" ? customGoal : careerGoal,
-            expLevel,
-            selectedSkills,
-            learningPref,
-            timeCommitment
-        });
-        router.push("/user/dashboard");
+            experienceLevel: expLevel,
+            skills: selectedSkills,
+            preparingFor: prepGoal,
+            timeCommitment: timeCommitment,
+        };
+        console.log(finalData)
+        try {
+            await api.post('/auth/onboarding/complete', finalData)
+            router.push("/user/dashboard");
+        } catch (err) {
+            console.error("Onboarding error:", err);
+            // router.push("/user/dashboard");
+        }
+
     };
 
     const fadeVariants = {
@@ -286,21 +295,20 @@ export default function OnboardingPage() {
                             {step === 3 && (
                                 <motion.div key="s3" variants={fadeVariants} initial="enter" animate="center" exit="exit" transition={{ duration: 0.25 }} className="space-y-5">
                                     <div>
-                                        <h2 className="text-xl font-bold text-foreground mb-1">How do you learn best?</h2>
-                                        <p className="text-sm text-muted-foreground">We'll prioritize content that matches your style</p>
+                                        <h2 className="text-xl font-bold text-foreground mb-1">What are you mainly preparing for?</h2>
+                                        <p className="text-sm text-muted-foreground">Choose the option that best matches your goal</p>
                                     </div>
                                     <div className="space-y-2">
-                                        {learningPreferences.map((pref) => (
+                                        {preparationGoals.map((goal) => (
                                             <button
-                                                key={pref.value}
-                                                onClick={() => setLearningPref(pref.value)}
-                                                className={`w-full text-left px-4 py-3 rounded-xl border transition-all ${learningPref === pref.value
+                                                key={goal.value}
+                                                onClick={() => setPrepGoal(goal.value)}
+                                                className={`w-full text-left px-4 py-3 rounded-xl border transition-all ${prepGoal === goal.value
                                                     ? "border-primary bg-primary/10"
                                                     : "border-border bg-card hover:border-primary/30"
                                                     }`}
                                             >
-                                                <p className="text-sm font-medium text-foreground">{pref.label}</p>
-                                                <p className="text-[11px] text-muted-foreground">{pref.desc}</p>
+                                                <p className="text-sm font-medium text-foreground">{goal.label}</p>
                                             </button>
                                         ))}
                                     </div>
@@ -337,7 +345,7 @@ export default function OnboardingPage() {
                                             <p>🎯 Goal: <span className="text-foreground font-medium">{careerGoal === "Other" ? customGoal : careerGoal}</span></p>
                                             <p>📊 Level: <span className="text-foreground font-medium">{experienceLevels.find((l) => l.value === expLevel)?.label}</span></p>
                                             <p>🛠 Skills: <span className="text-foreground font-medium">{selectedSkills.slice(0, 5).join(", ")}{selectedSkills.length > 5 ? ` +${selectedSkills.length - 5}` : ""}</span></p>
-                                            <p>📚 Style: <span className="text-foreground font-medium">{learningPreferences.find((l) => l.value === learningPref)?.label}</span></p>
+                                            <p>🎯 Preparing For: <span className="text-foreground font-medium">{preparationGoals.find((l) => l.value === prepGoal)?.label}</span></p>
                                             <p>⏱️ Time: <span className="text-foreground font-medium">{timeCommitments.find((t) => t.value === timeCommitment)?.label}</span></p>
                                         </div>
                                     </div>
@@ -368,22 +376,13 @@ export default function OnboardingPage() {
                             ) : (
                                 <Button
                                     size="sm"
-                                    onClick={handleFinish}
+                                    onClick={HandleOnboardingComplete}
                                     disabled={!canProceed()}
                                     className="bg-primary text-primary-foreground hover:bg-primary/90 text-xs"
                                 >
                                     <Rocket className="h-3.5 w-3.5 mr-1" /> Launch My Roadmap
                                 </Button>
                             )}
-                        </div>
-
-                        <div className="text-center mt-3">
-                            <button
-                                onClick={() => router.push("/user/dashboard")}
-                                className="text-[11px] text-muted-foreground hover:text-foreground transition-colors"
-                            >
-                                Skip for now
-                            </button>
                         </div>
                     </CardContent>
                 </Card>
