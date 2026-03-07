@@ -151,25 +151,24 @@ export async function googleCallback(req: Request, res: Response) {
     return res.redirect(`${process.env.FRONTEND_URL}/user/dashboard`);
 }
 
-export async function completeOnboarding(req: Request, res: Response) {
-    try {
-        const { careerGoal, experienceLevel, skills, preparingFor, timeCommitment } = req.body;
-        const userId = (req as any).userId;
+export const completeOnboarding = async (req: Request, res: Response) => {
+    const userId = (req as any).userId;
+    const { careerGoal, currentRole, yearsOfExp, skills, location, bio } = req.body;
 
-        await prisma.preferences.upsert({
-            where: { userId },
-            update: { careerGoal, experienceLevel, skills, preparingFor, timeCommitment },
-            create: { userId, careerGoal, experienceLevel, skills, preparingFor, timeCommitment },
+    const userInfo = await prisma.userInfo.upsert({
+        where: { userId },
+        update: { careerGoal, currentRole, yearsOfExp, location, bio },
+        create: { userId, careerGoal, currentRole, yearsOfExp, location, bio },
+    });
+
+    if (skills?.length) {
+        await prisma.userSkill.deleteMany({ where: { userInfoId: userInfo.id } });
+        await prisma.userSkill.createMany({
+            data: skills.map((name: string) => ({ userInfoId: userInfo.id, name }))
         });
-
-        await prisma.user.update({
-            where: { id: userId },
-            data: { isNewUser: false }
-        });
-
-        return res.status(200).json({ message: "Onboarding complete." });
-    } catch (err) {
-        console.error("Onboarding error:", err);
-        return res.status(500).json({ message: "Something went wrong." });
     }
-}
+
+    await prisma.user.update({ where: { id: userId }, data: { isNewUser: false } });
+
+    return res.status(200).json({ message: "Onboarding complete." });
+};
