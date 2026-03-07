@@ -3,9 +3,10 @@ dotenv.config()
 import express from "express";
 import cors from "cors";
 import cookieParser from "cookie-parser";
-import authRoutes from "./routes/auth.routes";
 import passport from "./utils/passport";
 
+import authRoutes from "./routes/auth.routes";
+import userInfoRoutes from "./routes/userInfo.routes";
 
 const app = express()
 const PORT = process.env.PORT || 5000
@@ -20,6 +21,7 @@ app.use(cookieParser());
 app.use(passport.initialize());
 
 app.use("/auth", authRoutes);
+app.use("/user-info", userInfoRoutes);
 
 app.get('/health', (req, res) => {
     res.json({ status: 'ok' })

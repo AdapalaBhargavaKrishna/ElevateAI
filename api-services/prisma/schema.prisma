@@ -18,27 +18,11 @@ model User {
   avatar      String?
   createdAt   DateTime     @default(now())
   updatedAt   DateTime     @updatedAt
-  preferences Preferences?
-  userInfo    UserInfo?    // ← added
+  userInfo    UserInfo?
 
   @@map("users")
 }
 
-model Preferences {
-  id              String   @id @default(cuid())
-  userId          String   @unique
-  careerGoal      String
-  experienceLevel String
-  preparingFor    String
-  skills          String[]
-  timeCommitment  String
-  createdAt       DateTime @default(now())
-  updatedAt       DateTime @updatedAt
-
-  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
-
-  @@map("preferences")
-}
 
 model UserInfo {
   id             String          @id @default(cuid())
