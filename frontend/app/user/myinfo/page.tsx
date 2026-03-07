@@ -6,26 +6,21 @@ import {
     User, Briefcase, GraduationCap, Code, Award, FolderOpen, Globe,
     Plus, Trash2, Github, Linkedin, ExternalLink, Calendar, MapPin,
     Save, Pencil, CheckCircle2, Clock, AlertCircle,
-    X, Sparkles, Mail, Phone
+    X, Sparkles
 } from "lucide-react";
+import { api } from '../../lib/axios';
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
+import { Card, CardContent } from "@/components/ui/card";
 import {
-    Select,
-    SelectContent,
-    SelectItem,
-    SelectTrigger,
-    SelectValue,
+    Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from "@/components/ui/select";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
-    Tooltip,
-    TooltipContent,
-    TooltipProvider,
-    TooltipTrigger,
+    Tooltip, TooltipContent, TooltipProvider, TooltipTrigger,
 } from "@/components/ui/tooltip";
 
 interface Experience {
@@ -55,6 +50,12 @@ const skillSuggestions = [
     "Git", "GraphQL", "REST API", "Redis", "TailwindCSS", "Figma",
 ];
 
+const emptyPersonal = {
+    fullName: "", email: "", phone: "", location: "", bio: "",
+    careerGoal: "", yearsOfExp: "", currentRole: "",
+    website: "", github: "", linkedin: "", leetcode: "",
+};
+
 export default function MyInfoPage() {
     const [activeTab, setActiveTab] = useState("personal");
     const [editMode, setEditMode] = useState<string | null>(null);
@@ -62,80 +63,75 @@ export default function MyInfoPage() {
     const [lastSaved, setLastSaved] = useState<Date>(new Date());
     const [showSaveReminder, setShowSaveReminder] = useState(false);
 
-    const [personal, setPersonal] = useState({
-        fullName: "Bhargava Krishna",
-        email: "bk.adapala@gmail.com",
-        phone: "+91 93902 43210",
-        location: "Bangalore, India",
-        bio: "Passionate full-stack developer with a knack for building scalable web applications. Love open-source, coffee, and solving complex problems with elegant code.",
-        careerGoal: "Senior Full-Stack Engineer",
-        yearsOfExp: "2-4",
-        currentRole: "Software Engineer",
-        website: "https://bhargava1028.web.app",
-        github: "https://github.com/AdapalaBhargavaKrishna",
-        linkedin: "https://www.linkedin.com/in/bhargavakrishnaadapala/",
-        leetcode: "https://leetcode.com/u/bhargava69/",
-    });
-
-    const [skills, setSkills] = useState<string[]>([
-        "React", "TypeScript", "Node.js", "Python", "PostgreSQL", "Docker",
-        "AWS", "TailwindCSS", "GraphQL", "Git", "Next.js", "MongoDB",
-    ]);
+    const [personal, setPersonal] = useState(emptyPersonal);
+    const [skills, setSkills] = useState<string[]>([]);
     const [skillInput, setSkillInput] = useState("");
-
-    const [experiences, setExperiences] = useState<Experience[]>([
-        {
-            id: uid(), company: "TechNova Solutions", role: "Software Engineer",
-            from: "2023-03", to: "", location: "Bangalore, India",
-            description: "Building microservices architecture for a B2B SaaS platform. Led migration from monolith to event-driven architecture, improving response times by 40%.",
-            current: true,
-        },
-        {
-            id: uid(), company: "PixelCraft Studios", role: "Frontend Developer Intern",
-            from: "2022-06", to: "2023-02", location: "Remote",
-            description: "Developed interactive dashboards using React and D3.js. Shipped 3 major features used by 10K+ daily active users.",
-            current: false,
-        },
-    ]);
-
-    const [education, setEducation] = useState<Education[]>([
-        {
-            id: uid(), institution: "Indian Institute of Technology, Bombay",
-            degree: "Bachelor's", field: "Computer Science & Engineering",
-            from: "2019", to: "2023", grade: "8.7 / 10",
-        },
-    ]);
-
-    const [projects, setProjects] = useState<Project[]>([
-        {
-            id: uid(), name: "DevConnect",
-            description: "A developer networking platform with real-time chat, code sharing, and collaborative coding rooms.",
-            techStack: "React, Node.js, Socket.io, PostgreSQL, Redis",
-            liveUrl: "https://github.com/AdapalaBhargavaKrishna",
-            repoUrl: "https://github.com/AdapalaBhargavaKrishna",
-        },
-        {
-            id: uid(), name: "AI Resume Grader",
-            description: "An AI-powered resume analysis tool that provides actionable feedback and ATS compatibility score.",
-            techStack: "Python, FastAPI, OpenAI, React, TailwindCSS",
-            liveUrl: "https://github.com/AdapalaBhargavaKrishna",
-            repoUrl: "https://github.com/AdapalaBhargavaKrishna",
-        },
-    ]);
-
-    const [certifications, setCertifications] = useState<Certification[]>([
-        { id: uid(), name: "AWS Solutions Architect – Associate", issuer: "Amazon Web Services", year: "2024", credentialUrl: "#" },
-        { id: uid(), name: "Meta Front-End Developer", issuer: "Meta (Coursera)", year: "2023", credentialUrl: "#" },
-    ]);
+    const [experiences, setExperiences] = useState<Experience[]>([]);
+    const [education, setEducation] = useState<Education[]>([]);
+    const [projects, setProjects] = useState<Project[]>([]);
+    const [certifications, setCertifications] = useState<Certification[]>([]);
 
     const [originalState, setOriginalState] = useState({
-        personal: { ...personal },
-        skills: [...skills],
-        experiences: JSON.parse(JSON.stringify(experiences)),
-        education: JSON.parse(JSON.stringify(education)),
-        projects: JSON.parse(JSON.stringify(projects)),
-        certifications: JSON.parse(JSON.stringify(certifications)),
+        personal: emptyPersonal,
+        skills: [] as string[],
+        experiences: [] as Experience[],
+        education: [] as Education[],
+        projects: [] as Project[],
+        certifications: [] as Certification[],
     });
+
+    useEffect(() => {
+        const fetchUserInfo = async () => {
+            try {
+                const { data: meData } = await api.get('/auth/me');
+                const fullName = meData.user.fullName || "";
+                const email = meData.user.email || "";
+
+                const { data } = await api.get('/user-info');
+                const u = data.userInfo;
+
+                const loadedPersonal = {
+                    fullName,
+                    email,
+                    phone: u?.phone || "",
+                    location: u?.location || "",
+                    bio: u?.bio || "",
+                    careerGoal: u?.careerGoal || "",
+                    currentRole: u?.currentRole || "",
+                    yearsOfExp: u?.yearsOfExp || "",
+                    website: u?.website || "",
+                    github: u?.github || "",
+                    linkedin: u?.linkedin || "",
+                    leetcode: u?.leetcode || "",
+                };
+                const loadedSkills = u?.skills?.map((s: any) => s.name) ?? [];
+                const loadedExperiences = u?.experiences?.map((e: any) => ({ ...e, id: uid() })) ?? [];
+                const loadedEducation = u?.education?.map((e: any) => ({ ...e, id: uid() })) ?? [];
+                const loadedProjects = u?.projects?.map((p: any) => ({ ...p, id: uid() })) ?? [];
+                const loadedCerts = u?.certifications?.map((c: any) => ({ ...c, id: uid() })) ?? [];
+
+                setPersonal(loadedPersonal);
+                setSkills(loadedSkills);
+                setExperiences(loadedExperiences);
+                setEducation(loadedEducation);
+                setProjects(loadedProjects);
+                setCertifications(loadedCerts);
+
+                setOriginalState({
+                    personal: loadedPersonal,
+                    skills: loadedSkills,
+                    experiences: JSON.parse(JSON.stringify(loadedExperiences)),
+                    education: JSON.parse(JSON.stringify(loadedEducation)),
+                    projects: JSON.parse(JSON.stringify(loadedProjects)),
+                    certifications: JSON.parse(JSON.stringify(loadedCerts)),
+                });
+            } catch (err) {
+                console.error("Fetch error:", err);
+            }
+        };
+
+        fetchUserInfo();
+    }, []);
 
     useEffect(() => {
         const hasChanges =
@@ -156,9 +152,27 @@ export default function MyInfoPage() {
         }
     }, [personal, skills, experiences, education, projects, certifications, originalState]);
 
-    const handleSave = () => {
+    const handleSave = async () => {
         setSaveStatus("saving");
-        setTimeout(() => {
+        try {
+            await api.post('/user-info/save', {
+                phone: personal.phone,
+                location: personal.location,
+                bio: personal.bio,
+                careerGoal: personal.careerGoal,
+                currentRole: personal.currentRole,
+                yearsOfExp: personal.yearsOfExp,
+                website: personal.website,
+                github: personal.github,
+                linkedin: personal.linkedin,
+                leetcode: personal.leetcode,
+                skills,
+                experiences: experiences.map(({ id, ...rest }) => rest),
+                education: education.map(({ id, ...rest }) => rest),
+                projects: projects.map(({ id, ...rest }) => rest),
+                certifications: certifications.map(({ id, ...rest }) => rest),
+            });
+
             setOriginalState({
                 personal: { ...personal },
                 skills: [...skills],
@@ -167,10 +181,14 @@ export default function MyInfoPage() {
                 projects: JSON.parse(JSON.stringify(projects)),
                 certifications: JSON.parse(JSON.stringify(certifications)),
             });
+
             setSaveStatus("saved");
             setLastSaved(new Date());
             setShowSaveReminder(false);
-        }, 800);
+        } catch (err) {
+            console.error("Save error:", err);
+            setSaveStatus("unsaved");
+        }
     };
 
     const handleUndo = () => {
@@ -218,43 +236,18 @@ export default function MyInfoPage() {
     const completionItems = [
         personal.fullName, personal.email, personal.location, personal.bio,
         personal.careerGoal, personal.currentRole, personal.github, personal.linkedin,
-        skills.length >= 5 ? "yes" : "", experiences.length > 0 && experiences[0].company ? "yes" : "",
+        skills.length >= 5 ? "yes" : "",
+        experiences.length > 0 && experiences[0].company ? "yes" : "",
         education.length > 0 && education[0].institution ? "yes" : "",
         projects.length > 0 && projects[0].name ? "yes" : "",
         certifications.length > 0 && certifications[0].name ? "yes" : "",
     ];
     const completion = Math.round((completionItems.filter(Boolean).length / completionItems.length) * 100);
 
-    const SectionCard = ({ children, className = "" }: { children: React.ReactNode; className?: string }) => (
-        <motion.div {...fadeUp} className={`rounded-xl border bg-card p-5 space-y-4 ${className}`}>
-            {children}
-        </motion.div>
-    );
-
-    const SectionTitle = ({ icon: Icon, title, count }: { icon: React.ElementType; title: string; count?: number }) => (
-        <div className="flex items-center justify-between">
-            <h3 className="text-sm font-semibold flex items-center gap-2">
-                <div className="h-6 w-6 rounded-md bg-primary/10 flex items-center justify-center">
-                    <Icon className="h-3.5 w-3.5 text-primary" />
-                </div>
-                {title}
-            </h3>
-            {count !== undefined && (
-                <Badge variant="secondary" className="text-[10px]">{count}</Badge>
-            )}
-        </div>
-    );
-
-    const Field = ({ label, children }: { label: string; children: React.ReactNode }) => (
-        <div className="space-y-1.5">
-            <Label className="text-xs text-muted-foreground">{label}</Label>
-            {children}
-        </div>
-    );
-
     return (
         <TooltipProvider>
             <div className="max-w-4xl mx-auto px-4 sm:px-6 py-6 sm:py-8 space-y-5 sm:space-y-6">
+
                 {/* Header */}
                 <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
                     <div>
@@ -264,29 +257,14 @@ export default function MyInfoPage() {
                     <div className="flex items-center gap-2 self-end sm:self-auto">
                         <Tooltip>
                             <TooltipTrigger asChild>
-                                <Button
-                                    variant="outline"
-                                    size="sm"
-                                    onClick={handleUndo}
-                                    disabled={saveStatus === "saved"}
-                                >
+                                <Button variant="outline" size="sm" onClick={handleUndo} disabled={saveStatus === "saved"}>
                                     Undo
                                 </Button>
                             </TooltipTrigger>
-                            <TooltipContent>
-                                <p>Revert all unsaved changes</p>
-                            </TooltipContent>
+                            <TooltipContent><p>Revert all unsaved changes</p></TooltipContent>
                         </Tooltip>
-                        <Button
-                            size="sm"
-                            onClick={handleSave}
-                            disabled={saveStatus === "saved" || saveStatus === "saving"}
-                        >
-                            {saveStatus === "saving" ? (
-                                <>Saving...</>
-                            ) : (
-                                <><Save className="h-4 w-4 mr-1.5" /> Save</>
-                            )}
+                        <Button size="sm" onClick={handleSave} disabled={saveStatus === "saved" || saveStatus === "saving"}>
+                            {saveStatus === "saving" ? <>Saving...</> : <><Save className="h-4 w-4 mr-1.5" />Save</>}
                         </Button>
                     </div>
                 </div>
@@ -295,9 +273,7 @@ export default function MyInfoPage() {
                 <AnimatePresence>
                     {showSaveReminder && saveStatus === "unsaved" && (
                         <motion.div
-                            initial={{ opacity: 0, y: -10 }}
-                            animate={{ opacity: 1, y: 0 }}
-                            exit={{ opacity: 0, y: -10 }}
+                            initial={{ opacity: 0, y: -10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -10 }}
                             className="bg-yellow-500/10 border border-yellow-500/20 rounded-xl px-4 py-3 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3"
                         >
                             <div className="flex items-center gap-3">
@@ -308,23 +284,15 @@ export default function MyInfoPage() {
                                 </div>
                             </div>
                             <div className="flex items-center gap-2 self-end sm:self-auto">
-                                <Button variant="outline" size="sm" onClick={handleUndo}>
-                                    Undo
-                                </Button>
-                                <Button size="sm" onClick={handleSave}>
-                                    Save Now
-                                </Button>
+                                <Button variant="outline" size="sm" onClick={handleUndo}>Undo</Button>
+                                <Button size="sm" onClick={handleSave}>Save Now</Button>
                             </div>
                         </motion.div>
                     )}
                 </AnimatePresence>
 
                 {/* Save Status */}
-                <motion.div
-                    initial={{ opacity: 0, y: 12 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    className="flex items-center justify-end gap-2 text-xs"
-                >
+                <div className="flex items-center justify-end gap-2 text-xs">
                     {saveStatus === "saved" ? (
                         <span className="text-green-600 flex items-center gap-1">
                             <CheckCircle2 className="h-3.5 w-3.5" /> All changes saved
@@ -339,32 +307,34 @@ export default function MyInfoPage() {
                             <Clock className="h-3.5 w-3.5 animate-spin" /> Saving...
                         </span>
                     )}
-                </motion.div>
+                </div>
 
                 {/* Profile Completion */}
-                <motion.div {...fadeUp} className="rounded-xl border bg-card p-4 flex flex-col sm:flex-row items-start sm:items-center gap-4">
-                    <div className="flex items-center gap-3 w-full sm:w-auto">
-                        <div className="h-12 w-12 sm:h-10 sm:w-10 rounded-full bg-primary flex items-center justify-center shrink-0">
-                            <span className="text-sm font-bold text-primary-foreground">{completion}%</span>
-                        </div>
-                        <div className="flex-1 sm:w-40">
-                            <p className="text-sm font-medium text-foreground">Profile Completion</p>
-                            <div className="h-1.5 rounded-full bg-muted overflow-hidden mt-1.5">
-                                <motion.div
-                                    initial={{ width: 0 }}
-                                    animate={{ width: `${completion}%` }}
-                                    transition={{ duration: 0.8 }}
-                                    className="h-full rounded-full bg-primary"
-                                />
+                <Card>
+                    <CardContent className="p-4 flex flex-col sm:flex-row items-start sm:items-center gap-4">
+                        <div className="flex items-center gap-3 w-full sm:w-auto">
+                            <div className="h-12 w-12 sm:h-10 sm:w-10 rounded-full bg-primary flex items-center justify-center shrink-0">
+                                <span className="text-sm font-bold text-primary-foreground">{completion}%</span>
+                            </div>
+                            <div className="flex-1 sm:w-40">
+                                <p className="text-sm font-medium text-foreground">Profile Completion</p>
+                                <div className="h-1.5 rounded-full bg-muted overflow-hidden mt-1.5">
+                                    <motion.div
+                                        initial={{ width: 0 }}
+                                        animate={{ width: `${completion}%` }}
+                                        transition={{ duration: 0.8 }}
+                                        className="h-full rounded-full bg-primary"
+                                    />
+                                </div>
                             </div>
                         </div>
-                    </div>
-                    {completion < 100 && (
-                        <p className="text-xs text-muted-foreground sm:ml-auto">
-                            {completion >= 80 ? "Almost there! 🎯" : "Complete for better AI insights"}
-                        </p>
-                    )}
-                </motion.div>
+                        {completion < 100 && (
+                            <p className="text-xs text-muted-foreground sm:ml-auto">
+                                {completion >= 80 ? "Almost there! 🎯" : "Complete for better AI insights"}
+                            </p>
+                        )}
+                    </CardContent>
+                </Card>
 
                 {/* Tabs */}
                 <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-5">
@@ -377,11 +347,7 @@ export default function MyInfoPage() {
                             { value: "projects", label: "Projects", icon: FolderOpen },
                             { value: "certifications", label: "Certs", icon: Award },
                         ].map((tab) => (
-                            <TabsTrigger
-                                key={tab.value}
-                                value={tab.value}
-                                className="text-xs sm:text-sm gap-1.5"
-                            >
+                            <TabsTrigger key={tab.value} value={tab.value} className="text-xs sm:text-sm gap-1.5">
                                 <tab.icon className="h-3.5 w-3.5" />
                                 <span className="hidden sm:inline">{tab.label}</span>
                                 <span className="sm:hidden">{tab.label.slice(0, 3)}</span>
@@ -389,249 +355,280 @@ export default function MyInfoPage() {
                         ))}
                     </TabsList>
 
-                    {/* Personal Tab */}
+                    {/* ── Personal Tab ── */}
                     <TabsContent value="personal" className="space-y-4">
-                        <SectionCard>
-                            <div className="flex items-center justify-between">
-                                <SectionTitle icon={User} title="Basic Information" />
-                                <Button variant="ghost" size="sm" className="h-8 gap-1" onClick={() => setEditMode(editMode === "personal" ? null : "personal")}>
-                                    <Pencil className="h-3.5 w-3.5" />
-                                    <span className="hidden sm:inline">{editMode === "personal" ? "Done" : "Edit"}</span>
-                                </Button>
-                            </div>
-
-                            {editMode === "personal" ? (
-                                <div className="space-y-4">
-                                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                                        <Field label="Full Name">
-                                            <Input value={personal.fullName} onChange={(e) => setPersonal({ ...personal, fullName: e.target.value })} />
-                                        </Field>
-                                        <Field label="Email">
-                                            <Input type="email" value={personal.email} onChange={(e) => setPersonal({ ...personal, email: e.target.value })} />
-                                        </Field>
-                                        <Field label="Phone">
-                                            <Input value={personal.phone} onChange={(e) => setPersonal({ ...personal, phone: e.target.value })} />
-                                        </Field>
-                                        <Field label="Location">
-                                            <Input value={personal.location} onChange={(e) => setPersonal({ ...personal, location: e.target.value })} />
-                                        </Field>
-                                    </div>
-                                    <Field label="Bio">
-                                        <Textarea value={personal.bio} onChange={(e) => setPersonal({ ...personal, bio: e.target.value })} className="min-h-[80px]" />
-                                    </Field>
-                                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-                                        <Field label="Current Role">
-                                            <Input value={personal.currentRole} onChange={(e) => setPersonal({ ...personal, currentRole: e.target.value })} />
-                                        </Field>
-                                        <Field label="Years of Experience">
-                                            <Select value={personal.yearsOfExp} onValueChange={(v) => setPersonal({ ...personal, yearsOfExp: v })}>
-                                                <SelectTrigger>
-                                                    <SelectValue placeholder="Select" />
-                                                </SelectTrigger>
-                                                <SelectContent>
-                                                    {["0-1", "1-2", "2-4", "4-6", "6-10", "10+"].map((y) => (
-                                                        <SelectItem key={y} value={y}>{y} years</SelectItem>
-                                                    ))}
-                                                </SelectContent>
-                                            </Select>
-                                        </Field>
-                                        <Field label="Career Goal">
-                                            <Input value={personal.careerGoal} onChange={(e) => setPersonal({ ...personal, careerGoal: e.target.value })} />
-                                        </Field>
-                                    </div>
-                                </div>
-                            ) : (
-                                <div className="space-y-4">
-                                    <div className="flex items-start gap-4">
-                                        <div className="h-16 w-16 rounded-xl bg-primary flex items-center justify-center shrink-0">
-                                            <span className="text-xl font-bold text-primary-foreground">
-                                                {personal.fullName.split(" ").map(n => n[0]).join("")}
-                                            </span>
+                        {/* Basic Info */}
+                        <Card>
+                            <CardContent className="p-5 space-y-4">
+                                <div className="flex items-center justify-between">
+                                    <h3 className="text-sm font-semibold flex items-center gap-2">
+                                        <div className="h-6 w-6 rounded-md bg-primary/10 flex items-center justify-center">
+                                            <User className="h-3.5 w-3.5 text-primary" />
                                         </div>
-                                        <div className="min-w-0">
-                                            <h4 className="text-lg font-semibold text-foreground">{personal.fullName}</h4>
-                                            <p className="text-sm text-muted-foreground flex flex-wrap items-center gap-x-2 gap-y-1 mt-1">
-                                                <span className="flex items-center gap-1"><Briefcase className="h-3.5 w-3.5" /> {personal.currentRole}</span>
-                                                <span className="hidden sm:inline">·</span>
-                                                <span className="flex items-center gap-1"><MapPin className="h-3.5 w-3.5" /> {personal.location}</span>
-                                            </p>
-                                            <p className="text-xs text-muted-foreground mt-1">{personal.yearsOfExp} years experience</p>
-                                        </div>
-                                    </div>
-                                    <p className="text-sm text-muted-foreground leading-relaxed">{personal.bio}</p>
-                                    <Badge variant="outline" className="gap-1">
-                                        <Sparkles className="h-3.5 w-3.5 text-primary" /> Goal: {personal.careerGoal}
-                                    </Badge>
+                                        Basic Information
+                                    </h3>
+                                    <Button variant="ghost" size="sm" className="h-8 gap-1" onClick={() => setEditMode(editMode === "personal" ? null : "personal")}>
+                                        <Pencil className="h-3.5 w-3.5" />
+                                        <span className="hidden sm:inline">{editMode === "personal" ? "Done" : "Edit"}</span>
+                                    </Button>
                                 </div>
-                            )}
-                        </SectionCard>
 
-                        <SectionCard>
-                            <div className="flex items-center justify-between">
-                                <SectionTitle icon={Globe} title="Online Profiles" />
-                                <Button variant="ghost" size="sm" className="h-8 gap-1" onClick={() => setEditMode(editMode === "links" ? null : "links")}>
-                                    <Pencil className="h-3.5 w-3.5" />
-                                    <span className="hidden sm:inline">{editMode === "links" ? "Done" : "Edit"}</span>
-                                </Button>
-                            </div>
-
-                            {editMode === "links" ? (
-                                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                                    {[
-                                        { label: "Website", key: "website" as const, icon: Globe, placeholder: "https://yoursite.com" },
-                                        { label: "GitHub", key: "github" as const, icon: Github, placeholder: "https://github.com/username" },
-                                        { label: "LinkedIn", key: "linkedin" as const, icon: Linkedin, placeholder: "https://linkedin.com/in/..." },
-                                        { label: "LeetCode", key: "leetcode" as const, icon: Code, placeholder: "https://leetcode.com/..." },
-                                    ].map((link) => (
-                                        <div key={link.key} className="space-y-1.5">
-                                            <Label>{link.label}</Label>
-                                            <div className="relative">
-                                                <link.icon className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                                                <Input
-                                                    placeholder={link.placeholder}
-                                                    value={personal[link.key]}
-                                                    onChange={(e) => setPersonal({ ...personal, [link.key]: e.target.value })}
-                                                    className="pl-9"
-                                                />
+                                {editMode === "personal" ? (
+                                    <div className="space-y-4">
+                                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                                            <div className="space-y-1.5">
+                                                <Label className="text-xs text-muted-foreground">Full Name</Label>
+                                                <Input value={personal.fullName} disabled className="opacity-60 cursor-not-allowed" />
+                                            </div>
+                                            <div className="space-y-1.5">
+                                                <Label className="text-xs text-muted-foreground">Email</Label>
+                                                <Input value={personal.email} disabled className="opacity-60 cursor-not-allowed" />
+                                            </div>
+                                            <div className="space-y-1.5">
+                                                <Label className="text-xs text-muted-foreground">Phone</Label>
+                                                <Input value={personal.phone} onChange={(e) => setPersonal({ ...personal, phone: e.target.value })} />
+                                            </div>
+                                            <div className="space-y-1.5">
+                                                <Label className="text-xs text-muted-foreground">Location</Label>
+                                                <Input value={personal.location} onChange={(e) => setPersonal({ ...personal, location: e.target.value })} />
                                             </div>
                                         </div>
-                                    ))}
+                                        <div className="space-y-1.5">
+                                            <Label className="text-xs text-muted-foreground">Bio</Label>
+                                            <Textarea value={personal.bio} onChange={(e) => setPersonal({ ...personal, bio: e.target.value })} className="min-h-[80px]" />
+                                        </div>
+                                        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                                            <div className="space-y-1.5">
+                                                <Label className="text-xs text-muted-foreground">Current Role</Label>
+                                                <Input value={personal.currentRole} onChange={(e) => setPersonal({ ...personal, currentRole: e.target.value })} />
+                                            </div>
+                                            <div className="space-y-1.5">
+                                                <Label className="text-xs text-muted-foreground">Years of Experience</Label>
+                                                <Select value={personal.yearsOfExp} onValueChange={(v) => setPersonal({ ...personal, yearsOfExp: v })}>
+                                                    <SelectTrigger><SelectValue placeholder="Select" /></SelectTrigger>
+                                                    <SelectContent>
+                                                        {["0-1", "1-2", "2-4", "4-6", "6-10", "10+"].map((y) => (
+                                                            <SelectItem key={y} value={y}>{y} years</SelectItem>
+                                                        ))}
+                                                    </SelectContent>
+                                                </Select>
+                                            </div>
+                                            <div className="space-y-1.5">
+                                                <Label className="text-xs text-muted-foreground">Career Goal</Label>
+                                                <Input value={personal.careerGoal} onChange={(e) => setPersonal({ ...personal, careerGoal: e.target.value })} />
+                                            </div>
+                                        </div>
+                                    </div>
+                                ) : (
+                                    <div className="space-y-4">
+                                        <div className="flex items-start gap-4">
+                                            <div className="h-16 w-16 rounded-xl bg-primary flex items-center justify-center shrink-0">
+                                                <span className="text-xl font-bold text-primary-foreground">
+                                                    {personal.fullName ? personal.fullName.split(" ").map(n => n[0]).join("") : "?"}
+                                                </span>
+                                            </div>
+                                            <div className="min-w-0">
+                                                <h4 className="text-lg font-semibold text-foreground">{personal.fullName || "—"}</h4>
+                                                <p className="text-sm text-muted-foreground flex flex-wrap items-center gap-x-2 gap-y-1 mt-1">
+                                                    {personal.currentRole && <span className="flex items-center gap-1"><Briefcase className="h-3.5 w-3.5" />{personal.currentRole}</span>}
+                                                    {personal.location && <><span className="hidden sm:inline">·</span><span className="flex items-center gap-1"><MapPin className="h-3.5 w-3.5" />{personal.location}</span></>}
+                                                </p>
+                                                {personal.yearsOfExp && <p className="text-xs text-muted-foreground mt-1">{personal.yearsOfExp} years experience</p>}
+                                            </div>
+                                        </div>
+                                        {personal.bio && <p className="text-sm text-muted-foreground leading-relaxed">{personal.bio}</p>}
+                                        {personal.careerGoal && (
+                                            <Badge variant="outline" className="gap-1">
+                                                <Sparkles className="h-3.5 w-3.5 text-primary" /> Goal: {personal.careerGoal}
+                                            </Badge>
+                                        )}
+                                        {!personal.currentRole && !personal.bio && !personal.careerGoal && (
+                                            <p className="text-sm text-muted-foreground italic">Click Edit to fill in your profile.</p>
+                                        )}
+                                    </div>
+                                )}
+                            </CardContent>
+                        </Card>
+
+                        {/* Online Profiles */}
+                        <Card>
+                            <CardContent className="p-5 space-y-4">
+                                <div className="flex items-center justify-between">
+                                    <h3 className="text-sm font-semibold flex items-center gap-2">
+                                        <div className="h-6 w-6 rounded-md bg-primary/10 flex items-center justify-center">
+                                            <Globe className="h-3.5 w-3.5 text-primary" />
+                                        </div>
+                                        Online Profiles
+                                    </h3>
+                                    <Button variant="ghost" size="sm" className="h-8 gap-1" onClick={() => setEditMode(editMode === "links" ? null : "links")}>
+                                        <Pencil className="h-3.5 w-3.5" />
+                                        <span className="hidden sm:inline">{editMode === "links" ? "Done" : "Edit"}</span>
+                                    </Button>
                                 </div>
-                            ) : (
-                                <div className="flex flex-wrap gap-2">
-                                    {personal.website && (
-                                        <a href={personal.website} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1.5 text-xs px-3 py-1.5 rounded-lg border bg-muted/30 hover:bg-muted/60 transition-colors">
-                                            <Globe className="h-3.5 w-3.5" /> Website
-                                        </a>
-                                    )}
-                                    {personal.github && (
-                                        <a href={personal.github} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1.5 text-xs px-3 py-1.5 rounded-lg border bg-muted/30 hover:bg-muted/60 transition-colors">
-                                            <Github className="h-3.5 w-3.5" /> GitHub
-                                        </a>
-                                    )}
-                                    {personal.linkedin && (
-                                        <a href={personal.linkedin} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1.5 text-xs px-3 py-1.5 rounded-lg border bg-muted/30 hover:bg-muted/60 transition-colors">
-                                            <Linkedin className="h-3.5 w-3.5" /> LinkedIn
-                                        </a>
-                                    )}
-                                    {personal.leetcode && (
-                                        <a href={personal.leetcode} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1.5 text-xs px-3 py-1.5 rounded-lg border bg-muted/30 hover:bg-muted/60 transition-colors">
-                                            <Code className="h-3.5 w-3.5" /> LeetCode
-                                        </a>
-                                    )}
-                                </div>
-                            )}
-                        </SectionCard>
+
+                                {editMode === "links" ? (
+                                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                                        {[
+                                            { label: "Website", key: "website" as const, icon: Globe, placeholder: "https://yoursite.com" },
+                                            { label: "GitHub", key: "github" as const, icon: Github, placeholder: "https://github.com/username" },
+                                            { label: "LinkedIn", key: "linkedin" as const, icon: Linkedin, placeholder: "https://linkedin.com/in/..." },
+                                            { label: "LeetCode", key: "leetcode" as const, icon: Code, placeholder: "https://leetcode.com/..." },
+                                        ].map((link) => (
+                                            <div key={link.key} className="space-y-1.5">
+                                                <Label>{link.label}</Label>
+                                                <div className="relative">
+                                                    <link.icon className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                                                    <Input
+                                                        placeholder={link.placeholder}
+                                                        value={personal[link.key]}
+                                                        onChange={(e) => setPersonal({ ...personal, [link.key]: e.target.value })}
+                                                        className="pl-9"
+                                                    />
+                                                </div>
+                                            </div>
+                                        ))}
+                                    </div>
+                                ) : (
+                                    <div className="flex flex-wrap gap-2">
+                                        {personal.website && (
+                                            <a href={personal.website} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1.5 text-xs px-3 py-1.5 rounded-lg border bg-muted/30 hover:bg-muted/60 transition-colors">
+                                                <Globe className="h-3.5 w-3.5" /> Website
+                                            </a>
+                                        )}
+                                        {personal.github && (
+                                            <a href={personal.github} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1.5 text-xs px-3 py-1.5 rounded-lg border bg-muted/30 hover:bg-muted/60 transition-colors">
+                                                <Github className="h-3.5 w-3.5" /> GitHub
+                                            </a>
+                                        )}
+                                        {personal.linkedin && (
+                                            <a href={personal.linkedin} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1.5 text-xs px-3 py-1.5 rounded-lg border bg-muted/30 hover:bg-muted/60 transition-colors">
+                                                <Linkedin className="h-3.5 w-3.5" /> LinkedIn
+                                            </a>
+                                        )}
+                                        {personal.leetcode && (
+                                            <a href={personal.leetcode} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1.5 text-xs px-3 py-1.5 rounded-lg border bg-muted/30 hover:bg-muted/60 transition-colors">
+                                                <Code className="h-3.5 w-3.5" /> LeetCode
+                                            </a>
+                                        )}
+                                        {!personal.website && !personal.github && !personal.linkedin && !personal.leetcode && (
+                                            <p className="text-sm text-muted-foreground italic">Click Edit to add your links.</p>
+                                        )}
+                                    </div>
+                                )}
+                            </CardContent>
+                        </Card>
                     </TabsContent>
 
-                    {/* Skills Tab */}
+                    {/* ── Skills Tab ── */}
                     <TabsContent value="skills">
-                        <SectionCard>
-                            <SectionTitle icon={Code} title="Your Skills" count={skills.length} />
-                            <div className="flex flex-wrap gap-1.5">
-                                {skills.map((s) => (
-                                    <Badge
-                                        key={s}
-                                        variant="secondary"
-                                        className="text-xs py-1 px-2.5 gap-1 cursor-pointer hover:bg-destructive/10 hover:text-destructive transition-colors group"
-                                        onClick={() => removeSkill(s)}
-                                    >
-                                        {s}
-                                        <X className="h-2.5 w-2.5 opacity-0 group-hover:opacity-100 transition-opacity" />
-                                    </Badge>
-                                ))}
-                            </div>
-                            <div className="flex gap-2">
-                                <Input
-                                    placeholder="Add a skill..."
-                                    value={skillInput}
-                                    onChange={(e) => setSkillInput(e.target.value)}
-                                    onKeyDown={(e) => e.key === "Enter" && (e.preventDefault(), addSkill(skillInput))}
-                                    className="flex-1"
-                                />
-                                <Button variant="outline" size="sm" onClick={() => addSkill(skillInput)} disabled={!skillInput.trim()}>
-                                    <Plus className="h-4 w-4" />
-                                </Button>
-                            </div>
-                            <div>
-                                <p className="text-xs text-muted-foreground mb-2">Suggestions</p>
+                        <Card>
+                            <CardContent className="p-5 space-y-4">
+                                <div className="flex items-center justify-between">
+                                    <h3 className="text-sm font-semibold flex items-center gap-2">
+                                        <div className="h-6 w-6 rounded-md bg-primary/10 flex items-center justify-center">
+                                            <Code className="h-3.5 w-3.5 text-primary" />
+                                        </div>
+                                        Your Skills
+                                    </h3>
+                                    <Badge variant="secondary" className="text-[10px]">{skills.length}</Badge>
+                                </div>
                                 <div className="flex flex-wrap gap-1.5">
-                                    {skillSuggestions.filter((s) => !skills.includes(s)).slice(0, 8).map((s) => (
-                                        <button
+                                    {skills.map((s) => (
+                                        <Badge
                                             key={s}
-                                            onClick={() => addSkill(s)}
-                                            className="text-xs px-2 py-1 rounded-full border bg-card hover:border-primary/40 hover:text-primary transition-colors"
+                                            variant="secondary"
+                                            className="text-xs py-1 px-2.5 gap-1 cursor-pointer hover:bg-destructive/10 hover:text-destructive transition-colors group"
+                                            onClick={() => removeSkill(s)}
                                         >
-                                            + {s}
-                                        </button>
+                                            {s}
+                                            <X className="h-2.5 w-2.5 opacity-0 group-hover:opacity-100 transition-opacity" />
+                                        </Badge>
                                     ))}
                                 </div>
-                            </div>
-                        </SectionCard>
+                                <div className="flex gap-2">
+                                    <Input
+                                        placeholder="Add a skill..."
+                                        value={skillInput}
+                                        onChange={(e) => setSkillInput(e.target.value)}
+                                        onKeyDown={(e) => e.key === "Enter" && (e.preventDefault(), addSkill(skillInput))}
+                                        className="flex-1"
+                                    />
+                                    <Button variant="outline" size="sm" onClick={() => addSkill(skillInput)} disabled={!skillInput.trim()}>
+                                        <Plus className="h-4 w-4" />
+                                    </Button>
+                                </div>
+                                <div>
+                                    <p className="text-xs text-muted-foreground mb-2">Suggestions</p>
+                                    <div className="flex flex-wrap gap-1.5">
+                                        {skillSuggestions.filter((s) => !skills.includes(s)).slice(0, 8).map((s) => (
+                                            <button
+                                                key={s}
+                                                onClick={() => addSkill(s)}
+                                                className="text-xs px-2 py-1 rounded-full border bg-card hover:border-primary/40 hover:text-primary transition-colors"
+                                            >
+                                                + {s}
+                                            </button>
+                                        ))}
+                                    </div>
+                                </div>
+                            </CardContent>
+                        </Card>
                     </TabsContent>
 
-                    {/* Experience Tab */}
+                    {/* ── Experience Tab ── */}
                     <TabsContent value="experience">
                         <div className="space-y-3">
                             {experiences.map((exp) => (
-                                <SectionCard key={exp.id}>
-                                    <div className="flex items-start justify-between gap-2">
-                                        <div className="flex items-start gap-3 min-w-0">
-                                            <div className="h-9 w-9 rounded-lg bg-primary/10 flex items-center justify-center shrink-0 mt-0.5">
-                                                <Briefcase className="h-4 w-4 text-primary" />
+                                <Card key={exp.id}>
+                                    <CardContent className="p-5 space-y-4">
+                                        <div className="flex items-start justify-between gap-2">
+                                            <div className="flex items-start gap-3 min-w-0">
+                                                <div className="h-9 w-9 rounded-lg bg-primary/10 flex items-center justify-center shrink-0 mt-0.5">
+                                                    <Briefcase className="h-4 w-4 text-primary" />
+                                                </div>
+                                                <div className="min-w-0">
+                                                    <h4 className="text-sm font-semibold text-foreground truncate">{exp.role || "Untitled Role"}</h4>
+                                                    <p className="text-xs text-muted-foreground truncate">{exp.company || "Company"}</p>
+                                                    <p className="text-xs text-muted-foreground flex items-center gap-1 mt-0.5">
+                                                        <Calendar className="h-3 w-3 shrink-0" />
+                                                        <span className="truncate">{exp.from || "Start"} – {exp.current ? "Present" : exp.to || "End"}</span>
+                                                        {exp.location && (<><span className="mx-0.5">·</span><MapPin className="h-3 w-3 shrink-0" /><span className="truncate">{exp.location}</span></>)}
+                                                    </p>
+                                                </div>
                                             </div>
-                                            <div className="min-w-0">
-                                                <h4 className="text-sm font-semibold text-foreground truncate">{exp.role || "Untitled Role"}</h4>
-                                                <p className="text-xs text-muted-foreground truncate">{exp.company || "Company"}</p>
-                                                <p className="text-xs text-muted-foreground flex items-center gap-1 mt-0.5">
-                                                    <Calendar className="h-3 w-3 shrink-0" />
-                                                    <span className="truncate">{exp.from || "Start"} – {exp.current ? "Present" : exp.to || "End"}</span>
-                                                    {exp.location && (
-                                                        <>
-                                                            <span className="mx-0.5">·</span>
-                                                            <MapPin className="h-3 w-3 shrink-0" />
-                                                            <span className="truncate">{exp.location}</span>
-                                                        </>
-                                                    )}
-                                                </p>
-                                            </div>
-                                        </div>
-                                        <div className="flex items-center gap-1 shrink-0">
-                                            {exp.current && <Badge className="text-[9px] px-1.5 bg-primary/10 text-primary">Current</Badge>}
-                                            <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => setEditMode(editMode === `exp-${exp.id}` ? null : `exp-${exp.id}`)}>
-                                                <Pencil className="h-3.5 w-3.5" />
-                                            </Button>
-                                            {experiences.length > 1 && (
+                                            <div className="flex items-center gap-1 shrink-0">
+                                                {exp.current && <Badge className="text-[9px] px-1.5 bg-primary/10 text-primary">Current</Badge>}
+                                                <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => setEditMode(editMode === `exp-${exp.id}` ? null : `exp-${exp.id}`)}>
+                                                    <Pencil className="h-3.5 w-3.5" />
+                                                </Button>
                                                 <Button variant="ghost" size="icon" className="h-7 w-7 text-destructive hover:text-destructive" onClick={() => removeExperience(exp.id)}>
                                                     <Trash2 className="h-3.5 w-3.5" />
                                                 </Button>
-                                            )}
-                                        </div>
-                                    </div>
-
-                                    {editMode === `exp-${exp.id}` ? (
-                                        <div className="space-y-3 pt-3 border-t">
-                                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                                                <Field label="Company"><Input value={exp.company} onChange={(e) => updateExp(exp.id, "company", e.target.value)} /></Field>
-                                                <Field label="Role"><Input value={exp.role} onChange={(e) => updateExp(exp.id, "role", e.target.value)} /></Field>
-                                                <Field label="Start"><Input type="month" value={exp.from} onChange={(e) => updateExp(exp.id, "from", e.target.value)} /></Field>
-                                                <Field label="End"><Input type="month" value={exp.to} onChange={(e) => updateExp(exp.id, "to", e.target.value)} disabled={exp.current} /></Field>
-                                                <Field label="Location"><Input value={exp.location} onChange={(e) => updateExp(exp.id, "location", e.target.value)} /></Field>
-                                                <div className="flex items-end pb-1">
-                                                    <label className="flex items-center gap-2 text-sm cursor-pointer">
-                                                        <input type="checkbox" checked={exp.current} onChange={(e) => updateExp(exp.id, "current", e.target.checked)} className="rounded border-border" />
-                                                        Currently here
-                                                    </label>
-                                                </div>
                                             </div>
-                                            <Field label="Description">
-                                                <Textarea value={exp.description} onChange={(e) => updateExp(exp.id, "description", e.target.value)} />
-                                            </Field>
                                         </div>
-                                    ) : (
-                                        exp.description && <p className="text-sm text-muted-foreground leading-relaxed pl-12">{exp.description}</p>
-                                    )}
-                                </SectionCard>
+
+                                        {editMode === `exp-${exp.id}` ? (
+                                            <div className="space-y-3 pt-3 border-t">
+                                                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                                                    <div className="space-y-1.5"><Label className="text-xs text-muted-foreground">Company</Label><Input value={exp.company} onChange={(e) => updateExp(exp.id, "company", e.target.value)} /></div>
+                                                    <div className="space-y-1.5"><Label className="text-xs text-muted-foreground">Role</Label><Input value={exp.role} onChange={(e) => updateExp(exp.id, "role", e.target.value)} /></div>
+                                                    <div className="space-y-1.5"><Label className="text-xs text-muted-foreground">Start</Label><Input type="month" value={exp.from} onChange={(e) => updateExp(exp.id, "from", e.target.value)} /></div>
+                                                    <div className="space-y-1.5"><Label className="text-xs text-muted-foreground">End</Label><Input type="month" value={exp.to} onChange={(e) => updateExp(exp.id, "to", e.target.value)} disabled={exp.current} /></div>
+                                                    <div className="space-y-1.5"><Label className="text-xs text-muted-foreground">Location</Label><Input value={exp.location} onChange={(e) => updateExp(exp.id, "location", e.target.value)} /></div>
+                                                    <div className="flex items-end pb-1">
+                                                        <label className="flex items-center gap-2 text-sm cursor-pointer">
+                                                            <input type="checkbox" checked={exp.current} onChange={(e) => updateExp(exp.id, "current", e.target.checked)} className="rounded border-border" />
+                                                            Currently here
+                                                        </label>
+                                                    </div>
+                                                </div>
+                                                <div className="space-y-1.5"><Label className="text-xs text-muted-foreground">Description</Label><Textarea value={exp.description} onChange={(e) => updateExp(exp.id, "description", e.target.value)} /></div>
+                                            </div>
+                                        ) : (
+                                            exp.description && <p className="text-sm text-muted-foreground leading-relaxed pl-12">{exp.description}</p>
+                                        )}
+                                    </CardContent>
+                                </Card>
                             ))}
                             <Button variant="outline" className="w-full border-dashed" onClick={addExperience}>
                                 <Plus className="h-4 w-4 mr-1.5" /> Add Experience
@@ -639,67 +636,61 @@ export default function MyInfoPage() {
                         </div>
                     </TabsContent>
 
-                    {/* Education Tab */}
+                    {/* ── Education Tab ── */}
                     <TabsContent value="education">
                         <div className="space-y-3">
                             {education.map((edu) => (
-                                <SectionCard key={edu.id}>
-                                    <div className="flex items-start justify-between gap-2">
-                                        <div className="flex items-start gap-3 min-w-0">
-                                            <div className="h-9 w-9 rounded-lg bg-primary/10 flex items-center justify-center shrink-0 mt-0.5">
-                                                <GraduationCap className="h-4 w-4 text-primary" />
+                                <Card key={edu.id}>
+                                    <CardContent className="p-5 space-y-4">
+                                        <div className="flex items-start justify-between gap-2">
+                                            <div className="flex items-start gap-3 min-w-0">
+                                                <div className="h-9 w-9 rounded-lg bg-primary/10 flex items-center justify-center shrink-0 mt-0.5">
+                                                    <GraduationCap className="h-4 w-4 text-primary" />
+                                                </div>
+                                                <div className="min-w-0">
+                                                    <h4 className="text-sm font-semibold text-foreground truncate">{edu.degree} in {edu.field || "Field"}</h4>
+                                                    <p className="text-xs text-muted-foreground truncate">{edu.institution || "Institution"}</p>
+                                                    <p className="text-xs text-muted-foreground flex items-center gap-1 mt-0.5">
+                                                        <Calendar className="h-3 w-3 shrink-0" />
+                                                        <span className="truncate">{edu.from} – {edu.to}</span>
+                                                        {edu.grade && (<><span className="mx-0.5">·</span><span className="truncate">GPA: {edu.grade}</span></>)}
+                                                    </p>
+                                                </div>
                                             </div>
-                                            <div className="min-w-0">
-                                                <h4 className="text-sm font-semibold text-foreground truncate">{edu.degree} in {edu.field || "Field"}</h4>
-                                                <p className="text-xs text-muted-foreground truncate">{edu.institution || "Institution"}</p>
-                                                <p className="text-xs text-muted-foreground flex items-center gap-1 mt-0.5">
-                                                    <Calendar className="h-3 w-3 shrink-0" />
-                                                    <span className="truncate">{edu.from} – {edu.to}</span>
-                                                    {edu.grade && (
-                                                        <>
-                                                            <span className="mx-0.5">·</span>
-                                                            <span className="truncate">GPA: {edu.grade}</span>
-                                                        </>
-                                                    )}
-                                                </p>
-                                            </div>
-                                        </div>
-                                        <div className="flex items-center gap-1 shrink-0">
-                                            <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => setEditMode(editMode === `edu-${edu.id}` ? null : `edu-${edu.id}`)}>
-                                                <Pencil className="h-3.5 w-3.5" />
-                                            </Button>
-                                            {education.length > 1 && (
+                                            <div className="flex items-center gap-1 shrink-0">
+                                                <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => setEditMode(editMode === `edu-${edu.id}` ? null : `edu-${edu.id}`)}>
+                                                    <Pencil className="h-3.5 w-3.5" />
+                                                </Button>
                                                 <Button variant="ghost" size="icon" className="h-7 w-7 text-destructive hover:text-destructive" onClick={() => removeEducation(edu.id)}>
                                                     <Trash2 className="h-3.5 w-3.5" />
                                                 </Button>
-                                            )}
-                                        </div>
-                                    </div>
-
-                                    {editMode === `edu-${edu.id}` && (
-                                        <div className="space-y-3 pt-3 border-t">
-                                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                                                <Field label="Institution"><Input value={edu.institution} onChange={(e) => updateEdu(edu.id, "institution", e.target.value)} /></Field>
-                                                <Field label="Degree">
-                                                    <Select value={edu.degree} onValueChange={(v) => updateEdu(edu.id, "degree", v)}>
-                                                        <SelectTrigger>
-                                                            <SelectValue placeholder="Select degree" />
-                                                        </SelectTrigger>
-                                                        <SelectContent>
-                                                            {["High School", "Associate", "Bachelor's", "Master's", "Ph.D.", "Bootcamp"].map((d) => (
-                                                                <SelectItem key={d} value={d}>{d}</SelectItem>
-                                                            ))}
-                                                        </SelectContent>
-                                                    </Select>
-                                                </Field>
-                                                <Field label="Field of Study"><Input value={edu.field} onChange={(e) => updateEdu(edu.id, "field", e.target.value)} /></Field>
-                                                <Field label="Grade / GPA"><Input value={edu.grade} onChange={(e) => updateEdu(edu.id, "grade", e.target.value)} /></Field>
-                                                <Field label="Start Year"><Input type="number" value={edu.from} onChange={(e) => updateEdu(edu.id, "from", e.target.value)} /></Field>
-                                                <Field label="End Year"><Input type="number" value={edu.to} onChange={(e) => updateEdu(edu.id, "to", e.target.value)} /></Field>
                                             </div>
                                         </div>
-                                    )}
-                                </SectionCard>
+
+                                        {editMode === `edu-${edu.id}` && (
+                                            <div className="space-y-3 pt-3 border-t">
+                                                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                                                    <div className="space-y-1.5"><Label className="text-xs text-muted-foreground">Institution</Label><Input value={edu.institution} onChange={(e) => updateEdu(edu.id, "institution", e.target.value)} /></div>
+                                                    <div className="space-y-1.5">
+                                                        <Label className="text-xs text-muted-foreground">Degree</Label>
+                                                        <Select value={edu.degree} onValueChange={(v) => updateEdu(edu.id, "degree", v)}>
+                                                            <SelectTrigger><SelectValue placeholder="Select degree" /></SelectTrigger>
+                                                            <SelectContent>
+                                                                {["High School", "Associate", "Bachelor's", "Master's", "Ph.D.", "Bootcamp"].map((d) => (
+                                                                    <SelectItem key={d} value={d}>{d}</SelectItem>
+                                                                ))}
+                                                            </SelectContent>
+                                                        </Select>
+                                                    </div>
+                                                    <div className="space-y-1.5"><Label className="text-xs text-muted-foreground">Field of Study</Label><Input value={edu.field} onChange={(e) => updateEdu(edu.id, "field", e.target.value)} /></div>
+                                                    <div className="space-y-1.5"><Label className="text-xs text-muted-foreground">Grade / GPA</Label><Input value={edu.grade} onChange={(e) => updateEdu(edu.id, "grade", e.target.value)} /></div>
+                                                    <div className="space-y-1.5"><Label className="text-xs text-muted-foreground">Start Year</Label><Input type="number" value={edu.from} onChange={(e) => updateEdu(edu.id, "from", e.target.value)} /></div>
+                                                    <div className="space-y-1.5"><Label className="text-xs text-muted-foreground">End Year</Label><Input type="number" value={edu.to} onChange={(e) => updateEdu(edu.id, "to", e.target.value)} /></div>
+                                                </div>
+                                            </div>
+                                        )}
+                                    </CardContent>
+                                </Card>
                             ))}
                             <Button variant="outline" className="w-full border-dashed" onClick={addEducation}>
                                 <Plus className="h-4 w-4 mr-1.5" /> Add Education
@@ -707,65 +698,63 @@ export default function MyInfoPage() {
                         </div>
                     </TabsContent>
 
-                    {/* Projects Tab */}
+                    {/* ── Projects Tab ── */}
                     <TabsContent value="projects">
                         <div className="space-y-3">
                             {projects.map((proj) => (
-                                <SectionCard key={proj.id}>
-                                    <div className="flex items-start justify-between gap-2">
-                                        <div className="flex items-start gap-3 min-w-0">
-                                            <div className="h-9 w-9 rounded-lg bg-primary/10 flex items-center justify-center shrink-0 mt-0.5">
-                                                <FolderOpen className="h-4 w-4 text-primary" />
-                                            </div>
-                                            <div className="min-w-0">
-                                                <h4 className="text-sm font-semibold text-foreground truncate">{proj.name || "Untitled Project"}</h4>
-                                                <div className="flex flex-wrap gap-1 mt-1">
-                                                    {(proj.techStack || "").split(",").slice(0, 3).map((t) => (
-                                                        <span key={t} className="text-xs px-1.5 py-0.5 rounded bg-muted text-muted-foreground">{t.trim()}</span>
-                                                    ))}
+                                <Card key={proj.id}>
+                                    <CardContent className="p-5 space-y-4">
+                                        <div className="flex items-start justify-between gap-2">
+                                            <div className="flex items-start gap-3 min-w-0">
+                                                <div className="h-9 w-9 rounded-lg bg-primary/10 flex items-center justify-center shrink-0 mt-0.5">
+                                                    <FolderOpen className="h-4 w-4 text-primary" />
+                                                </div>
+                                                <div className="min-w-0">
+                                                    <h4 className="text-sm font-semibold text-foreground truncate">{proj.name || "Untitled Project"}</h4>
+                                                    <div className="flex flex-wrap gap-1 mt-1">
+                                                        {(proj.techStack || "").split(",").filter(Boolean).slice(0, 3).map((t) => (
+                                                            <span key={t} className="text-xs px-1.5 py-0.5 rounded bg-muted text-muted-foreground">{t.trim()}</span>
+                                                        ))}
+                                                    </div>
                                                 </div>
                                             </div>
-                                        </div>
-                                        <div className="flex items-center gap-1 shrink-0">
-                                            {proj.liveUrl && (
-                                                <a href={proj.liveUrl} target="_blank" rel="noopener noreferrer">
-                                                    <Button variant="ghost" size="icon" className="h-7 w-7"><ExternalLink className="h-3.5 w-3.5" /></Button>
-                                                </a>
-                                            )}
-                                            {proj.repoUrl && (
-                                                <a href={proj.repoUrl} target="_blank" rel="noopener noreferrer">
-                                                    <Button variant="ghost" size="icon" className="h-7 w-7"><Github className="h-3.5 w-3.5" /></Button>
-                                                </a>
-                                            )}
-                                            <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => setEditMode(editMode === `proj-${proj.id}` ? null : `proj-${proj.id}`)}>
-                                                <Pencil className="h-3.5 w-3.5" />
-                                            </Button>
-                                            {projects.length > 1 && (
+                                            <div className="flex items-center gap-1 shrink-0">
+                                                {proj.liveUrl && (
+                                                    <a href={proj.liveUrl} target="_blank" rel="noopener noreferrer">
+                                                        <Button variant="ghost" size="icon" className="h-7 w-7"><ExternalLink className="h-3.5 w-3.5" /></Button>
+                                                    </a>
+                                                )}
+                                                {proj.repoUrl && (
+                                                    <a href={proj.repoUrl} target="_blank" rel="noopener noreferrer">
+                                                        <Button variant="ghost" size="icon" className="h-7 w-7"><Github className="h-3.5 w-3.5" /></Button>
+                                                    </a>
+                                                )}
+                                                <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => setEditMode(editMode === `proj-${proj.id}` ? null : `proj-${proj.id}`)}>
+                                                    <Pencil className="h-3.5 w-3.5" />
+                                                </Button>
                                                 <Button variant="ghost" size="icon" className="h-7 w-7 text-destructive hover:text-destructive" onClick={() => removeProject(proj.id)}>
                                                     <Trash2 className="h-3.5 w-3.5" />
                                                 </Button>
-                                            )}
-                                        </div>
-                                    </div>
-
-                                    {editMode !== `proj-${proj.id}` && proj.description && (
-                                        <p className="text-sm text-muted-foreground leading-relaxed pl-12">{proj.description}</p>
-                                    )}
-
-                                    {editMode === `proj-${proj.id}` && (
-                                        <div className="space-y-3 pt-3 border-t">
-                                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                                                <Field label="Project Name"><Input value={proj.name} onChange={(e) => updateProj(proj.id, "name", e.target.value)} /></Field>
-                                                <Field label="Tech Stack"><Input value={proj.techStack} onChange={(e) => updateProj(proj.id, "techStack", e.target.value)} placeholder="React, Node.js, etc." /></Field>
-                                                <Field label="Live URL"><Input value={proj.liveUrl} onChange={(e) => updateProj(proj.id, "liveUrl", e.target.value)} /></Field>
-                                                <Field label="Repo URL"><Input value={proj.repoUrl} onChange={(e) => updateProj(proj.id, "repoUrl", e.target.value)} /></Field>
                                             </div>
-                                            <Field label="Description">
-                                                <Textarea value={proj.description} onChange={(e) => updateProj(proj.id, "description", e.target.value)} />
-                                            </Field>
                                         </div>
-                                    )}
-                                </SectionCard>
+
+                                        {editMode !== `proj-${proj.id}` && proj.description && (
+                                            <p className="text-sm text-muted-foreground leading-relaxed pl-12">{proj.description}</p>
+                                        )}
+
+                                        {editMode === `proj-${proj.id}` && (
+                                            <div className="space-y-3 pt-3 border-t">
+                                                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                                                    <div className="space-y-1.5"><Label className="text-xs text-muted-foreground">Project Name</Label><Input value={proj.name} onChange={(e) => updateProj(proj.id, "name", e.target.value)} /></div>
+                                                    <div className="space-y-1.5"><Label className="text-xs text-muted-foreground">Tech Stack</Label><Input value={proj.techStack} onChange={(e) => updateProj(proj.id, "techStack", e.target.value)} placeholder="React, Node.js, etc." /></div>
+                                                    <div className="space-y-1.5"><Label className="text-xs text-muted-foreground">Live URL</Label><Input value={proj.liveUrl} onChange={(e) => updateProj(proj.id, "liveUrl", e.target.value)} /></div>
+                                                    <div className="space-y-1.5"><Label className="text-xs text-muted-foreground">Repo URL</Label><Input value={proj.repoUrl} onChange={(e) => updateProj(proj.id, "repoUrl", e.target.value)} /></div>
+                                                </div>
+                                                <div className="space-y-1.5"><Label className="text-xs text-muted-foreground">Description</Label><Textarea value={proj.description} onChange={(e) => updateProj(proj.id, "description", e.target.value)} /></div>
+                                            </div>
+                                        )}
+                                    </CardContent>
+                                </Card>
                             ))}
                             <Button variant="outline" className="w-full border-dashed" onClick={addProject}>
                                 <Plus className="h-4 w-4 mr-1.5" /> Add Project
@@ -773,49 +762,49 @@ export default function MyInfoPage() {
                         </div>
                     </TabsContent>
 
-                    {/* Certifications Tab */}
+                    {/* ── Certifications Tab ── */}
                     <TabsContent value="certifications">
                         <div className="space-y-3">
                             {certifications.map((cert) => (
-                                <SectionCard key={cert.id}>
-                                    <div className="flex items-start justify-between gap-2">
-                                        <div className="flex items-start gap-3 min-w-0">
-                                            <div className="h-9 w-9 rounded-lg bg-primary/10 flex items-center justify-center shrink-0 mt-0.5">
-                                                <Award className="h-4 w-4 text-primary" />
+                                <Card key={cert.id}>
+                                    <CardContent className="p-5 space-y-4">
+                                        <div className="flex items-start justify-between gap-2">
+                                            <div className="flex items-start gap-3 min-w-0">
+                                                <div className="h-9 w-9 rounded-lg bg-primary/10 flex items-center justify-center shrink-0 mt-0.5">
+                                                    <Award className="h-4 w-4 text-primary" />
+                                                </div>
+                                                <div className="min-w-0">
+                                                    <h4 className="text-sm font-semibold text-foreground truncate">{cert.name || "Untitled Certification"}</h4>
+                                                    <p className="text-xs text-muted-foreground truncate">{cert.issuer} · {cert.year}</p>
+                                                </div>
                                             </div>
-                                            <div className="min-w-0">
-                                                <h4 className="text-sm font-semibold text-foreground truncate">{cert.name || "Untitled Certification"}</h4>
-                                                <p className="text-xs text-muted-foreground truncate">{cert.issuer} · {cert.year}</p>
-                                            </div>
-                                        </div>
-                                        <div className="flex items-center gap-1 shrink-0">
-                                            {cert.credentialUrl && (
-                                                <a href={cert.credentialUrl} target="_blank" rel="noopener noreferrer">
-                                                    <Button variant="ghost" size="icon" className="h-7 w-7"><ExternalLink className="h-3.5 w-3.5" /></Button>
-                                                </a>
-                                            )}
-                                            <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => setEditMode(editMode === `cert-${cert.id}` ? null : `cert-${cert.id}`)}>
-                                                <Pencil className="h-3.5 w-3.5" />
-                                            </Button>
-                                            {certifications.length > 1 && (
+                                            <div className="flex items-center gap-1 shrink-0">
+                                                {cert.credentialUrl && (
+                                                    <a href={cert.credentialUrl} target="_blank" rel="noopener noreferrer">
+                                                        <Button variant="ghost" size="icon" className="h-7 w-7"><ExternalLink className="h-3.5 w-3.5" /></Button>
+                                                    </a>
+                                                )}
+                                                <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => setEditMode(editMode === `cert-${cert.id}` ? null : `cert-${cert.id}`)}>
+                                                    <Pencil className="h-3.5 w-3.5" />
+                                                </Button>
                                                 <Button variant="ghost" size="icon" className="h-7 w-7 text-destructive hover:text-destructive" onClick={() => removeCert(cert.id)}>
                                                     <Trash2 className="h-3.5 w-3.5" />
                                                 </Button>
-                                            )}
-                                        </div>
-                                    </div>
-
-                                    {editMode === `cert-${cert.id}` && (
-                                        <div className="space-y-3 pt-3 border-t">
-                                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                                                <Field label="Name"><Input value={cert.name} onChange={(e) => updateCert(cert.id, "name", e.target.value)} /></Field>
-                                                <Field label="Issuer"><Input value={cert.issuer} onChange={(e) => updateCert(cert.id, "issuer", e.target.value)} /></Field>
-                                                <Field label="Year"><Input type="number" value={cert.year} onChange={(e) => updateCert(cert.id, "year", e.target.value)} /></Field>
-                                                <Field label="Credential URL"><Input value={cert.credentialUrl} onChange={(e) => updateCert(cert.id, "credentialUrl", e.target.value)} /></Field>
                                             </div>
                                         </div>
-                                    )}
-                                </SectionCard>
+
+                                        {editMode === `cert-${cert.id}` && (
+                                            <div className="space-y-3 pt-3 border-t">
+                                                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                                                    <div className="space-y-1.5"><Label className="text-xs text-muted-foreground">Name</Label><Input value={cert.name} onChange={(e) => updateCert(cert.id, "name", e.target.value)} /></div>
+                                                    <div className="space-y-1.5"><Label className="text-xs text-muted-foreground">Issuer</Label><Input value={cert.issuer} onChange={(e) => updateCert(cert.id, "issuer", e.target.value)} /></div>
+                                                    <div className="space-y-1.5"><Label className="text-xs text-muted-foreground">Year</Label><Input type="number" value={cert.year} onChange={(e) => updateCert(cert.id, "year", e.target.value)} /></div>
+                                                    <div className="space-y-1.5"><Label className="text-xs text-muted-foreground">Credential URL</Label><Input value={cert.credentialUrl} onChange={(e) => updateCert(cert.id, "credentialUrl", e.target.value)} /></div>
+                                                </div>
+                                            </div>
+                                        )}
+                                    </CardContent>
+                                </Card>
                             ))}
                             <Button variant="outline" className="w-full border-dashed" onClick={addCert}>
                                 <Plus className="h-4 w-4 mr-1.5" /> Add Certification

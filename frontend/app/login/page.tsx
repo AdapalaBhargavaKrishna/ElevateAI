@@ -74,7 +74,7 @@ export default function LoginPage() {
             if (data.isNewUser) {
                 router.replace("/onboarding/user");
             } else {
-                router.replace("/onboarding/user");
+                router.replace("/user/dashboard");
             }
         } catch (err: any) {
             setError(err.response?.data?.message || "Something went wrong.");
