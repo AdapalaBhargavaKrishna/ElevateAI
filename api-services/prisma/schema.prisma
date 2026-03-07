@@ -19,6 +19,7 @@ model User {
   createdAt   DateTime     @default(now())
   updatedAt   DateTime     @updatedAt
   preferences Preferences?
+  userInfo    UserInfo?    // ← added
 
   @@map("users")
 }
@@ -37,4 +38,100 @@ model Preferences {
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@map("preferences")
+}
+
+model UserInfo {
+  id             String          @id @default(cuid())
+  userId         String          @unique
+  phone          String?
+  location       String?
+  bio            String?
+  careerGoal     String?
+  currentRole    String?
+  yearsOfExp     String?
+  website        String?
+  github         String?
+  linkedin       String?
+  leetcode       String?
+  createdAt      DateTime        @default(now())
+  updatedAt      DateTime        @updatedAt
+
+  user           User            @relation(fields: [userId], references: [id], onDelete: Cascade)
+  skills         UserSkill[]
+  experiences    Experience[]
+  education      Education[]
+  projects       UserProject[]
+  certifications Certification[]
+
+  @@map("user_info")
+}
+
+model UserSkill {
+  id         String   @id @default(cuid())
+  userInfoId String
+  name       String
+
+  userInfo   UserInfo @relation(fields: [userInfoId], references: [id], onDelete: Cascade)
+
+  @@map("user_skills")
+}
+
+model Experience {
+  id          String   @id @default(cuid())
+  userInfoId  String
+  company     String
+  role        String
+  from        String
+  to          String?
+  location    String?
+  description String?
+  current     Boolean  @default(false)
+
+  userInfo    UserInfo @relation(fields: [userInfoId], references: [id], onDelete: Cascade)
+
+  @@map("experiences")
+}
+
+model Education {
+  id          String   @id @default(cuid())
+  userInfoId  String
+  institution String
+  degree      String
+  field       String
+  from        String
+  to          String?
+  grade       String?
+
+  userInfo    UserInfo @relation(fields: [userInfoId], references: [id], onDelete: Cascade)
+
+  @@map("education")
+}
+
+model UserProject {
+  id          String   @id @default(cuid())
+  userInfoId  String
+  name        String
+  description String?
+  techStack   String?
+  liveUrl     String?
+  repoUrl     String?
+  featured    Boolean  @default(false)
+
+  userInfo    UserInfo @relation(fields: [userInfoId], references: [id], onDelete: Cascade)
+
+  @@map("user_projects")
+}
+
+model Certification {
+  id            String   @id @default(cuid())
+  userInfoId    String
+  name          String
+  issuer        String
+  year          String
+  credentialUrl String?
+  expiry        String?
+
+  userInfo      UserInfo @relation(fields: [userInfoId], references: [id], onDelete: Cascade)
+
+  @@map("certifications")
 }
