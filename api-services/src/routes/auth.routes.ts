@@ -18,9 +18,22 @@ router.get("/google", passport.authenticate("google", {
     session: false,
 }));
 
-router.get("/google/callback",
-    passport.authenticate("google", { session: false, failureRedirect: "/login" }),
-    googleCallback
-);
+router.get("/google/callback", (req, res, next) => {
+    passport.authenticate("google", { session: false }, (err, user) => {
+        if (err?.message === "EMAIL_EXISTS_LOCAL") {
+            return res.redirect(
+                `${process.env.FRONTEND_URL}/login?error=email_exists_local`
+            );
+        }
+        if (err || !user) {
+            return res.redirect(
+                `${process.env.FRONTEND_URL}/login?error=oauth_failed`
+            );
+        }
+
+        req.user = user;
+        return googleCallback(req, res);
+    })(req, res, next);
+});
 
 export default router;
