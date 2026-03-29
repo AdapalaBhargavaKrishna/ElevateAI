@@ -10,14 +10,13 @@ import {
     Sun,
     Moon
 } from "lucide-react";
-import { useState, useEffect } from "react";
-import { useRouter } from "next/navigation";
+import { useState, useEffect, } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
 import { useTheme } from "next-themes";
 import Link from "next/link";
 import Image from "next/image";
 import { api } from '../lib/axios'
 
-// Import shadcn components
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -45,6 +44,14 @@ export default function LoginPage() {
     const [password, setPassword] = useState("");
     const [isLoading, setIsLoading] = useState(false);
     const { theme, setTheme } = useTheme();
+    const searchParams = useSearchParams();
+
+    useEffect(() => {
+        const error = searchParams.get("error");
+        if (error === "email_exists_local") {
+            alert('This email is registered with a password. Please log in normally.')
+        }
+    }, [searchParams]);
 
     useEffect(() => {
         setMounted(true);

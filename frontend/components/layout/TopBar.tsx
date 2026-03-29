@@ -4,6 +4,8 @@ import React, { useState } from 'react';
 import { Search, Moon, Sun, User, Menu } from 'lucide-react';
 import { useTheme } from 'next-themes';
 import { useSidebar } from '@/context/SidebarContext';
+import { api } from '../../app/lib/axios'
+import { useRouter } from "next/navigation";
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import {
@@ -26,7 +28,24 @@ import {
 export function TopBar() {
     const { theme, setTheme } = useTheme();
     const { toggleMobile } = useSidebar();
+    const router = useRouter();
     const [searchOpen, setSearchOpen] = useState(false);
+
+
+    const handleLogout = async () => {
+        try {
+            await api.post(
+                "/auth/logout",
+                {},
+                {
+                    withCredentials: true,
+                }
+            );
+            router.replace('/login')
+        } catch (err) {
+            console.error("Logout failed", err);
+        }
+    };
 
     return (
         <header className="h-16 border-b border-border bg-card/50 backdrop-blur-sm sticky top-0 z-30">
@@ -99,13 +118,7 @@ export function TopBar() {
                             </Button>
                         </DropdownMenuTrigger>
                         <DropdownMenuContent align="end" className="w-56">
-                            <DropdownMenuLabel>My Account</DropdownMenuLabel>
-                            <DropdownMenuSeparator />
-                            <DropdownMenuItem>Profile</DropdownMenuItem>
-                            <DropdownMenuItem>Settings</DropdownMenuItem>
-                            <DropdownMenuItem>Billing</DropdownMenuItem>
-                            <DropdownMenuSeparator />
-                            <DropdownMenuItem>Log out</DropdownMenuItem>
+                            <DropdownMenuItem onClick={handleLogout}>Log out</DropdownMenuItem>
                         </DropdownMenuContent>
                     </DropdownMenu>
                 </div>
