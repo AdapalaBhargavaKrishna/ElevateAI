@@ -6,44 +6,15 @@ import { api } from '../../lib/axios';
 import { motion, AnimatePresence } from "framer-motion";
 import {
     ArrowRight, ArrowLeft, Target, Briefcase, Code,
-    GraduationCap, CheckCircle2, Rocket, Sun, Moon, MapPin, User
+    GraduationCap, CheckCircle2, Rocket, Sun, Moon, MapPin, User, Plus, X
 } from "lucide-react";
 import { useRouter } from 'next/navigation';
 import { useTheme } from 'next-themes';
 import { Button } from "@/components/ui/button";
-
-const Input = ({ className = "", ...props }: React.InputHTMLAttributes<HTMLInputElement>) => (
-    <input
-        className={`flex h-9 w-full rounded-lg border border-border bg-background px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-primary disabled:cursor-not-allowed disabled:opacity-50 ${className}`}
-        {...props}
-    />
-);
-
-const Textarea = ({ className = "", ...props }: React.TextareaHTMLAttributes<HTMLTextAreaElement>) => (
-    <textarea
-        className={`flex min-h-[80px] w-full rounded-lg border border-border bg-background px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-primary disabled:cursor-not-allowed disabled:opacity-50 resize-none ${className}`}
-        {...props}
-    />
-);
-
-const Card = ({ children, className = "" }: { children: React.ReactNode; className?: string }) => (
-    <div className={`rounded-xl border border-border bg-card text-card-foreground shadow-sm ${className}`}>
-        {children}
-    </div>
-);
-
-const CardContent = ({ children, className = "" }: { children: React.ReactNode; className?: string }) => (
-    <div className={`p-6 ${className}`}>{children}</div>
-);
-
-const Progress = ({ value, className = "" }: { value: number; className?: string }) => (
-    <div className={`w-full bg-muted/30 rounded-full overflow-hidden ${className}`}>
-        <div
-            className="h-full bg-gradient-to-r from-primary to-primary/80 transition-all duration-500 ease-out"
-            style={{ width: `${value}%` }}
-        />
-    </div>
-);
+import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
+import { Card, CardContent } from "@/components/ui/card";
+import { Progress } from "@/components/ui/progress";
 
 const careerGoals = [
     "Frontend Developer", "Backend Developer", "Full-Stack Developer",
@@ -78,6 +49,8 @@ export default function OnboardingPage() {
     const [yearsOfExp, setYearsOfExp] = useState("");
 
     const [selectedSkills, setSelectedSkills] = useState<string[]>([]);
+    const [customSkill, setCustomSkill] = useState("");
+    const [showSkillInput, setShowSkillInput] = useState(false);
 
     const [location, setLocation] = useState("");
     const [bio, setBio] = useState("");
@@ -89,6 +62,18 @@ export default function OnboardingPage() {
         setSelectedSkills((prev) =>
             prev.includes(s) ? prev.filter((x) => x !== s) : [...prev, s]
         );
+    };
+
+    const addCustomSkill = () => {
+        if (customSkill.trim() && !selectedSkills.includes(customSkill.trim()) && !topSkills.includes(customSkill.trim())) {
+            setSelectedSkills([...selectedSkills, customSkill.trim()]);
+            setCustomSkill("");
+            setShowSkillInput(false);
+        }
+    };
+
+    const removeSkill = (skillToRemove: string) => {
+        setSelectedSkills(selectedSkills.filter(skill => skill !== skillToRemove));
     };
 
     const canProceed = () => {
@@ -262,7 +247,30 @@ export default function OnboardingPage() {
                                         <h2 className="text-xl font-bold text-foreground mb-1">Select your skills</h2>
                                         <p className="text-sm text-muted-foreground">Pick at least 3 skills you're proficient in</p>
                                     </div>
-                                    <div className="flex flex-wrap gap-2">
+                                    
+                                    {/* Selected Skills Display */}
+                                    {selectedSkills.length > 0 && (
+                                        <div className="flex flex-wrap gap-2 p-3 rounded-lg bg-muted/20">
+                                            {selectedSkills.map((skill) => (
+                                                <span
+                                                    key={skill}
+                                                    className="inline-flex items-center gap-1 px-2 py-1 rounded-full bg-primary/10 text-primary text-xs font-medium"
+                                                >
+                                                    {skill}
+                                                    <button
+                                                        onClick={() => removeSkill(skill)}
+                                                        className="hover:text-destructive transition-colors"
+                                                        aria-label={`Remove ${skill}`}
+                                                    >
+                                                        <X className="h-3 w-3" />
+                                                    </button>
+                                                </span>
+                                            ))}
+                                        </div>
+                                    )}
+                                    
+                                    {/* Predefined Skills */}
+                                    <div className="flex flex-wrap gap-2 max-h-48 overflow-y-auto p-1">
                                         {topSkills.map((s) => (
                                             <button
                                                 key={s}
@@ -276,6 +284,53 @@ export default function OnboardingPage() {
                                             </button>
                                         ))}
                                     </div>
+                                    
+                                    {/* Add Custom Skill Section */}
+                                    <div className="space-y-2">
+                                        {!showSkillInput ? (
+                                            <button
+                                                onClick={() => setShowSkillInput(true)}
+                                                className="w-full flex items-center justify-center gap-2 px-4 py-2 rounded-lg border border-dashed border-border hover:border-primary/50 hover:bg-muted/30 transition-all text-sm text-muted-foreground hover:text-foreground"
+                                            >
+                                                <Plus className="h-4 w-4" />
+                                                Add Custom Skill
+                                            </button>
+                                        ) : (
+                                            <div className="flex gap-2">
+                                                <Input
+                                                    placeholder="Type your skill (e.g., Figma, Photoshop)..."
+                                                    value={customSkill}
+                                                    onChange={(e) => setCustomSkill(e.target.value)}
+                                                    onKeyPress={(e) => {
+                                                        if (e.key === 'Enter') {
+                                                            addCustomSkill();
+                                                        }
+                                                    }}
+                                                    className="flex-1 bg-muted/30"
+                                                    autoFocus
+                                                />
+                                                <Button
+                                                    size="sm"
+                                                    onClick={addCustomSkill}
+                                                    disabled={!customSkill.trim()}
+                                                    className="bg-primary text-primary-foreground hover:bg-primary/90"
+                                                >
+                                                    Add
+                                                </Button>
+                                                <Button
+                                                    size="sm"
+                                                    variant="ghost"
+                                                    onClick={() => {
+                                                        setShowSkillInput(false);
+                                                        setCustomSkill("");
+                                                    }}
+                                                >
+                                                    Cancel
+                                                </Button>
+                                            </div>
+                                        )}
+                                    </div>
+                                    
                                     <p className="text-[11px] text-muted-foreground">
                                         {selectedSkills.length} selected {selectedSkills.length < 3 && `· Pick ${3 - selectedSkills.length} more`}
                                     </p>
@@ -310,6 +365,7 @@ export default function OnboardingPage() {
                                             value={bio}
                                             onChange={(e) => setBio(e.target.value)}
                                             className="bg-muted/30"
+                                            rows={3}
                                         />
                                         <p className="text-[10px] text-muted-foreground text-right">{bio.length}/300</p>
                                     </div>
