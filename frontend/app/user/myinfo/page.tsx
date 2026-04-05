@@ -38,11 +38,6 @@ interface Certification {
 
 const uid = () => Math.random().toString(36).slice(2, 9);
 
-const fadeUp = {
-    initial: { opacity: 0, y: 14 },
-    animate: { opacity: 1, y: 0 },
-    transition: { duration: 0.3 }
-};
 
 const skillSuggestions = [
     "JavaScript", "TypeScript", "React", "Next.js", "Node.js", "Python", "Java", "C++",
@@ -56,7 +51,79 @@ const emptyPersonal = {
     website: "", github: "", linkedin: "", leetcode: "",
 };
 
+const SkeletonLine = ({ className = "" }: { className?: string }) => (
+    <div className={`animate-pulse bg-gray-200 rounded ${className}`} />
+);
+
+const SkeletonCircle = ({ className = "" }: { className?: string }) => (
+    <div className={`animate-pulse bg-gray-200 rounded-full ${className}`} />
+);
+
+const SkeletonCard = () => (
+    <Card>
+        <CardContent className="p-5 space-y-4">
+            <div className="flex items-start justify-between">
+                <div className="flex items-start gap-3">
+                    <SkeletonCircle className="h-9 w-9" />
+                    <div className="space-y-2">
+                        <SkeletonLine className="h-4 w-32" />
+                        <SkeletonLine className="h-3 w-24" />
+                        <SkeletonLine className="h-3 w-40" />
+                    </div>
+                </div>
+                <SkeletonLine className="h-7 w-16" />
+            </div>
+            <SkeletonLine className="h-16 w-full" />
+        </CardContent>
+    </Card>
+);
+
+const ProfileSkeleton = () => (
+    <div className="max-w-4xl mx-auto px-4 sm:px-6 py-6 sm:py-8 space-y-5 sm:space-y-6">
+
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+            <div>
+                <SkeletonLine className="h-8 w-32 mb-2" />
+                <SkeletonLine className="h-4 w-64" />
+            </div>
+            <div className="flex gap-2 self-end sm:self-auto">
+                <SkeletonLine className="h-9 w-16 rounded-md" />
+                <SkeletonLine className="h-9 w-20 rounded-md" />
+            </div>
+        </div>
+
+        <Card>
+            <CardContent className="p-4 flex flex-col sm:flex-row items-start sm:items-center gap-4">
+                <div className="flex items-center gap-3 w-full sm:w-auto">
+                    <SkeletonCircle className="h-12 w-12 sm:h-10 sm:w-10" />
+                    <div className="flex-1 sm:w-40">
+                        <SkeletonLine className="h-4 w-28 mb-2" />
+                        <SkeletonLine className="h-1.5 w-full rounded-full" />
+                    </div>
+                </div>
+                <SkeletonLine className="h-4 w-48 sm:ml-auto" />
+            </CardContent>
+        </Card>
+
+
+        <div className="space-y-5">
+            <div className="grid grid-cols-3 sm:grid-cols-6 gap-1 p-1 bg-muted rounded-lg">
+                {[...Array(6)].map((_, i) => (
+                    <SkeletonLine key={i} className="h-9 rounded-md" />
+                ))}
+            </div>
+
+
+            <div className="space-y-4">
+                <SkeletonCard />
+                <SkeletonCard />
+            </div>
+        </div>
+    </div>
+);
+
 export default function MyInfoPage() {
+    const [loading, setLoading] = useState(true);
     const [activeTab, setActiveTab] = useState("personal");
     const [editMode, setEditMode] = useState<string | null>(null);
     const [saveStatus, setSaveStatus] = useState<"saved" | "unsaved" | "saving">("saved");
@@ -82,6 +149,7 @@ export default function MyInfoPage() {
 
     useEffect(() => {
         const fetchUserInfo = async () => {
+            setLoading(true);
             try {
                 const { data: meData } = await api.get('/auth/me');
                 const fullName = meData.user.fullName || "";
@@ -127,6 +195,8 @@ export default function MyInfoPage() {
                 });
             } catch (err) {
                 console.error("Fetch error:", err);
+            } finally {
+                setLoading(false);
             }
         };
 
@@ -244,11 +314,14 @@ export default function MyInfoPage() {
     ];
     const completion = Math.round((completionItems.filter(Boolean).length / completionItems.length) * 100);
 
+    if (loading) {
+        return <ProfileSkeleton />;
+    }
+
     return (
         <TooltipProvider>
             <div className="max-w-4xl mx-auto px-4 sm:px-6 py-6 sm:py-8 space-y-5 sm:space-y-6">
 
-                {/* Header */}
                 <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
                     <div>
                         <h1 className="text-2xl sm:text-3xl font-bold text-foreground">My Info</h1>
@@ -269,7 +342,6 @@ export default function MyInfoPage() {
                     </div>
                 </div>
 
-                {/* Save Reminder */}
                 <AnimatePresence>
                     {showSaveReminder && saveStatus === "unsaved" && (
                         <motion.div
@@ -291,7 +363,6 @@ export default function MyInfoPage() {
                     )}
                 </AnimatePresence>
 
-                {/* Save Status */}
                 <div className="flex items-center justify-end gap-2 text-xs">
                     {saveStatus === "saved" ? (
                         <span className="text-green-600 flex items-center gap-1">
@@ -309,7 +380,6 @@ export default function MyInfoPage() {
                     )}
                 </div>
 
-                {/* Profile Completion */}
                 <Card>
                     <CardContent className="p-4 flex flex-col sm:flex-row items-start sm:items-center gap-4">
                         <div className="flex items-center gap-3 w-full sm:w-auto">
@@ -336,7 +406,6 @@ export default function MyInfoPage() {
                     </CardContent>
                 </Card>
 
-                {/* Tabs */}
                 <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-5">
                     <TabsList className="grid grid-cols-3 sm:grid-cols-6 h-auto p-1">
                         {[
@@ -355,9 +424,8 @@ export default function MyInfoPage() {
                         ))}
                     </TabsList>
 
-                    {/* ── Personal Tab ── */}
                     <TabsContent value="personal" className="space-y-4">
-                        {/* Basic Info */}
+
                         <Card>
                             <CardContent className="p-5 space-y-4">
                                 <div className="flex items-center justify-between">
@@ -450,7 +518,6 @@ export default function MyInfoPage() {
                             </CardContent>
                         </Card>
 
-                        {/* Online Profiles */}
                         <Card>
                             <CardContent className="p-5 space-y-4">
                                 <div className="flex items-center justify-between">
@@ -519,7 +586,6 @@ export default function MyInfoPage() {
                         </Card>
                     </TabsContent>
 
-                    {/* ── Skills Tab ── */}
                     <TabsContent value="skills">
                         <Card>
                             <CardContent className="p-5 space-y-4">
@@ -575,7 +641,6 @@ export default function MyInfoPage() {
                         </Card>
                     </TabsContent>
 
-                    {/* ── Experience Tab ── */}
                     <TabsContent value="experience">
                         <div className="space-y-3">
                             {experiences.map((exp) => (
@@ -636,7 +701,6 @@ export default function MyInfoPage() {
                         </div>
                     </TabsContent>
 
-                    {/* ── Education Tab ── */}
                     <TabsContent value="education">
                         <div className="space-y-3">
                             {education.map((edu) => (
@@ -698,7 +762,6 @@ export default function MyInfoPage() {
                         </div>
                     </TabsContent>
 
-                    {/* ── Projects Tab ── */}
                     <TabsContent value="projects">
                         <div className="space-y-3">
                             {projects.map((proj) => (
@@ -762,7 +825,6 @@ export default function MyInfoPage() {
                         </div>
                     </TabsContent>
 
-                    {/* ── Certifications Tab ── */}
                     <TabsContent value="certifications">
                         <div className="space-y-3">
                             {certifications.map((cert) => (
