@@ -3,27 +3,27 @@ generator client {
 }
 
 datasource db {
-  provider  = "postgresql"
-  url       = env("DATABASE_URL")
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
 }
 
 model User {
-  id          String       @id @default(cuid())
-  email       String       @unique
-  password    String?
-  fullName    String
-  isNewUser   Boolean      @default(true)
-  provider    String       @default("local")
-  googleId    String?      @unique
-  avatar      String?
-  elevateScore Int         @default(0)
-  createdAt   DateTime     @default(now())
-  updatedAt   DateTime     @updatedAt
-  userInfo    UserInfo?
+  id               String             @id @default(cuid())
+  email            String             @unique
+  password         String?
+  fullName         String
+  isNewUser        Boolean            @default(true)
+  provider         String             @default("local")
+  googleId         String?            @unique
+  avatar           String?
+  elevateScore     Int                @default(0)
+  createdAt        DateTime           @default(now())
+  updatedAt        DateTime           @updatedAt
+  userInfo         UserInfo?
+  interviewSessions InterviewSession[]
 
   @@map("users")
 }
-
 
 model UserInfo {
   id             String          @id @default(cuid())
@@ -119,4 +119,56 @@ model Certification {
   userInfo      UserInfo @relation(fields: [userInfoId], references: [id], onDelete: Cascade)
 
   @@map("certifications")
+}
+
+// ─── Interview Models ─────────────────────────────────────────────────────────
+
+model InterviewSession {
+  id              String              @id @default(uuid())
+  userId          String
+  role            String
+  level           String
+  interviewType   String
+  difficulty      String
+  questionCount   Int
+  totalScore      Float?
+  // "in_progress" | "awaiting_summary" | "completed"
+  status          String              @default("in_progress")
+  timerEnabled    Boolean             @default(false)
+  timePerQuestion Int?
+  mode            String              @default("interview")
+  createdAt       DateTime            @default(now())
+  completedAt     DateTime?
+
+  user            User                @relation(fields: [userId], references: [id], onDelete: Cascade)
+  questions       InterviewQuestion[]
+
+  @@map("interview_sessions")
+}
+
+model InterviewQuestion {
+  id                     String           @id @default(uuid())
+  sessionId              String
+  questionIndex          Float
+  questionText           String
+  category               String?
+  hintLevel1             String?
+  hintLevel2             String?
+  userAnswer             String?
+  technicalScore         Float?
+  depthScore             Float?
+  clarityScore           Float?
+  relevanceScore         Float?
+  structureScore         Float?
+  overallScore           Float?
+  strengths              String?
+  weaknesses             String?
+  improvementSuggestions String?
+  answeredAt             DateTime?
+  isFollowup             Boolean          @default(false)
+  parentQuestionId       String?
+
+  session                InterviewSession @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+
+  @@map("interview_questions")
 }

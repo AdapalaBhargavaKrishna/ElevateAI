@@ -6,6 +6,7 @@ import cookieParser from "cookie-parser";
 import passport from "./utils/passport";
 
 import authRoutes from "./routes/auth.routes";
+import interviewRoutes from "./routes/interview.routes";
 import userInfoRoutes from "./routes/userInfo.routes";
 
 const app = express()
@@ -21,6 +22,7 @@ app.use(cookieParser());
 app.use(passport.initialize());
 
 app.use("/auth", authRoutes);
+app.use("/interview", interviewRoutes);
 app.use("/user-info", userInfoRoutes);
 
 app.get('/health', (req, res) => {
