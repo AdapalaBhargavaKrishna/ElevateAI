@@ -53,6 +53,7 @@ export interface StartInterviewResponse {
     session_id: string;
     first_question: QuestionOut;
     total_questions: number;
+    questions: QuestionOut[];
 }
 
 export interface AnswerSubmitRequest {

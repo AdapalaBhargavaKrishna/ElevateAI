@@ -28,7 +28,8 @@ def start_interview(
     return schemas.InterviewStartResponse(
         session_id="temp-session-id",  # Node will manage real session
         first_question=result["questions"][0],
-        total_questions=len(result["questions"])
+        total_questions=len(result["questions"]),
+        questions=result["questions"]
     )
 
 

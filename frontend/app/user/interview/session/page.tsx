@@ -12,7 +12,7 @@ import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
 import {
     Mic, MicOff, Camera, CameraOff, Send, Loader2, ArrowLeft,
-    Clock, Lightbulb, CheckCircle2, AlertCircle
+    Clock, Lightbulb, CheckCircle2, AlertCircle, ArrowRight
 } from "lucide-react";
 import Link from "next/link";
 
@@ -61,6 +61,9 @@ export default function InterviewSessionPage() {
     const [duration, setDuration] = useState(0);
     const [currentEvaluation, setCurrentEvaluation] = useState<Evaluation | null>(null);
     const [error, setError] = useState<string | null>(null);
+    const [nextQuestionData, setNextQuestionData] = useState<Question | null>(null);
+    const [isLastQuestion, setIsLastQuestion] = useState(false);
+    const [allAnswers, setAllAnswers] = useState<Array<{ question: Question; answer: string; evaluation: Evaluation }>>([]);
     
     const videoRef = useRef<HTMLVideoElement>(null);
     const mediaStreamRef = useRef<MediaStream | null>(null);
@@ -69,7 +72,7 @@ export default function InterviewSessionPage() {
     // Timer effect
     useEffect(() => {
         let interval: NodeJS.Timeout;
-        if (sessionId && !error) {
+        if (sessionId && !error && !currentEvaluation) {
             interval = setInterval(() => {
                 setDuration(prev => prev + 1);
             }, 1000);
@@ -77,7 +80,7 @@ export default function InterviewSessionPage() {
         return () => {
             if (interval) clearInterval(interval);
         };
-    }, [sessionId, error]);
+    }, [sessionId, error, currentEvaluation]);
 
     // Load first question on mount
     useEffect(() => {
@@ -125,7 +128,6 @@ export default function InterviewSessionPage() {
             console.log('API Response:', response);
             
             setSessionId(response.sessionId);
-            // FIX: Set the entire question object, not just the text
             setCurrentQuestion(response.firstQuestion);
             setCurrentQuestionIndex(0);
             
@@ -162,45 +164,65 @@ export default function InterviewSessionPage() {
                 answer: answer.trim()
             });
             
+            console.log('Submit Response:', response);
+            
+            // Store the current answer and evaluation
+            const currentAnswerData = {
+                question: currentQuestion,
+                answer: answer.trim(),
+                evaluation: response.evaluation
+            };
+            setAllAnswers(prev => [...prev, currentAnswerData]);
+            
             // Store evaluation
-            console.log('currentEvaluation', response)
             setCurrentEvaluation(response.evaluation);
             
             // Update questions answered count
             const newCount = response.questionsAnswered;
             setQuestionsAnswered(newCount);
             
+            // Store next question data for later
+            if (response.nextQuestion) {
+                setNextQuestionData(response.nextQuestion);
+            }
+            
             // Check if this was the last question
             if (response.isLastQuestion) {
-                // Save session completion info
-                localStorage.setItem('lastCompletedSession', JSON.stringify({
-                    sessionId: sessionId,
-                    completedAt: new Date().toISOString(),
-                    totalScore: response.evaluation.overallScore
-                }));
-                
-                // Navigate to summary page after a short delay to show feedback
-                setTimeout(() => {
-                    router.push(`/user/interview/summary?session_id=${sessionId}`);
-                }, 1500);
-            } 
-            // Load next question if available
-            else if (response.nextQuestion) {
-                // Wait a moment to show evaluation before loading next question
-                setTimeout(() => {
-                    // FIX: Set the entire next question object
-                    setCurrentQuestion(response.nextQuestion);
-                    setCurrentQuestionIndex(prev => prev + 1);
-                    setAnswer('');
-                    setShowHint('none');
-                    setCurrentEvaluation(null);
-                }, 2000);
+                setIsLastQuestion(true);
             }
+            
         } catch (error: any) {
             console.error("Failed to submit answer:", error);
             setError(error.response?.data?.message || 'Failed to submit answer. Please try again.');
         } finally {
             setIsSubmitting(false);
+        }
+    };
+
+    const goToNextQuestion = () => {
+        if (nextQuestionData) {
+            setCurrentQuestion(nextQuestionData);
+            setCurrentQuestionIndex(prev => prev + 1);
+            setAnswer('');
+            setShowHint('none');
+            setCurrentEvaluation(null);
+            setNextQuestionData(null);
+            setError(null);
+        }
+    };
+
+    const goToSummary = async () => {
+        if (sessionId) {
+            // Store all answers in localStorage for backup
+            localStorage.setItem('lastCompletedSession', JSON.stringify({
+                sessionId: sessionId,
+                completedAt: new Date().toISOString(),
+                totalScore: currentEvaluation?.overallScore || 0,
+                allAnswers: allAnswers
+            }));
+            
+            // Navigate to summary page
+            router.push(`/user/interview/summary?session_id=${sessionId}`);
         }
     };
 
@@ -377,7 +399,7 @@ export default function InterviewSessionPage() {
                     <Card>
                         <CardHeader>
                             <CardTitle className="flex items-center gap-2">
-                                Current Question
+                                {currentEvaluation ? "Answer Submitted!" : "Current Question"}
                             </CardTitle>
                         </CardHeader>
                         <CardContent className="space-y-4">
@@ -398,114 +420,123 @@ export default function InterviewSessionPage() {
                                                     {currentQuestion.questionText}
                                                 </p>
                                             </div>
-                                            <Button
-                                                variant="ghost"
-                                                size="sm"
-                                                onClick={() => setShowHint(showHint === 'none' ? 'level1' : showHint === 'level1' ? 'level2' : 'none')}
-                                                type="button"
-                                            >
-                                                <Lightbulb className="h-4 w-4" />
-                                            </Button>
+                                            {!currentEvaluation && (
+                                                <Button
+                                                    variant="ghost"
+                                                    size="sm"
+                                                    onClick={() => setShowHint(showHint === 'none' ? 'level1' : showHint === 'level1' ? 'level2' : 'none')}
+                                                    type="button"
+                                                >
+                                                    <Lightbulb className="h-4 w-4" />
+                                                </Button>
+                                            )}
                                         </div>
                                         
                                         {/* Hints */}
-                                        <AnimatePresence>
-                                            {showHint !== 'none' && (
-                                                <motion.div
-                                                    initial={{ opacity: 0, height: 0 }}
-                                                    animate={{ opacity: 1, height: 'auto' }}
-                                                    exit={{ opacity: 0, height: 0 }}
-                                                    className="mt-3 pt-3 border-t border-border"
-                                                >
-                                                    <p className="text-sm text-muted-foreground">
-                                                        {showHint === 'level1' ? currentQuestion.hintLevel1 : currentQuestion.hintLevel2}
-                                                    </p>
-                                                </motion.div>
-                                            )}
-                                        </AnimatePresence>
+                                        {!currentEvaluation && (
+                                            <AnimatePresence>
+                                                {showHint !== 'none' && (
+                                                    <motion.div
+                                                        initial={{ opacity: 0, height: 0 }}
+                                                        animate={{ opacity: 1, height: 'auto' }}
+                                                        exit={{ opacity: 0, height: 0 }}
+                                                        className="mt-3 pt-3 border-t border-border"
+                                                    >
+                                                        <p className="text-sm text-muted-foreground">
+                                                            {showHint === 'level1' ? currentQuestion.hintLevel1 : currentQuestion.hintLevel2}
+                                                        </p>
+                                                    </motion.div>
+                                                )}
+                                            </AnimatePresence>
+                                        )}
                                     </div>
 
-                                    {/* Answer Input */}
-                                    <div>
-                                        <label className="text-sm text-muted-foreground mb-2 block">Your Answer</label>
-                                        <Textarea
-                                            value={answer}
-                                            onChange={(e) => setAnswer(e.target.value)}
-                                            placeholder="Type your answer here... Or speak using the microphone"
-                                            className="min-h-[150px]"
-                                            disabled={isSubmitting || !!currentEvaluation}
-                                        />
-                                    </div>
-
-                                    {/* Error Message */}
-                                    {error && (
-                                        <div className="bg-destructive/10 border border-destructive/20 rounded-lg p-3">
-                                            <p className="text-sm text-destructive">{error}</p>
-                                        </div>
-                                    )}
-
-                                    {/* Submit Button */}
+                                    {/* Answer Input - Only show if no evaluation yet */}
                                     {!currentEvaluation && (
-                                        <Button
-                                            onClick={submitAnswer}
-                                            disabled={!answer.trim() || isSubmitting}
-                                            className="w-full"
-                                            type="button"
-                                        >
-                                            {isSubmitting ? (
-                                                <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                                            ) : (
-                                                <Send className="h-4 w-4 mr-2" />
+                                        <>
+                                            <div>
+                                                <label className="text-sm text-muted-foreground mb-2 block">Your Answer</label>
+                                                <Textarea
+                                                    value={answer}
+                                                    onChange={(e) => setAnswer(e.target.value)}
+                                                    placeholder="Type your answer here... Or speak using the microphone"
+                                                    className="min-h-[150px]"
+                                                    disabled={isSubmitting}
+                                                />
+                                            </div>
+
+                                            {/* Error Message */}
+                                            {error && (
+                                                <div className="bg-destructive/10 border border-destructive/20 rounded-lg p-3">
+                                                    <p className="text-sm text-destructive">{error}</p>
+                                                </div>
                                             )}
-                                            {isSubmitting ? 'Submitting...' : 'Submit Answer'}
-                                        </Button>
+
+                                            {/* Submit Button */}
+                                            <Button
+                                                onClick={submitAnswer}
+                                                disabled={!answer.trim() || isSubmitting}
+                                                className="w-full"
+                                                type="button"
+                                            >
+                                                {isSubmitting ? (
+                                                    <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                                                ) : (
+                                                    <Send className="h-4 w-4 mr-2" />
+                                                )}
+                                                {isSubmitting ? 'Submitting...' : 'Submit Answer'}
+                                            </Button>
+                                        </>
                                     )}
 
-                                    {/* Real-time Evaluation */}
+                                    {/* Simplified Evaluation and Next Button */}
                                     {currentEvaluation && (
                                         <motion.div
                                             initial={{ opacity: 0, y: 10 }}
                                             animate={{ opacity: 1, y: 0 }}
-                                            className="mt-4 p-4 bg-muted/30 rounded-lg border border-border"
+                                            className="space-y-4"
                                         >
-                                            <h4 className="font-semibold text-foreground mb-2 flex items-center gap-2">
-                                                <CheckCircle2 className="h-4 w-4 text-green-500" />
-                                                Instant Feedback
-                                            </h4>
-                                            <div className="flex items-center gap-2 mb-3">
-                                                <span className="text-sm text-muted-foreground">Score:</span>
-                                                <div className="flex-1 flex gap-1">
-                                                    {[1,2,3,4,5].map(star => (
-                                                        <div
-                                                            key={star}
-                                                            className={`h-2 flex-1 rounded-full ${
-                                                                star <= Math.round(currentEvaluation.overallScore)
-                                                                    ? 'bg-primary'
-                                                                    : 'bg-muted-foreground/20'
-                                                            }`}
-                                                        />
-                                                    ))}
+                                            {/* Simple Score Display */}
+                                            <div className="p-6 bg-gradient-to-br from-primary/10 to-primary/5 rounded-lg border border-primary/20 text-center">
+                                                <div className="inline-flex items-center justify-center w-24 h-24 rounded-full bg-primary/20 mb-4">
+                                                    <span className="text-3xl font-bold text-primary">
+                                                        {Math.round(currentEvaluation.overallScore * 20)}
+                                                    </span>
                                                 </div>
-                                                <span className="text-sm font-semibold text-foreground">
-                                                    {currentEvaluation.overallScore.toFixed(1)}/5
-                                                </span>
-                                            </div>
-                                            <p className="text-sm text-muted-foreground">
-                                                {currentEvaluation.explanation}
-                                            </p>
-                                            <div className="mt-2 pt-2 border-t border-border">
-                                                <p className="text-xs text-green-600 dark:text-green-400">
-                                                    ✓ {currentEvaluation.strengths}
-                                                </p>
-                                                <p className="text-xs text-red-600 dark:text-red-400 mt-1">
-                                                    ⚠ {currentEvaluation.weaknesses}
+                                                <h3 className="text-lg font-semibold text-foreground mb-2">
+                                                    Question {currentQuestionIndex + 1} Complete!
+                                                </h3>
+                                                <p className="text-sm text-muted-foreground">
+                                                    Your answer has been submitted and evaluated.
                                                 </p>
                                             </div>
-                                            {currentEvaluation.overallScore < 3 && (
-                                                <div className="mt-3 p-2 bg-amber-500/10 rounded border border-amber-500/20">
-                                                    <p className="text-xs text-amber-600 dark:text-amber-400">
-                                                        💡 {currentEvaluation.improvementSuggestions}
-                                                    </p>
+
+                                            {/* Next Question / Summary Button */}
+                                            {!isLastQuestion && nextQuestionData ? (
+                                                <Button
+                                                    onClick={goToNextQuestion}
+                                                    className="w-full"
+                                                    size="lg"
+                                                    type="button"
+                                                >
+                                                    Next Question
+                                                    <ArrowRight className="h-4 w-4 ml-2" />
+                                                </Button>
+                                            ) : isLastQuestion ? (
+                                                <Button
+                                                    onClick={goToSummary}
+                                                    className="w-full"
+                                                    size="lg"
+                                                    type="button"
+                                                    variant="default"
+                                                >
+                                                    View Summary Report
+                                                    <CheckCircle2 className="h-4 w-4 ml-2" />
+                                                </Button>
+                                            ) : (
+                                                <div className="flex items-center justify-center py-4">
+                                                    <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+                                                    <span className="ml-2 text-sm text-muted-foreground">Preparing next question...</span>
                                                 </div>
                                             )}
                                         </motion.div>

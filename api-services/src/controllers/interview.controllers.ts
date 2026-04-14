@@ -47,26 +47,30 @@ export async function startInterview(req: Request, res: Response) {
             },
         });
 
-        // 3. Persist first question
-        const { first_question } = aiResponse;
-        await prisma.interviewQuestion.create({
-            data: {
+        const generatedQuestions = aiResponse.questions?.length
+            ? aiResponse.questions
+            : [aiResponse.first_question];
+
+        await prisma.interviewQuestion.createMany({
+            data: generatedQuestions.map((question, index) => ({
                 sessionId: session.id,
-                questionIndex: 0,
-                questionText: first_question.question_text,
-                category: first_question.category,
-                hintLevel1: first_question.hint_level_1,
-                hintLevel2: first_question.hint_level_2,
-            },
+                questionIndex: index,
+                questionText: question.question_text,
+                category: question.category,
+                hintLevel1: question.hint_level_1,
+                hintLevel2: question.hint_level_2,
+            })),
         });
+
+        const firstQuestion = generatedQuestions[0];
 
         return res.status(200).json({
             sessionId: session.id,
             firstQuestion: {
-                questionText: first_question.question_text,
-                category: first_question.category,
-                hintLevel1: first_question.hint_level_1,
-                hintLevel2: first_question.hint_level_2,
+                questionText: firstQuestion.question_text,
+                category: firstQuestion.category,
+                hintLevel1: firstQuestion.hint_level_1,
+                hintLevel2: firstQuestion.hint_level_2,
             },
             totalQuestions: questionCount,
         });
@@ -108,7 +112,13 @@ export async function submitAnswer(req: Request, res: Response) {
             level: session.level,
         });
 
-        const { evaluation, next_question, is_last_question } = aiResponse;
+        console.log('AI Response FULL:', JSON.stringify(aiResponse, null, 2));
+        console.log('Next question:', aiResponse.next_question);
+        console.log('Is last question:', aiResponse.is_last_question);
+
+        const { evaluation } = aiResponse;
+        const nextQuestionRecord = session.questions.find((q) => q.questionIndex === questionIndex + 1);
+        const isLastQuestion = !nextQuestionRecord || questionIndex + 1 >= session.questionCount;
 
         // 3. Save answer + scores on current question
         await prisma.interviewQuestion.update({
@@ -128,22 +138,8 @@ export async function submitAnswer(req: Request, res: Response) {
             },
         });
 
-        // 4. Persist next question if present
-        if (next_question && !is_last_question) {
-            await prisma.interviewQuestion.create({
-                data: {
-                    sessionId: session.id,
-                    questionIndex: questionIndex + 1,
-                    questionText: next_question.question_text,
-                    category: next_question.category,
-                    hintLevel1: next_question.hint_level_1,
-                    hintLevel2: next_question.hint_level_2,
-                },
-            });
-        }
-
-        // 5. If last question, mark session done temporarily (full complete happens on /summary)
-        if (is_last_question) {
+        // 4. If last question, mark session done temporarily (full complete happens on /summary)
+        if (isLastQuestion) {
             await prisma.interviewSession.update({
                 where: { id: sessionId },
                 data: { status: "awaiting_summary" },
@@ -164,15 +160,15 @@ export async function submitAnswer(req: Request, res: Response) {
                 weaknesses: evaluation.weaknesses,
                 improvementSuggestions: evaluation.improvement_suggestions,
             },
-            nextQuestion: next_question
+            nextQuestion: nextQuestionRecord
                 ? {
-                    questionText: next_question.question_text,
-                    category: next_question.category,
-                    hintLevel1: next_question.hint_level_1,
-                    hintLevel2: next_question.hint_level_2,
+                    questionText: nextQuestionRecord.questionText,
+                    category: nextQuestionRecord.category,
+                    hintLevel1: nextQuestionRecord.hintLevel1,
+                    hintLevel2: nextQuestionRecord.hintLevel2,
                 }
                 : null,
-            isLastQuestion: is_last_question,
+            isLastQuestion,
             questionsAnswered: questionIndex + 1,
             totalQuestions: session.questionCount,
         });
@@ -284,10 +280,13 @@ export async function getInterviewHistory(req: Request, res: Response) {
 export async function getSessionDetail(req: Request, res: Response) {
     try {
         const userId = (req as any).userId as string;
-        const { sessionId } = req.params;
+        const sessionIdParam = req.params.sessionId;
+        const sessionId = Array.isArray(sessionIdParam) ? sessionIdParam[0] : sessionIdParam;
+
+        if (!sessionId) return res.status(400).json({ message: "sessionId is required." });
 
         const session = await prisma.interviewSession.findFirst({
-            where: { id : sessionId, userId },
+            where: { id: sessionId, userId },
             include: { questions: { orderBy: { questionIndex: "asc" } } },
         });
 

@@ -57,6 +57,7 @@ class InterviewStartResponse(BaseModel):
     session_id: str
     first_question: QuestionOut
     total_questions: int
+    questions: List[QuestionOut]
 
 
 # =========================
