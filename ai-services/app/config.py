@@ -11,6 +11,8 @@ class Settings(BaseSettings):
     # Resume AI (Groq)
     GROQ_API_KEY: str
 
+    hf_api_key: str
+
     # Security between Node ↔ FastAPI
     INTERNAL_API_KEY: str
 

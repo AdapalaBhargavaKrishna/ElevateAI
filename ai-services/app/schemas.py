@@ -4,7 +4,7 @@ from enum import Enum
 
 
 # =========================
-# ✅ ENUMS (NO DB)
+# ✅ ENUMS
 # =========================
 
 class ExperienceLevel(str, Enum):
@@ -16,6 +16,8 @@ class ExperienceLevel(str, Enum):
 class InterviewType(str, Enum):
     technical = "technical"
     behavioral = "behavioral"
+    system_design = "system_design"
+    hr = "hr"
 
 
 class Difficulty(str, Enum):
