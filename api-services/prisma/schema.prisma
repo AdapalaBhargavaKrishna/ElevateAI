@@ -21,6 +21,7 @@ model User {
   updatedAt        DateTime           @updatedAt
   userInfo         UserInfo?
   interviewSessions InterviewSession[]
+  resumeAnalyses   ResumeAnalysis[]
 
   @@map("users")
 }
@@ -171,4 +172,49 @@ model InterviewQuestion {
   session                InterviewSession @relation(fields: [sessionId], references: [id], onDelete: Cascade)
 
   @@map("interview_questions")
+}
+
+// ─── Resume Models ────────────────────────────────────────────────────────────
+
+model ResumeAnalysis {
+  id     String @id @default(uuid())
+  userId String
+
+  fileName String?
+
+  name     String?
+  email    String?
+  phone    String?
+  location String?
+  summary  String?
+
+  skills           String?
+  experience       String?
+  projects         String?
+  education        String?
+  certifications   String?
+  languages        String?
+  achievements     String?
+  codingProfiles   String?
+  skillsAnalysis   String?
+
+  overallScore    Float?
+  scoreGrade      String?
+  scoreBreakdown  String?
+  scoreDeductions String?
+  scoreStrengths  String?
+  scoreWeaknesses String?
+  scoreFeedback   String?
+
+  atsScore           Float?
+  atsGrade           String?
+  willPassAts        Boolean?
+  atsBreakdown       String?
+  atsRecommendations String?
+
+  createdAt DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("resume_analyses")
 }

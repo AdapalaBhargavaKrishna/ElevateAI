@@ -8,6 +8,7 @@ import passport from "./utils/passport";
 import authRoutes from "./routes/auth.routes";
 import interviewRoutes from "./routes/interview.routes";
 import userInfoRoutes from "./routes/userInfo.routes";
+import resumeRoutes from "./routes/resume.routes";
 
 const app = express()
 const PORT = process.env.PORT || 5000
@@ -24,6 +25,7 @@ app.use(passport.initialize());
 app.use("/auth", authRoutes);
 app.use("/interview", interviewRoutes);
 app.use("/user-info", userInfoRoutes);
+app.use("/resume", resumeRoutes);
 
 app.get('/health', (req, res) => {
     res.json({ status: 'ok' })

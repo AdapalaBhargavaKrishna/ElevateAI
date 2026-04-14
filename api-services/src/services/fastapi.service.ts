@@ -132,3 +132,94 @@ export async function aiGetSummary(
         body: payload as unknown as Record<string, unknown>,
     });
 }
+
+// ─── Resume Types ─────────────────────────────────────────────────────────────
+
+export interface ResumeAIResult {
+    parsed_resume: {
+        name?:            string;
+        email?:           string;
+        phone?:           string;
+        location?:        string;
+        summary?:         string;
+        skills?:          any[];
+        experience?:      any[];
+        projects?:        any[];
+        education?:       any[];
+        certifications?:  any[];
+        languages?:       any[];
+        achievements?:    any[];
+        coding_profiles?: any[];
+    };
+    skills_analysis: Record<string, any>;
+    score: {
+        overall_score?: number;
+        grade?:         string;
+        breakdown?:     Record<string, any>;
+        deductions?:    string[];
+        strengths?:     any[];
+        weaknesses?:    any[];
+        verdict?:       string;
+    };
+    ats: {
+        ats_score?:       number;
+        ats_grade?:       string;
+        will_pass_ats?:   boolean;
+        breakdown?:       Record<string, any>;
+        recommendations?: any[];
+    };
+}
+
+// ─── Resume: File upload (multipart) ─────────────────────────────────────────
+
+export async function aiAnalyzeResumeFile(
+    userId: string,
+    fileBuffer: Buffer,
+    filename: string,
+    mimetype: string
+): Promise<ResumeAIResult> {
+    const formData = new FormData();
+    const blob = new Blob([fileBuffer], { type: mimetype });
+    formData.append("file", blob, filename);
+
+    const res = await fetch(`${AI_SERVICE_URL}/resume/analyze-file`, {
+        method: "POST",
+        headers: {
+            // Do NOT set Content-Type — fetch sets it with boundary automatically for FormData
+            "X-User-Id":      userId,
+            "X-Internal-Key": INTERNAL_KEY,
+        },
+        body: formData,
+    });
+
+    if (!res.ok) {
+        const error = await res.text();
+        throw new Error(`Resume AI error [${res.status}]: ${error}`);
+    }
+
+    return res.json() as Promise<ResumeAIResult>;
+}
+
+// ─── Resume: Text analysis ────────────────────────────────────────────────────
+
+export async function aiAnalyzeResumeText(
+    userId: string,
+    resumeText: string
+): Promise<ResumeAIResult> {
+    const res = await fetch(`${AI_SERVICE_URL}/resume/analyze-text`, {
+        method: "POST",
+        headers: {
+            "Content-Type":   "application/json",
+            "X-User-Id":      userId,
+            "X-Internal-Key": INTERNAL_KEY,
+        },
+        body: JSON.stringify({ resume_text: resumeText }),
+    });
+
+    if (!res.ok) {
+        const error = await res.text();
+        throw new Error(`Resume AI error [${res.status}]: ${error}`);
+    }
+
+    return res.json() as Promise<ResumeAIResult>;
+}
