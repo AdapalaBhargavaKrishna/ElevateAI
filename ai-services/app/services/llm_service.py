@@ -1,5 +1,6 @@
 import json
 import re
+import time
 import google.generativeai as genai
 from typing import List, Dict, Any
 from fastapi import HTTPException, status
@@ -37,6 +38,58 @@ def _parse_json_safe(raw: str) -> Dict[str, Any]:
         )
 
 
+def _extract_retry_delay_seconds(error_text: str, default_seconds: float = 2.0) -> float:
+    # Gemini messages often include either "retry in 15.2s" or "retry_delay { seconds: 15 }".
+    inline_match = re.search(r"retry\s+in\s+([0-9]+(?:\.[0-9]+)?)s", error_text, re.IGNORECASE)
+    if inline_match:
+        return max(float(inline_match.group(1)), 0.5)
+
+    block_match = re.search(r"retry_delay\s*\{[^}]*seconds:\s*(\d+)", error_text, re.IGNORECASE | re.DOTALL)
+    if block_match:
+        return max(float(block_match.group(1)), 0.5)
+
+    return default_seconds
+
+
+def _is_rate_limit_error(error_text: str) -> bool:
+    lowered = error_text.lower()
+    return "429" in lowered or "quota exceeded" in lowered or "rate limit" in lowered
+
+
+def _generate_content_with_retry(prompt: str, max_attempts: int = 3):
+    last_error = None
+
+    for attempt in range(1, max_attempts + 1):
+        try:
+            return model.generate_content(prompt)
+        except Exception as e:
+            last_error = str(e)
+
+            if not _is_rate_limit_error(last_error):
+                raise HTTPException(
+                    status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+                    detail=f"AI service error: {last_error}"
+                )
+
+            if attempt >= max_attempts:
+                retry_after = _extract_retry_delay_seconds(last_error)
+                raise HTTPException(
+                    status_code=status.HTTP_429_TOO_MANY_REQUESTS,
+                    detail=(
+                        f"AI rate limit exceeded. Please retry in about {int(round(retry_after))} seconds "
+                        "or upgrade your Gemini quota."
+                    )
+                )
+
+            wait_for = _extract_retry_delay_seconds(last_error)
+            time.sleep(wait_for)
+
+    raise HTTPException(
+        status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+        detail=f"AI service error: {last_error or 'Unknown Gemini error'}"
+    )
+
+
 # =========================
 # 🧠 QUESTION GENERATION
 # =========================
@@ -65,14 +118,8 @@ PRIORITIZE weak topics: {weak_topics}
 AVOID strong topics: {strong_topics}
 """
 
-    try:
-        response = model.generate_content(prompt)
-        data = _parse_json_safe(response.text)
-    except Exception as e:
-        raise HTTPException(
-            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
-            detail=f"AI service error: {str(e)}"
-        )
+    response = _generate_content_with_retry(prompt)
+    data = _parse_json_safe(response.text)
 
     questions = data.get("questions", [])
 
@@ -105,14 +152,8 @@ def evaluate_answer(
         question_text, user_answer, role, level, interview_type
     )
 
-    try:
-        response = model.generate_content(prompt)
-        data = _parse_json_safe(response.text)
-    except Exception as e:
-        raise HTTPException(
-            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
-            detail=f"AI service error: {str(e)}"
-        )
+    response = _generate_content_with_retry(prompt)
+    data = _parse_json_safe(response.text)
 
     required_fields = [
         "technical_score", "depth_score", "clarity_score",
@@ -167,19 +208,12 @@ IMPORTANT:
 - No markdown
 """
 
-    try:
-        response = model.generate_content(prompt)
-        raw = response.text.strip()
+    response = _generate_content_with_retry(prompt)
+    raw = response.text.strip()
 
-        print("🔍 RAW GEMINI RESPONSE:", raw)  # 👈 DEBUG
+    print("RAW GEMINI RESPONSE:", raw)
 
-        return _parse_json_safe(raw)
-
-    except Exception as e:
-        raise HTTPException(
-            status_code=500,
-            detail=f"Summary generation failed: {str(e)}"
-        )
+    return _parse_json_safe(raw)
 
 # =========================
 # 🧠 FOLLOW-UP (optional)
@@ -197,14 +231,8 @@ def generate_followup_question(
         original_question, user_answer, weaknesses, role, level, mode
     )
 
-    try:
-        response = model.generate_content(prompt)
-        data = _parse_json_safe(response.text)
-    except Exception as e:
-        raise HTTPException(
-            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
-            detail=f"AI service error: {str(e)}"
-        )
+    response = _generate_content_with_retry(prompt)
+    data = _parse_json_safe(response.text)
 
     if "question_text" not in data:
         raise HTTPException(
@@ -226,11 +254,5 @@ def generate_roadmap(
 
     prompt = get_roadmap_prompt(target_role, current_skills, experience_level)
 
-    try:
-        response = model.generate_content(prompt)
-        return _parse_json_safe(response.text)
-    except Exception as e:
-        raise HTTPException(
-            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
-            detail=f"AI service error: {str(e)}"
-        )
+    response = _generate_content_with_retry(prompt)
+    return _parse_json_safe(response.text)

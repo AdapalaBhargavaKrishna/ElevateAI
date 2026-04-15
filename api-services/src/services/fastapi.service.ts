@@ -10,6 +10,18 @@ interface FastAPIRequestOptions {
     body: Record<string, unknown>;
 }
 
+export class AIServiceHttpError extends Error {
+    status: number;
+    detail: string;
+
+    constructor(status: number, detail: string) {
+        super(`AI service error [${status}]: ${detail}`);
+        this.name = "AIServiceHttpError";
+        this.status = status;
+        this.detail = detail;
+    }
+}
+
 async function postToAI<T>({ userId, path, body }: FastAPIRequestOptions): Promise<T> {
     const res = await fetch(`${AI_SERVICE_URL}${path}`, {
         method: "POST",
@@ -23,7 +35,7 @@ async function postToAI<T>({ userId, path, body }: FastAPIRequestOptions): Promi
 
     if (!res.ok) {
         const error = await res.text();
-        throw new Error(`AI service error [${res.status}]: ${error}`);
+        throw new AIServiceHttpError(res.status, error);
     }
 
     return res.json() as Promise<T>;

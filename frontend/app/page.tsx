@@ -4,9 +4,7 @@ import { motion } from "framer-motion";
 import {
   Mic, FileText, Map, TrendingUp, Zap, Brain,
   ChevronRight, ArrowRight, Menu, X,
-  Users, Bot, Network, History, GanttChart, BarChart3,
-  Award, Target, Clock, BadgeCheck, Github,
-  BookOpen, Briefcase, Layers,
+  Users, Bot, Target, Clock, Building2,
   MessageSquare, Bell, UserCog, Trophy, Activity, GitBranch,
   Share2, Link2, Palette,
 } from "lucide-react";
@@ -111,6 +109,17 @@ export default function LandingPage() {
                   <p>Toggle theme</p>
                 </TooltipContent>
               </Tooltip>
+              
+              {/* Corporate / Recruiter Login Button - Purple Theme */}
+              <Button 
+                variant="outline" 
+                className="border-purple-500 text-purple-600 dark:text-purple-400 hover:bg-purple-50 dark:hover:bg-purple-950/30 hover:border-purple-600 dark:hover:border-purple-500"
+                onClick={() => router.push("/recruiters/login")}
+              >
+                <Building2 className="h-4 w-4 mr-2" />
+                For Recruiters
+              </Button>
+              
               <Button variant="outline" onClick={() => router.push("/login")}>Log in</Button>
               <Button onClick={() => router.push("/signup")}>Get Started</Button>
             </div>
@@ -146,6 +155,18 @@ export default function LandingPage() {
                 </a>
               ))}
               <div className="h-px bg-border/50 my-2" />
+              
+              {/* Mobile Recruiters Button - Purple Theme */}
+              <Button 
+                variant="outline" 
+                size="lg" 
+                className="w-full justify-center border-purple-500 text-purple-600 dark:text-purple-400 hover:bg-purple-50 dark:hover:bg-purple-950/30"
+                onClick={() => router.push("/recruiters/login")}
+              >
+                <Building2 className="h-4 w-4 mr-2" />
+                For Recruiters
+              </Button>
+              
               <Button variant="outline" size="lg" className="w-full justify-center" onClick={() => router.push("/login")}>Log in</Button>
               <Button size="lg" className="w-full justify-center" onClick={() => router.push("/signup")}>Get Started</Button>
             </div>

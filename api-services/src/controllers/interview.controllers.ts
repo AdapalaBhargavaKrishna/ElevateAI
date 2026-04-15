@@ -2,10 +2,21 @@
 import { Request, Response } from "express";
 import { prisma } from "../utils/prisma";
 import {
+    AIServiceHttpError,
     aiStartInterview,
     aiSubmitAnswer,
     aiGetSummary,
 } from "../services/fastapi.service";
+
+function normalizeInterviewType(rawType: string): string {
+    const normalized = (rawType || "").trim().toLowerCase().replace(/[-\s]+/g, "_");
+    const aliases: Record<string, string> = {
+        behavioural: "behavioral",
+        "system-design": "system_design",
+        systemdesign: "system_design",
+    };
+    return aliases[normalized] ?? normalized;
+}
 
 // ─── POST /interview/start ────────────────────────────────────────────────────
 // Creates an InterviewSession row, calls Python AI to get the first question,
@@ -19,11 +30,13 @@ export async function startInterview(req: Request, res: Response) {
             return res.status(400).json({ message: "Missing required fields." });
         }
 
+        const normalizedInterviewType = normalizeInterviewType(interviewType);
+
         // 1. Call Python AI service
         const aiResponse = await aiStartInterview(userId, {
             role,
             level,
-            interview_type: interviewType,
+            interview_type: normalizedInterviewType,
             difficulty,
             question_count: questionCount,
             timer_enabled: timerEnabled ?? false,
@@ -76,6 +89,9 @@ export async function startInterview(req: Request, res: Response) {
         });
     } catch (err) {
         console.error("startInterview error:", err);
+        if (err instanceof AIServiceHttpError) {
+            return res.status(err.status).json({ message: err.detail });
+        }
         return res.status(500).json({ message: "Something went wrong." });
     }
 }
@@ -174,6 +190,9 @@ export async function submitAnswer(req: Request, res: Response) {
         });
     } catch (err) {
         console.error("submitAnswer error:", err);
+        if (err instanceof AIServiceHttpError) {
+            return res.status(err.status).json({ message: err.detail });
+        }
         return res.status(500).json({ message: "Something went wrong." });
     }
 }
@@ -240,6 +259,9 @@ export async function getSessionSummary(req: Request, res: Response) {
         });
     } catch (err) {
         console.error("getSessionSummary error:", err);
+        if (err instanceof AIServiceHttpError) {
+            return res.status(err.status).json({ message: err.detail });
+        }
         return res.status(500).json({ message: "Something went wrong." });
     }
 }

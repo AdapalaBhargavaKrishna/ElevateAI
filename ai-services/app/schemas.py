@@ -33,12 +33,22 @@ class Difficulty(str, Enum):
 class InterviewStartRequest(BaseModel):
     role: str = Field(..., min_length=1, max_length=255)
     level: ExperienceLevel
-    interview_type: InterviewType
+    interview_type: str = Field(..., min_length=1, max_length=100)
     difficulty: Difficulty
     question_count: int = Field(..., ge=1, le=15)
     timer_enabled: bool = False
     time_per_question: Optional[int] = Field(None, ge=30, le=300)
     mode: Optional[str] = "interview"
+
+    @field_validator("interview_type")
+    def normalize_interview_type(cls, value: str) -> str:
+        normalized = value.strip().lower().replace("-", "_").replace(" ", "_")
+        aliases = {
+            "behavioural": "behavioral",
+            "systemdesign": "system_design",
+            "system-design": "system_design",
+        }
+        return aliases.get(normalized, normalized)
 
     @field_validator("time_per_question")
     def validate_timer(cls, v, info):

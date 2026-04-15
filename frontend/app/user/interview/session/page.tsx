@@ -12,7 +12,7 @@ import { Progress } from "@/components/ui/progress";
 import {
     Mic, MicOff, Camera, CameraOff, Send, Loader2, ArrowLeft,
     Clock, Lightbulb, CheckCircle2, AlertCircle, ArrowRight,
-    Maximize2, Minimize2, Volume2, VolumeX
+    Maximize2, Minimize2
 } from "lucide-react";
 import Link from "next/link";
 
@@ -39,13 +39,89 @@ interface Evaluation {
     improvementSuggestions: string;
 }
 
-// ─── Speech Recognition types ─────────────────────────────────────────────────
-
 declare global {
     interface Window {
         SpeechRecognition: any;
         webkitSpeechRecognition: any;
     }
+}
+
+// ─── Score ring component (practice mode only) ────────────────────────────────
+
+function ScoreRing({ pct, label }: { pct: number; label: string }) {
+    const r = 40;
+    const circumference = 2 * Math.PI * r;
+    const offset = circumference * (1 - pct / 100);
+    const color = pct >= 80 ? "#22c55e" : pct >= 60 ? "#3b82f6" : pct >= 40 ? "#f59e0b" : "#ef4444";
+
+    return (
+        <div className="flex flex-col items-center gap-2">
+            <div className="relative w-24 h-24">
+                <svg className="w-24 h-24 -rotate-90" viewBox="0 0 100 100">
+                    <circle cx="50" cy="50" r={r} fill="none" stroke="currentColor"
+                        strokeWidth="8" className="text-muted-foreground/20" />
+                    <motion.circle
+                        cx="50" cy="50" r={r} fill="none"
+                        stroke={color} strokeWidth="8"
+                        strokeDasharray={circumference}
+                        initial={{ strokeDashoffset: circumference }}
+                        animate={{ strokeDashoffset: offset }}
+                        transition={{ duration: 1.2, ease: "easeOut" }}
+                        strokeLinecap="round"
+                    />
+                </svg>
+                <div className="absolute inset-0 flex items-center justify-center">
+                    <motion.span
+                        className="text-2xl font-bold"
+                        style={{ color }}
+                        initial={{ opacity: 0, scale: 0.5 }}
+                        animate={{ opacity: 1, scale: 1 }}
+                        transition={{ delay: 0.5 }}
+                    >
+                        {pct}%
+                    </motion.span>
+                </div>
+            </div>
+            <p className="text-sm font-medium text-foreground">{label}</p>
+        </div>
+    );
+}
+
+// ─── Score bars (practice detail breakdown) ───────────────────────────────────
+
+function ScoreBars({ evaluation }: { evaluation: Evaluation }) {
+    const bars = [
+        { label: "Technical",  value: evaluation.technicalScore  ?? 0 },
+        { label: "Depth",      value: evaluation.depthScore      ?? 0 },
+        { label: "Clarity",    value: evaluation.clarityScore    ?? 0 },
+        { label: "Relevance",  value: evaluation.relevanceScore  ?? 0 },
+        { label: "Structure",  value: evaluation.structureScore  ?? 0 },
+    ];
+
+    return (
+        <div className="space-y-2">
+            {bars.map((bar, i) => {
+                const pct = Math.round(bar.value * 20);
+                const bgColor = pct >= 80 ? "bg-green-500" : pct >= 60 ? "bg-blue-500" : pct >= 40 ? "bg-yellow-500" : "bg-red-500";
+                return (
+                    <div key={bar.label}>
+                        <div className="flex justify-between text-xs mb-1">
+                            <span className="text-muted-foreground">{bar.label}</span>
+                            <span className="text-foreground font-medium">{pct}/100</span>
+                        </div>
+                        <div className="h-1.5 bg-muted rounded-full overflow-hidden">
+                            <motion.div
+                                className={`h-full ${bgColor} rounded-full`}
+                                initial={{ width: 0 }}
+                                animate={{ width: `${pct}%` }}
+                                transition={{ duration: 0.8, delay: i * 0.1 }}
+                            />
+                        </div>
+                    </div>
+                );
+            })}
+        </div>
+    );
 }
 
 // ─── Component ────────────────────────────────────────────────────────────────
@@ -60,33 +136,30 @@ export default function InterviewSessionPage() {
     const difficulty   = searchParams.get('difficulty')    || 'medium';
     const questionCount = parseInt(searchParams.get('questionCount') || '7');
 
-    // Session state
-    const [sessionId, setSessionId]           = useState<string | null>(null);
+    const [sessionId, setSessionId]                   = useState<string | null>(null);
     const [currentQuestionIndex, setCurrentQuestionIndex] = useState(0);
-    const [currentQuestion, setCurrentQuestion] = useState<Question | null>(null);
-    const [answer, setAnswer]                 = useState('');
-    const [isLoading, setIsLoading]           = useState(false);
-    const [isSubmitting, setIsSubmitting]     = useState(false);
-    const [questionsAnswered, setQuestionsAnswered] = useState(0);
-    const [showHint, setShowHint]             = useState<'none' | 'level1' | 'level2'>('none');
-    const [duration, setDuration]             = useState(0);
-    const [currentEvaluation, setCurrentEvaluation] = useState<Evaluation | null>(null);
-    const [error, setError]                   = useState<string | null>(null);
-    const [nextQuestionData, setNextQuestionData] = useState<Question | null>(null);
-    const [isLastQuestion, setIsLastQuestion] = useState(false);
-    const [allAnswers, setAllAnswers]         = useState<Array<{ question: Question; answer: string; evaluation: Evaluation }>>([]);
+    const [currentQuestion, setCurrentQuestion]       = useState<Question | null>(null);
+    const [answer, setAnswer]                         = useState('');
+    const [isLoading, setIsLoading]                   = useState(false);
+    const [isSubmitting, setIsSubmitting]             = useState(false);
+    const [questionsAnswered, setQuestionsAnswered]   = useState(0);
+    const [showHint, setShowHint]                     = useState<'none' | 'level1' | 'level2'>('none');
+    const [duration, setDuration]                     = useState(0);
+    const [currentEvaluation, setCurrentEvaluation]  = useState<Evaluation | null>(null);
+    const [error, setError]                           = useState<string | null>(null);
+    const [nextQuestionData, setNextQuestionData]     = useState<Question | null>(null);
+    const [isLastQuestion, setIsLastQuestion]         = useState(false);
 
-    // UI toggles
-    const [cameraEnabled, setCameraEnabled]   = useState(true);
-    const [focusMode, setFocusMode]           = useState(false);   // hides camera panel
-    const [isListening, setIsListening]       = useState(false);   // speech-to-text active
+    // Camera preference (persisted within session)
+    const [cameraEnabled, setCameraEnabled]           = useState(true);
+    const [cameraVisible, setCameraVisible]           = useState(true);   // user's layout pref
+    const [isListening, setIsListening]               = useState(false);
 
-    // Refs
     const videoRef        = useRef<HTMLVideoElement>(null);
     const mediaStreamRef  = useRef<MediaStream | null>(null);
     const recognitionRef  = useRef<any>(null);
 
-    // ── Timer ─────────────────────────────────────────────────────────────────
+    // ── Timer ──────────────────────────────────────────────────────────────────
 
     useEffect(() => {
         let interval: NodeJS.Timeout;
@@ -99,7 +172,7 @@ export default function InterviewSessionPage() {
     const formatTime = (s: number) =>
         `${Math.floor(s / 60).toString().padStart(2, '0')}:${(s % 60).toString().padStart(2, '0')}`;
 
-    // ── Camera ────────────────────────────────────────────────────────────────
+    // ── Camera ─────────────────────────────────────────────────────────────────
 
     const startCamera = useCallback(async () => {
         try {
@@ -125,47 +198,49 @@ export default function InterviewSessionPage() {
         else startCamera();
     };
 
+    // Toggle camera layout (show/hide camera panel)
+    const toggleCameraLayout = () => {
+        setCameraVisible(v => !v);
+        if (!cameraVisible && !cameraEnabled) startCamera();
+    };
+
     useEffect(() => {
         startCamera();
-        return () => stopCamera();
+        return () => { stopCamera(); };
     }, []);
 
-    // ── Speech to Text ────────────────────────────────────────────────────────
+    // ── Speech to Text ─────────────────────────────────────────────────────────
 
     const startListening = useCallback(() => {
-        const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
-        if (!SpeechRecognition) {
+        const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+        if (!SR) {
             setError('Speech recognition is not supported in this browser. Please use Chrome.');
             return;
         }
+        const recognition = new SR();
+        recognition.continuous     = true;
+        recognition.interimResults = true;
+        recognition.lang           = 'en-US';
 
-        const recognition = new SpeechRecognition();
-        recognition.continuous      = true;
-        recognition.interimResults  = true;
-        recognition.lang            = 'en-US';
-
-        let finalTranscript = answer; // start from existing answer
+        let finalTranscript = answer;
 
         recognition.onresult = (event: any) => {
             let interim = '';
             for (let i = event.resultIndex; i < event.results.length; i++) {
-                const transcript = event.results[i][0].transcript;
+                const t = event.results[i][0].transcript;
                 if (event.results[i].isFinal) {
-                    finalTranscript += (finalTranscript ? ' ' : '') + transcript;
+                    finalTranscript += (finalTranscript ? ' ' : '') + t;
                 } else {
-                    interim = transcript;
+                    interim = t;
                 }
             }
             setAnswer(finalTranscript + (interim ? ' ' + interim : ''));
         };
 
         recognition.onerror = (event: any) => {
-            if (event.error !== 'aborted') {
-                setError(`Microphone error: ${event.error}. Try again.`);
-            }
+            if (event.error !== 'aborted') setError(`Microphone error: ${event.error}. Try again.`);
             setIsListening(false);
         };
-
         recognition.onend = () => setIsListening(false);
 
         recognitionRef.current = recognition;
@@ -175,28 +250,21 @@ export default function InterviewSessionPage() {
     }, [answer]);
 
     const stopListening = useCallback(() => {
-        if (recognitionRef.current) {
-            recognitionRef.current.stop();
-            recognitionRef.current = null;
-        }
+        recognitionRef.current?.stop();
+        recognitionRef.current = null;
         setIsListening(false);
     }, []);
 
-    const toggleListening = () => {
-        if (isListening) stopListening();
-        else startListening();
-    };
+    const toggleListening = () => { if (isListening) stopListening(); else startListening(); };
 
-    // Cleanup speech on unmount
     useEffect(() => () => stopListening(), []);
 
-    // ── Load First Question ───────────────────────────────────────────────────
+    // ── Load First Question ────────────────────────────────────────────────────
 
-    useEffect(() => {
-        loadFirstQuestion();
-    }, []);
+    useEffect(() => { loadFirstQuestion(); }, []);
 
     const loadFirstQuestion = async () => {
+        console.log('loading')
         setIsLoading(true);
         setError(null);
         try {
@@ -219,26 +287,23 @@ export default function InterviewSessionPage() {
         }
     };
 
-    // ── Submit Answer ─────────────────────────────────────────────────────────
+    // ── Submit Answer ──────────────────────────────────────────────────────────
 
     const submitAnswer = async () => {
+
+        console.log('Answer submitted')
         if (!answer.trim() || !currentQuestion || !sessionId || isSubmitting) return;
         if (isListening) stopListening();
 
         setIsSubmitting(true);
         setError(null);
         try {
+            console.log('submit response sending')
             const response = await interviewApi.submitAnswer({
                 sessionId,
                 questionIndex: currentQuestionIndex,
                 answer: answer.trim(),
             });
-
-            setAllAnswers(prev => [...prev, {
-                question: currentQuestion,
-                answer: answer.trim(),
-                evaluation: response.evaluation,
-            }]);
             setCurrentEvaluation(response.evaluation);
             setQuestionsAnswered(response.questionsAnswered);
             if (response.nextQuestion)  setNextQuestionData(response.nextQuestion);
@@ -265,7 +330,7 @@ export default function InterviewSessionPage() {
         if (sessionId) router.push(`/user/interview/summary?session_id=${sessionId}`);
     };
 
-    // ── Badge colours ─────────────────────────────────────────────────────────
+    // ── Colours ────────────────────────────────────────────────────────────────
 
     const difficultyColor = {
         easy:   'bg-green-500/10 text-green-600 dark:text-green-400',
@@ -279,9 +344,11 @@ export default function InterviewSessionPage() {
         senior: 'bg-purple-500/10 text-purple-600 dark:text-purple-400',
     }[level] ?? 'bg-muted text-muted-foreground';
 
-    const scorePct = Math.round((currentEvaluation?.overallScore ?? 0) * 10);
+    const isRealMode    = sessionMode === 'interview';
+    const isPractice    = sessionMode === 'learning';
+    const scorePct      = Math.round((currentEvaluation?.overallScore ?? 0) * 20);
 
-    // ── Error full-page ───────────────────────────────────────────────────────
+    // ── Full page error ────────────────────────────────────────────────────────
 
     if (error && !currentQuestion) {
         return (
@@ -299,13 +366,13 @@ export default function InterviewSessionPage() {
         );
     }
 
-    // ── Layout ────────────────────────────────────────────────────────────────
+    // ── Layout ─────────────────────────────────────────────────────────────────
 
     return (
         <div className="min-h-screen bg-background">
-            <div className="container mx-auto px-4 py-5 max-w-6xl">
+            <div className="container mx-auto px-4 py-5 ">
 
-                {/* ── Top bar ── */}
+                {/* Top bar */}
                 <div className="flex flex-wrap items-center justify-between gap-3 mb-5">
                     <Link href="/user/interview">
                         <Button variant="ghost" size="sm" className="gap-2">
@@ -321,8 +388,8 @@ export default function InterviewSessionPage() {
                         <Badge className={levelColor} variant="outline">
                             {level.charAt(0).toUpperCase() + level.slice(1)}
                         </Badge>
-                        <Badge variant="outline" className={sessionMode === 'learning' ? 'text-green-600 dark:text-green-400' : 'text-orange-600 dark:text-orange-400'}>
-                            {sessionMode === 'learning' ? 'Practice' : 'Real Mode'}
+                        <Badge variant="outline" className={isPractice ? 'text-green-600 dark:text-green-400' : 'text-orange-600 dark:text-orange-400'}>
+                            {isPractice ? 'Practice' : 'Real Mode'}
                         </Badge>
                         <div className="flex items-center gap-1.5 text-muted-foreground text-sm ml-1">
                             <Clock className="h-4 w-4" />
@@ -330,20 +397,21 @@ export default function InterviewSessionPage() {
                         </div>
                     </div>
 
-                    {/* Focus mode toggle */}
+                    {/* Camera layout toggle */}
                     <Button
                         variant="outline"
                         size="sm"
-                        onClick={() => setFocusMode(f => !f)}
+                        onClick={toggleCameraLayout}
                         className="gap-2"
-                        title={focusMode ? "Exit focus mode" : "Focus mode — hide camera"}
+                        title={cameraVisible ? "Hide camera — full question view" : "Show camera panel"}
                     >
-                        {focusMode ? <Minimize2 className="h-4 w-4" /> : <Maximize2 className="h-4 w-4" />}
-                        <span className="hidden sm:inline">{focusMode ? "Exit Focus" : "Focus Mode"}</span>
+                        {cameraVisible
+                            ? <><Minimize2 className="h-4 w-4" /><span className="hidden sm:inline">Hide Camera</span></>
+                            : <><Maximize2 className="h-4 w-4" /><span className="hidden sm:inline">Show Camera</span></>}
                     </Button>
                 </div>
 
-                {/* ── Progress ── */}
+                {/* Progress */}
                 <div className="mb-5">
                     <div className="flex justify-between text-xs text-muted-foreground mb-1.5">
                         <span>Progress</span>
@@ -352,26 +420,22 @@ export default function InterviewSessionPage() {
                     <Progress value={(questionsAnswered / questionCount) * 100} className="h-1.5" />
                 </div>
 
-                {/* ── Main grid ── */}
-                <div className={`grid gap-5 ${focusMode ? 'grid-cols-1' : 'grid-cols-1 lg:grid-cols-5'}`}>
+                {/* Main grid */}
+                <div className={`grid gap-5 ${cameraVisible ? 'grid-cols-1 lg:grid-cols-5' : 'grid-cols-1'}`}>
 
-                    {/* ── Camera panel (hidden in focus mode) ── */}
-                    {!focusMode && (
+                    {/* Camera panel */}
+                    {cameraVisible && (
                         <div className="lg:col-span-2 space-y-3">
                             <Card>
                                 <CardHeader className="pb-2 flex-row items-center justify-between space-y-0">
                                     <CardTitle className="text-sm font-medium">Video Feed</CardTitle>
                                     <div className="flex gap-1">
                                         <Button
-                                            size="icon"
-                                            variant="ghost"
-                                            className="h-8 w-8"
+                                            size="icon" variant="ghost" className="h-8 w-8"
                                             onClick={toggleCamera}
                                             title={cameraEnabled ? "Turn off camera" : "Turn on camera"}
                                         >
-                                            {cameraEnabled
-                                                ? <CameraOff className="h-4 w-4" />
-                                                : <Camera className="h-4 w-4" />}
+                                            {cameraEnabled ? <CameraOff className="h-4 w-4" /> : <Camera className="h-4 w-4" />}
                                         </Button>
                                         <Button
                                             size="icon"
@@ -381,20 +445,14 @@ export default function InterviewSessionPage() {
                                             disabled={!!currentEvaluation}
                                             title={isListening ? "Stop listening" : "Start speech-to-text"}
                                         >
-                                            {isListening
-                                                ? <MicOff className="h-4 w-4" />
-                                                : <Mic className="h-4 w-4" />}
+                                            {isListening ? <MicOff className="h-4 w-4" /> : <Mic className="h-4 w-4" />}
                                         </Button>
                                     </div>
                                 </CardHeader>
                                 <CardContent className="pb-4">
                                     <div className="relative aspect-video bg-muted rounded-lg overflow-hidden">
                                         {cameraEnabled ? (
-                                            <video
-                                                ref={videoRef}
-                                                autoPlay playsInline muted
-                                                className="w-full h-full object-cover"
-                                            />
+                                            <video ref={videoRef} autoPlay playsInline muted className="w-full h-full object-cover" />
                                         ) : (
                                             <div className="w-full h-full flex flex-col items-center justify-center gap-2 text-muted-foreground">
                                                 <CameraOff className="h-10 w-10" />
@@ -409,31 +467,26 @@ export default function InterviewSessionPage() {
                                         )}
                                     </div>
                                     <p className="text-xs text-muted-foreground text-center mt-2">
-                                        {isListening
-                                            ? "Speak clearly — your words appear in the answer box"
-                                            : "Click 🎤 to use speech-to-text"}
+                                        {isListening ? "Speak clearly — your words appear in the answer box" : "Click 🎤 to use speech-to-text"}
                                     </p>
                                 </CardContent>
                             </Card>
 
-                            {/* Session info */}
                             <Card>
                                 <CardContent className="p-4 space-y-2 text-xs text-muted-foreground">
                                     <p><span className="text-foreground font-medium">Role:</span> {role}</p>
                                     <p><span className="text-foreground font-medium">Type:</span> {mode.replace('_', ' ')}</p>
                                     <p><span className="text-foreground font-medium">Questions:</span> {questionCount} total</p>
-                                    {sessionMode === 'learning' && (
-                                        <p className="text-green-600 dark:text-green-400">
-                                            ✓ Practice mode — hints available
-                                        </p>
+                                    {isPractice && (
+                                        <p className="text-green-600 dark:text-green-400">✓ Practice mode — hints available</p>
                                     )}
                                 </CardContent>
                             </Card>
                         </div>
                     )}
 
-                    {/* ── Question + Answer panel ── */}
-                    <div className={focusMode ? 'col-span-1' : 'lg:col-span-3'}>
+                    {/* Question + Answer */}
+                    <div className={cameraVisible ? 'lg:col-span-3' : 'col-span-1'}>
                         <Card className="h-full">
                             <CardHeader className="pb-3">
                                 <div className="flex items-center justify-between">
@@ -442,8 +495,8 @@ export default function InterviewSessionPage() {
                                             ? `Question ${currentQuestionIndex + 1} Complete`
                                             : `Question ${currentQuestionIndex + 1} of ${questionCount}`}
                                     </CardTitle>
-                                    {/* Focus mode: show mic & camera toggles inline */}
-                                    {focusMode && (
+                                    {/* When camera panel is hidden, show mic/camera toggles inline */}
+                                    {!cameraVisible && (
                                         <div className="flex gap-1">
                                             <Button size="icon" variant="ghost" className="h-8 w-8" onClick={toggleCamera}>
                                                 {cameraEnabled ? <CameraOff className="h-4 w-4" /> : <Camera className="h-4 w-4" />}
@@ -472,7 +525,7 @@ export default function InterviewSessionPage() {
                                     </div>
                                 ) : currentQuestion ? (
                                     <>
-                                        {/* ── Question card ── */}
+                                        {/* Question card */}
                                         <div className="bg-muted/30 rounded-xl p-4 border border-border">
                                             <div className="flex items-start justify-between gap-3">
                                                 <div className="flex-1">
@@ -485,11 +538,9 @@ export default function InterviewSessionPage() {
                                                         {currentQuestion.questionText}
                                                     </p>
                                                 </div>
-                                                {!currentEvaluation && sessionMode === 'learning' && (
+                                                {!currentEvaluation && isPractice && (
                                                     <Button
-                                                        variant="ghost"
-                                                        size="icon"
-                                                        className="h-8 w-8 shrink-0 mt-1"
+                                                        variant="ghost" size="icon" className="h-8 w-8 shrink-0 mt-1"
                                                         onClick={() => setShowHint(h =>
                                                             h === 'none' ? 'level1' : h === 'level1' ? 'level2' : 'none'
                                                         )}
@@ -500,7 +551,6 @@ export default function InterviewSessionPage() {
                                                 )}
                                             </div>
 
-                                            {/* Hint */}
                                             <AnimatePresence>
                                                 {!currentEvaluation && showHint !== 'none' && (
                                                     <motion.div
@@ -512,9 +562,7 @@ export default function InterviewSessionPage() {
                                                         <div className="flex items-start gap-2">
                                                             <Lightbulb className="h-3.5 w-3.5 text-yellow-500 shrink-0 mt-0.5" />
                                                             <p className="text-sm text-muted-foreground">
-                                                                {showHint === 'level1'
-                                                                    ? currentQuestion.hintLevel1
-                                                                    : currentQuestion.hintLevel2}
+                                                                {showHint === 'level1' ? currentQuestion.hintLevel1 : currentQuestion.hintLevel2}
                                                             </p>
                                                         </div>
                                                     </motion.div>
@@ -522,7 +570,7 @@ export default function InterviewSessionPage() {
                                             </AnimatePresence>
                                         </div>
 
-                                        {/* ── Answer area (pre-evaluation) ── */}
+                                        {/* Answer area */}
                                         {!currentEvaluation && (
                                             <div className="space-y-3">
                                                 <div className="relative">
@@ -535,9 +583,7 @@ export default function InterviewSessionPage() {
                                                                 : "Type your answer here, or click 🎤 to speak…"
                                                         }
                                                         className={`w-full min-h-[160px] rounded-xl border bg-background px-4 py-3 text-sm text-foreground resize-none focus:outline-none focus:ring-2 focus:ring-primary transition-all ${
-                                                            isListening
-                                                                ? 'border-destructive ring-2 ring-destructive/30'
-                                                                : 'border-border'
+                                                            isListening ? 'border-destructive ring-2 ring-destructive/30' : 'border-border'
                                                         }`}
                                                         disabled={isSubmitting}
                                                     />
@@ -556,18 +602,15 @@ export default function InterviewSessionPage() {
                                                 )}
 
                                                 <div className="flex gap-2">
-                                                    {/* Speech toggle button */}
                                                     <Button
                                                         variant={isListening ? "destructive" : "outline"}
                                                         onClick={toggleListening}
                                                         className="gap-2 shrink-0"
-                                                        type="button"
                                                     >
                                                         {isListening
                                                             ? <><MicOff className="h-4 w-4" /> Stop</>
                                                             : <><Mic className="h-4 w-4" /> Speak</>}
                                                     </Button>
-
                                                     <Button
                                                         onClick={submitAnswer}
                                                         disabled={!answer.trim() || isSubmitting}
@@ -581,44 +624,75 @@ export default function InterviewSessionPage() {
                                             </div>
                                         )}
 
-                                        {/* ── Evaluation result ── */}
+                                        {/* Evaluation result */}
                                         {currentEvaluation && (
                                             <motion.div
                                                 initial={{ opacity: 0, y: 12 }}
                                                 animate={{ opacity: 1, y: 0 }}
                                                 className="space-y-4"
                                             >
-                                                {/* Score */}
-                                                <div className="p-6 bg-gradient-to-br from-primary/10 to-primary/5 rounded-xl border border-primary/20 text-center">
-                                                    <div className="inline-flex items-center justify-center w-20 h-20 rounded-full bg-primary/20 mb-3">
-                                                        <span className="text-2xl font-bold text-primary">{scorePct}%</span>
-                                                    </div>
-                                                    <p className="text-sm font-medium text-foreground">
-                                                        Score: {scorePct}/100
-                                                    </p>
-                                                </div>
+                                                {/* Practice mode: rich score UI */}
+                                                {isPractice && (
+                                                    <div className="space-y-4">
+                                                        {/* Animated score ring */}
+                                                        <div className=" flex justify-center py-4 bg-gradient-to-br from-primary/10 to-primary/5 rounded-xl border border-primary/20">
+                                                            <ScoreRing
+                                                                pct={scorePct}
+                                                                label={scorePct >= 80 ? "Excellent answer!" : scorePct >= 60 ? "Good answer" : scorePct >= 40 ? "Needs improvement" : "Keep practising"}
+                                                            />
+                                                            {/* <h1 className='text-2xl font-bold text-foreground'>{scorePct}%</h1>
+                                                            <span className='text-sm text-muted-foreground mt-1'>
+                                                                {scorePct >= 80 ? "Excellent answer!" :
+                                                                    scorePct >= 60 ? "Good answer" :
+                                                                        scorePct >= 40 ? "Needs improvement" : "Keep practising"}
+                                                            </span> */}
 
-                                                {/* Feedback (practice mode) */}
-                                                {sessionMode === 'learning' && (
-                                                    <div className="space-y-3 text-sm">
-                                                        {currentEvaluation.explanation && (
-                                                            <div className="bg-muted/40 rounded-lg p-3 border border-border">
-                                                                <p className="font-medium text-foreground mb-1">Explanation</p>
-                                                                <p className="text-muted-foreground leading-relaxed">{currentEvaluation.explanation}</p>
-                                                            </div>
-                                                        )}
-                                                        {currentEvaluation.strengths && (
-                                                            <div className="bg-green-500/5 rounded-lg p-3 border border-green-500/20">
-                                                                <p className="font-medium text-green-600 dark:text-green-400 mb-1">✓ Strengths</p>
-                                                                <p className="text-muted-foreground">{currentEvaluation.strengths}</p>
-                                                            </div>
-                                                        )}
-                                                        {currentEvaluation.weaknesses && (
-                                                            <div className="bg-red-500/5 rounded-lg p-3 border border-red-500/20">
-                                                                <p className="font-medium text-red-600 dark:text-red-400 mb-1">✗ Weaknesses</p>
-                                                                <p className="text-muted-foreground">{currentEvaluation.weaknesses}</p>
-                                                            </div>
-                                                        )}
+                                                        </div>
+
+                                                        {/* Score breakdown bars */}
+                                                        <div className="bg-muted/30 rounded-xl p-4 border border-border">
+                                                            <p className="text-xs font-semibold text-foreground mb-3">Score Breakdown</p>
+                                                            <ScoreBars evaluation={currentEvaluation} />
+                                                        </div>
+
+                                                        {/* Feedback */}
+                                                        <div className="space-y-3 text-sm">
+                                                            {currentEvaluation.explanation && (
+                                                                <div className="bg-muted/40 rounded-lg p-3 border border-border">
+                                                                    <p className="font-medium text-foreground mb-1">Explanation</p>
+                                                                    <p className="text-muted-foreground leading-relaxed">{currentEvaluation.explanation}</p>
+                                                                </div>
+                                                            )}
+                                                            {currentEvaluation.strengths && (
+                                                                <div className="bg-green-500/5 rounded-lg p-3 border border-green-500/20">
+                                                                    <p className="font-medium text-green-600 dark:text-green-400 mb-1">✓ Strengths</p>
+                                                                    <p className="text-muted-foreground">{currentEvaluation.strengths}</p>
+                                                                </div>
+                                                            )}
+                                                            {currentEvaluation.weaknesses && (
+                                                                <div className="bg-red-500/5 rounded-lg p-3 border border-red-500/20">
+                                                                    <p className="font-medium text-red-600 dark:text-red-400 mb-1">✗ Weaknesses</p>
+                                                                    <p className="text-muted-foreground">{currentEvaluation.weaknesses}</p>
+                                                                </div>
+                                                            )}
+                                                            {currentEvaluation.improvementSuggestions && (
+                                                                <div className="bg-amber-500/5 rounded-lg p-3 border border-amber-500/20">
+                                                                    <p className="font-medium text-amber-600 dark:text-amber-400 mb-1">💡 How to Improve</p>
+                                                                    <p className="text-muted-foreground">{currentEvaluation.improvementSuggestions}</p>
+                                                                </div>
+                                                            )}
+                                                        </div>
+                                                    </div>
+                                                )}
+
+                                                {/* Real mode: no score shown, just a neutral acknowledgement */}
+                                                {isRealMode && (
+                                                    <div className="flex items-center gap-3 p-4 bg-muted/30 rounded-xl border border-border">
+                                                        <CheckCircle2 className="h-5 w-5 text-primary shrink-0" />
+                                                        <div>
+                                                            <p className="font-medium text-foreground text-sm">Answer recorded</p>
+                                                            <p className="text-xs text-muted-foreground mt-0.5">Your score and feedback will appear in the summary at the end.</p>
+                                                        </div>
                                                     </div>
                                                 )}
 
@@ -629,7 +703,7 @@ export default function InterviewSessionPage() {
                                                     </Button>
                                                 ) : isLastQuestion ? (
                                                     <Button onClick={goToSummary} className="w-full gap-2" size="lg">
-                                                        View Summary Report <CheckCircle2 className="h-4 w-4" />
+                                                        View Summary <CheckCircle2 className="h-4 w-4" />
                                                     </Button>
                                                 ) : (
                                                     <div className="flex items-center justify-center py-4 gap-2 text-muted-foreground text-sm">
@@ -641,9 +715,7 @@ export default function InterviewSessionPage() {
                                         )}
                                     </>
                                 ) : (
-                                    <div className="text-center py-16 text-muted-foreground text-sm">
-                                        Loading question…
-                                    </div>
+                                    <div className="text-center py-16 text-muted-foreground text-sm">Loading question…</div>
                                 )}
                             </CardContent>
                         </Card>
