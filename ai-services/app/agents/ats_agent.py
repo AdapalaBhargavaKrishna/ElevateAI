@@ -1,6 +1,7 @@
 import re
 import json
 import logging
+from typing import List, Optional
 from app.agents.llm_service import LLMService
 
 logger = logging.getLogger(__name__)
@@ -24,10 +25,26 @@ class ATSAgent:
         "general":   ["git", "agile", "scrum", "communication", "teamwork", "problem solving", "leadership", "project management"]
     }
 
+    KEYWORD_CATALOG = [
+        "python", "java", "javascript", "typescript", "react", "angular", "vue", "node", "node.js",
+        "api", "rest", "graphql", "microservices", "sql", "postgresql", "mysql", "mongodb", "redis",
+        "docker", "kubernetes", "aws", "azure", "gcp", "ci/cd", "jenkins", "terraform", "linux",
+        "machine learning", "deep learning", "tensorflow", "pytorch", "pandas", "numpy", "etl", "pipeline",
+        "html", "css", "responsive", "ui", "ux", "figma", "webpack",
+        "git", "agile", "scrum", "communication", "teamwork", "problem solving", "leadership", "project management",
+        "testing", "unit testing", "integration testing", "system design", "authentication", "oauth"
+    ]
+
     def __init__(self):
         self.llm = LLMService()
 
-    def run(self, parsed_resume: dict, skills_data: dict) -> dict:
+    def run(
+        self,
+        parsed_resume: dict,
+        skills_data: dict,
+        target_role: Optional[str] = None,
+        job_description: Optional[str] = None,
+    ) -> dict:
         if not parsed_resume:
             raise ValueError("Parsed resume data cannot be empty.")
 
@@ -83,22 +100,35 @@ class ATSAgent:
         breakdown["section_headings"] = {"score": section_score, "max": 20, "found_sections": found_sections, "issues": section_issues}
 
         # ── 3. Keyword Density (25 pts) ───────────────────────────
+        role_domain_hint = (target_role or "").lower()
         domain = skills_data.get("domain", "general").lower()
+        if role_domain_hint:
+            domain = f"{domain} {role_domain_hint}".strip()
         matched_domain = "general"
         for key in self.DOMAIN_KEYWORDS:
             if re.search(rf'\b{re.escape(key)}\b', domain):
                 matched_domain = key
                 break
-        domain_kws       = self.DOMAIN_KEYWORDS[matched_domain] + self.DOMAIN_KEYWORDS["general"]
-        found_keywords   = [kw for kw in domain_kws if re.search(rf'\b{re.escape(kw)}\b', resume_text)]
-        missing_keywords = [kw for kw in domain_kws if kw not in found_keywords]
-        keyword_ratio    = len(found_keywords) / len(domain_kws) if domain_kws else 0
+
+        domain_kws = self.DOMAIN_KEYWORDS[matched_domain] + self.DOMAIN_KEYWORDS["general"]
+        required_keywords = self._build_required_keywords(domain_kws, job_description)
+
+        found_keywords = [kw for kw in required_keywords if re.search(rf'\b{re.escape(kw)}\b', resume_text)]
+        missing_keywords = [kw for kw in required_keywords if kw not in found_keywords]
+        keyword_ratio = len(found_keywords) / len(required_keywords) if required_keywords else 0
         if keyword_ratio >= 0.7:    keyword_score = 25
         elif keyword_ratio >= 0.5:  keyword_score = 20
         elif keyword_ratio >= 0.35: keyword_score = 14
         elif keyword_ratio >= 0.2:  keyword_score = 8
         else:                       keyword_score = 3
-        breakdown["keywords"] = {"score": keyword_score, "max": 25, "found_keywords": found_keywords, "missing_keywords": missing_keywords[:8], "match_ratio": f"{round(keyword_ratio * 100)}%"}
+        breakdown["keywords"] = {
+            "score": keyword_score,
+            "max": 25,
+            "found_keywords": found_keywords,
+            "missing_keywords": missing_keywords[:8],
+            "match_ratio": f"{round(keyword_ratio * 100)}%",
+            "keyword_source": "job_description" if job_description and job_description.strip() else "domain_defaults",
+        }
 
         # ── 4. Date Formats (15 pts) ──────────────────────────────
         date_score  = 15
@@ -165,3 +195,30 @@ Each recommendation must be a specific actionable string.
         except Exception as e:
             logger.error(f"[ATSAgent] Recommendations failed: {e}")
             return []
+
+    def _ordered_unique(self, items: List[str]) -> List[str]:
+        seen = set()
+        out: List[str] = []
+        for item in items:
+            key = item.strip().lower()
+            if not key or key in seen:
+                continue
+            seen.add(key)
+            out.append(key)
+        return out
+
+    def _build_required_keywords(self, domain_keywords: List[str], job_description: Optional[str]) -> List[str]:
+        base = self._ordered_unique(domain_keywords)
+        if not job_description or not job_description.strip():
+            return base
+
+        jd = job_description.lower()
+        jd_keywords = [kw for kw in self.KEYWORD_CATALOG if re.search(rf'\b{re.escape(kw)}\b', jd)]
+
+        # If JD has extractable keywords, prioritize JD relevance while retaining a small stable baseline.
+        if jd_keywords:
+            jd_unique = self._ordered_unique(jd_keywords)
+            baseline = [kw for kw in base if kw in {"communication", "teamwork", "problem solving", "leadership"}]
+            return self._ordered_unique(jd_unique + baseline)
+
+        return base

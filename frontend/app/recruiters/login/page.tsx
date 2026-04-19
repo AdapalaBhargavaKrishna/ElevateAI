@@ -20,6 +20,7 @@ import { useTheme } from "next-themes";
 import Link from "next/link";
 import Image from "next/image";
 import { api } from '../../lib/axios'
+import toast from 'react-hot-toast';
 
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -53,7 +54,7 @@ function RecruiterLoginPageContent() {
     useEffect(() => {
         const errorParam = searchParams.get("error");
         if (errorParam === "email_exists_local") {
-            alert('This email is registered with a password. Please log in normally.')
+            toast.error('This email is registered with a password. Please log in normally.');
         }
     }, [searchParams]);
 
@@ -72,13 +73,16 @@ function RecruiterLoginPageContent() {
         try {
             const { data } = await api.post('/auth/recruiter/login', { email, password });
             console.log(data);
+            toast.success('Logged in successfully.');
             if (data.isNewRecruiter) {
                 router.replace("/recruiters/onboarding");
             } else {
                 router.replace("/recruiters/dashboard");
             }
         } catch (err: any) {
-            setError(err.response?.data?.message || "Something went wrong.");
+            const message = err.response?.data?.message || "Something went wrong.";
+            setError(message);
+            toast.error(message);
         } finally {
             setIsLoading(false);
         }

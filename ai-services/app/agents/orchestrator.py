@@ -20,7 +20,9 @@ class ResumeOrchestrator:
         self,
         resume_text: str = None,
         file_bytes: bytes = None,
-        filename: str = None
+        filename: str = None,
+        target_role: str = None,
+        job_description: str = None,
     ) -> dict:
         if not resume_text and not (file_bytes and filename):
             raise ValueError("Provide either resume_text or file_bytes + filename.")
@@ -38,7 +40,12 @@ class ResumeOrchestrator:
         score = self.scoring_agent.run(parsed, skills)
 
         print("[Orchestrator] Step 3b: Running ATS check...")
-        ats = self.ats_agent.run(parsed, skills)
+        ats = self.ats_agent.run(
+            parsed,
+            skills,
+            target_role=target_role,
+            job_description=job_description,
+        )
 
         print("[Orchestrator] Done.")
         return {

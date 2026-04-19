@@ -10,6 +10,7 @@ import {
 } from "lucide-react";
 import { useRouter } from 'next/navigation';
 import { useTheme } from 'next-themes';
+import toast from 'react-hot-toast';
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
@@ -99,9 +100,11 @@ export default function OnboardingPage() {
 
         try {
             await api.post('/auth/onboarding/complete', finalData);
+            toast.success('Onboarding completed successfully.');
             router.push("/user/dashboard");
         } catch (err) {
             console.error("Onboarding error:", err);
+            toast.error('Failed to complete onboarding. Please try again.');
         }
     };
 

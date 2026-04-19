@@ -14,6 +14,7 @@ import {
     CheckCircle2, FileText, BarChart3
 } from "lucide-react";
 import Link from "next/link";
+import toast from 'react-hot-toast';
 
 function InterviewSummaryPageContent() {
     const router = useRouter();
@@ -36,7 +37,9 @@ function InterviewSummaryPageContent() {
             const data = await interviewApi.getSummary(sessionId!);
             setSummaryData(data);
         } catch (err: any) {
-            setError(err.response?.data?.message || 'Failed to load interview summary');
+            const message = err.response?.data?.message || 'Failed to load interview summary';
+            setError(message);
+            toast.error(message);
         } finally {
             setIsLoading(false);
         }

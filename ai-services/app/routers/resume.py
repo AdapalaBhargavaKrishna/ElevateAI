@@ -1,5 +1,6 @@
-from fastapi import APIRouter, Header, HTTPException, UploadFile, File
+from fastapi import APIRouter, Header, HTTPException, UploadFile, File, Form
 from pydantic import BaseModel
+from typing import Optional
 from app.config import settings
 from app.services.resume_service import ResumeService
 
@@ -11,6 +12,8 @@ resume_service = ResumeService()
 
 class ResumeTextRequest(BaseModel):
     resume_text: str
+    target_role: Optional[str] = None
+    job_description: Optional[str] = None
 
 
 def _check_auth(key: str):
@@ -21,6 +24,8 @@ def _check_auth(key: str):
 @router.post("/analyze-file")
 async def analyze_resume_file(
     file: UploadFile = File(...),
+    target_role: Optional[str] = Form(default=None),
+    job_description: Optional[str] = Form(default=None),
     x_user_id: str = Header(..., alias="X-User-Id"),
     x_internal_key: str = Header(..., alias="X-Internal-Key"),
 ):
@@ -44,7 +49,12 @@ async def analyze_resume_file(
         raise HTTPException(status_code=400, detail="Uploaded file is empty.")
 
     try:
-        result = resume_service.analyze(file_bytes=file_bytes, filename=filename)
+        result = resume_service.analyze(
+            file_bytes=file_bytes,
+            filename=filename,
+            target_role=target_role,
+            job_description=job_description,
+        )
         return result
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e))
@@ -67,7 +77,11 @@ def analyze_resume_text(
     _check_auth(x_internal_key)
 
     try:
-        result = resume_service.analyze(resume_text=request.resume_text)
+        result = resume_service.analyze(
+            resume_text=request.resume_text,
+            target_role=request.target_role,
+            job_description=request.job_description,
+        )
         return result
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))

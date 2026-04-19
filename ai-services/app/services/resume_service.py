@@ -14,10 +14,14 @@ class ResumeService:
         self,
         resume_text: str = None,
         file_bytes: bytes = None,
-        filename: str = None
+        filename: str = None,
+        target_role: str = None,
+        job_description: str = None,
     ) -> dict:
         return self.orchestrator.analyze_resume(
             resume_text=resume_text,
             file_bytes=file_bytes,
-            filename=filename
+            filename=filename,
+            target_role=target_role,
+            job_description=job_description,
         )

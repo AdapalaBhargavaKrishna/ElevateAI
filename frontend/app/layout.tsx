@@ -2,6 +2,7 @@ import type { Metadata } from 'next';
 import { Inter } from 'next/font/google';
 import './globals.css';
 import { ThemeProvider } from "next-themes";
+import { HotToaster } from "@/components/ui/hot-toaster";
 
 const inter = Inter({ subsets: ['latin'] });
 
@@ -21,6 +22,7 @@ export default function RootLayout({
 
         <ThemeProvider attribute="class" defaultTheme="system" enableSystem={false} disableTransitionOnChange>
           {children}
+          <HotToaster />
         </ThemeProvider>
 
       </body>

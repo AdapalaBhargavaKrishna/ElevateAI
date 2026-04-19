@@ -67,7 +67,10 @@ export default function ResumeAnalyzerPage() {
         setError(null);
         setResult(null);
         try {
-            const data = await resumeApi.analyzeFile(file);
+            const data = await resumeApi.analyzeFile(file, {
+                targetRole: targetRole.trim(),
+                jobDescription: jobDescription.trim(),
+            });
             setResult(data);
         } catch (err: any) {
             setError(err?.response?.data?.message || "Analysis failed. Please try again.");
@@ -108,6 +111,8 @@ export default function ResumeAnalyzerPage() {
 
     const breakdown     = result?.score?.breakdown ?? {};
     const atsBreakdown  = result?.ats?.breakdown ?? {};
+    const atsFoundKeywords = Array.from(new Set((atsBreakdown?.keywords?.found_keywords ?? []).map((k: string) => k.toLowerCase())));
+    const atsMissingKeywords = Array.from(new Set((atsBreakdown?.keywords?.missing_keywords ?? []).map((k: string) => k.toLowerCase())));
 
     const deductions      = result?.score?.deductions ?? [];
     const recommendations = result?.ats?.recommendations ?? [];
@@ -549,21 +554,21 @@ export default function ResumeAnalyzerPage() {
                                         <p className="text-sm text-muted-foreground">
                                             Match ratio: <span className="font-semibold text-foreground">{atsBreakdown.keywords.match_ratio}</span>
                                         </p>
-                                        {(atsBreakdown.keywords.found_keywords ?? []).length > 0 && (
+                                        {atsFoundKeywords.length > 0 && (
                                             <div>
                                                 <p className="text-xs text-muted-foreground mb-2">Keywords found:</p>
                                                 <div className="flex flex-wrap gap-1.5">
-                                                    {atsBreakdown.keywords.found_keywords.map((k: string, i: number) => (
+                                                    {atsFoundKeywords.map((k: string, i: number) => (
                                                         <Badge key={i} className="text-xs bg-green-500/10 text-green-700 dark:text-green-400 border-0">{k}</Badge>
                                                     ))}
                                                 </div>
                                             </div>
                                         )}
-                                        {(atsBreakdown.keywords.missing_keywords ?? []).length > 0 && (
+                                        {atsMissingKeywords.length > 0 && (
                                             <div>
                                                 <p className="text-xs text-muted-foreground mb-2">Missing keywords:</p>
                                                 <div className="flex flex-wrap gap-1.5">
-                                                    {atsBreakdown.keywords.missing_keywords.map((k: string, i: number) => (
+                                                    {atsMissingKeywords.map((k: string, i: number) => (
                                                         <Badge key={i} className="text-xs bg-red-500/10 text-red-700 dark:text-red-400 border-0">{k}</Badge>
                                                     ))}
                                                 </div>

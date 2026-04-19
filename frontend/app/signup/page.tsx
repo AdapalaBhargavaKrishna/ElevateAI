@@ -17,6 +17,7 @@ import { useTheme } from "next-themes";
 import Link from "next/link";
 import Image from "next/image";
 import { api } from '../lib/axios'
+import toast from 'react-hot-toast';
 
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -67,9 +68,12 @@ export default function SignupPage() {
                 password,
                 fullName: name
             });
+            toast.success("Account created successfully.");
             router.push("/onboarding/user");
         } catch (error: any) {
-            setError(error.response?.data?.message || "Something went wrong");
+            const message = error.response?.data?.message || "Something went wrong";
+            setError(message);
+            toast.error(message);
         } finally {
             setIsLoading(false);
         }

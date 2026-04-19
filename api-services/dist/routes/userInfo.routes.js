@@ -4,6 +4,7 @@ const express_1 = require("express");
 const userInfo_controllers_1 = require("../controllers/userInfo.controllers");
 const auth_middleware_1 = require("../middleware/auth.middleware");
 const router = (0, express_1.Router)();
+router.get("/public/:userId", userInfo_controllers_1.getPublicUserProfile);
 router.get("/", auth_middleware_1.requireAuth, userInfo_controllers_1.getUserInfo);
 router.post("/save", auth_middleware_1.requireAuth, userInfo_controllers_1.saveUserInfo);
 exports.default = router;

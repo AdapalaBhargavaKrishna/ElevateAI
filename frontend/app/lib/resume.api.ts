@@ -56,11 +56,22 @@ export interface ResumeHistoryItem {
     createdAt:    string;
 }
 
+export interface ResumeAnalysisContext {
+    targetRole?: string;
+    jobDescription?: string;
+}
+
 export const resumeApi = {
     // Upload a PDF or DOCX file
-    analyzeFile: async (file: File): Promise<ResumeAnalysis> => {
+    analyzeFile: async (file: File, context?: ResumeAnalysisContext): Promise<ResumeAnalysis> => {
         const formData = new FormData();
         formData.append("file", file);
+        if (context?.targetRole) {
+            formData.append("targetRole", context.targetRole);
+        }
+        if (context?.jobDescription) {
+            formData.append("jobDescription", context.jobDescription);
+        }
         const response = await api.post('/resume/analyze-file', formData, {
             headers: { 'Content-Type': 'multipart/form-data' },
         });
@@ -68,8 +79,12 @@ export const resumeApi = {
     },
 
     // Paste resume as plain text
-    analyzeText: async (resumeText: string): Promise<ResumeAnalysis> => {
-        const response = await api.post('/resume/analyze-text', { resumeText });
+    analyzeText: async (resumeText: string, context?: ResumeAnalysisContext): Promise<ResumeAnalysis> => {
+        const response = await api.post('/resume/analyze-text', {
+            resumeText,
+            targetRole: context?.targetRole,
+            jobDescription: context?.jobDescription,
+        });
         return response.data;
     },
 

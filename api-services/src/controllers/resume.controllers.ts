@@ -65,6 +65,8 @@ export async function analyzeResumeFile(req: Request, res: Response) {
     try {
         const userId = (req as any).userId as string;
         const file   = req.file;
+        const targetRole = typeof req.body?.targetRole === "string" ? req.body.targetRole.trim() : "";
+        const jobDescription = typeof req.body?.jobDescription === "string" ? req.body.jobDescription.trim() : "";
 
         if (!file) {
             return res.status(400).json({ message: "No file uploaded." });
@@ -75,7 +77,9 @@ export async function analyzeResumeFile(req: Request, res: Response) {
             userId,
             file.buffer,
             file.originalname,
-            file.mimetype
+            file.mimetype,
+            targetRole || undefined,
+            jobDescription || undefined
         );
 
         // 2. Save to Supabase via Prisma
@@ -100,13 +104,18 @@ export async function analyzeResumeFile(req: Request, res: Response) {
 export async function analyzeResumeText(req: Request, res: Response) {
     try {
         const userId     = (req as any).userId as string;
-        const { resumeText } = req.body;
+        const { resumeText, targetRole, jobDescription } = req.body;
 
         if (!resumeText) {
             return res.status(400).json({ message: "resumeText is required." });
         }
 
-        const aiResult = await aiAnalyzeResumeText(userId, resumeText);
+        const aiResult = await aiAnalyzeResumeText(
+            userId,
+            resumeText,
+            typeof targetRole === "string" ? targetRole.trim() || undefined : undefined,
+            typeof jobDescription === "string" ? jobDescription.trim() || undefined : undefined
+        );
         const saved    = await saveResumeAnalysis(userId, aiResult);
 
         return res.status(200).json({

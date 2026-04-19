@@ -15,6 +15,7 @@ import {
     Maximize2, Minimize2
 } from "lucide-react";
 import Link from "next/link";
+import toast from 'react-hot-toast';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -215,6 +216,7 @@ function InterviewSessionPageContent() {
         const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
         if (!SR) {
             setError('Speech recognition is not supported in this browser. Please use Chrome.');
+            toast.error('Speech recognition is not supported in this browser. Please use Chrome.');
             return;
         }
         const recognition = new SR();
@@ -238,7 +240,11 @@ function InterviewSessionPageContent() {
         };
 
         recognition.onerror = (event: any) => {
-            if (event.error !== 'aborted') setError(`Microphone error: ${event.error}. Try again.`);
+            if (event.error !== 'aborted') {
+                const message = `Microphone error: ${event.error}. Try again.`;
+                setError(message);
+                toast.error(message);
+            }
             setIsListening(false);
         };
         recognition.onend = () => setIsListening(false);
@@ -281,7 +287,9 @@ function InterviewSessionPageContent() {
             setCurrentQuestion(response.firstQuestion);
             setCurrentQuestionIndex(0);
         } catch (err: any) {
-            setError(err.response?.data?.message || 'Failed to start interview. Please try again.');
+            const message = err.response?.data?.message || 'Failed to start interview. Please try again.';
+            setError(message);
+            toast.error(message);
         } finally {
             setIsLoading(false);
         }
@@ -308,8 +316,15 @@ function InterviewSessionPageContent() {
             setQuestionsAnswered(response.questionsAnswered);
             if (response.nextQuestion)  setNextQuestionData(response.nextQuestion);
             if (response.isLastQuestion) setIsLastQuestion(true);
+            if (response.isLastQuestion) {
+                toast.success('Interview complete. View your summary.');
+            } else {
+                toast.success('Answer submitted successfully.');
+            }
         } catch (err: any) {
-            setError(err.response?.data?.message || 'Failed to submit answer. Please try again.');
+            const message = err.response?.data?.message || 'Failed to submit answer. Please try again.';
+            setError(message);
+            toast.error(message);
         } finally {
             setIsSubmitting(false);
         }
@@ -324,10 +339,14 @@ function InterviewSessionPageContent() {
         setCurrentEvaluation(null);
         setNextQuestionData(null);
         setError(null);
+        toast.success('Loaded next question.');
     };
 
     const goToSummary = () => {
-        if (sessionId) router.push(`/user/interview/summary?session_id=${sessionId}`);
+        if (sessionId) {
+            toast.success('Opening interview summary.');
+            router.push(`/user/interview/summary?session_id=${sessionId}`);
+        }
     };
 
     // ── Colours ────────────────────────────────────────────────────────────────

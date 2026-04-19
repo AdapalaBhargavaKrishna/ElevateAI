@@ -186,11 +186,19 @@ export async function aiAnalyzeResumeFile(
     userId: string,
     fileBuffer: Buffer,
     filename: string,
-    mimetype: string
+    mimetype: string,
+    targetRole?: string,
+    jobDescription?: string
 ): Promise<ResumeAIResult> {
     const formData = new FormData();
     const blob = new Blob([new Uint8Array(fileBuffer)], { type: mimetype });
     formData.append("file", blob, filename);
+    if (targetRole) {
+        formData.append("target_role", targetRole);
+    }
+    if (jobDescription) {
+        formData.append("job_description", jobDescription);
+    }
 
     const res = await fetch(`${AI_SERVICE_URL}/resume/analyze-file`, {
         method: "POST",
@@ -211,7 +219,9 @@ export async function aiAnalyzeResumeFile(
 
 export async function aiAnalyzeResumeText(
     userId: string,
-    resumeText: string
+    resumeText: string,
+    targetRole?: string,
+    jobDescription?: string
 ): Promise<ResumeAIResult> {
     const res = await fetch(`${AI_SERVICE_URL}/resume/analyze-text`, {
         method: "POST",
@@ -220,7 +230,11 @@ export async function aiAnalyzeResumeText(
             "X-User-Id":      userId,
             "X-Internal-Key": INTERNAL_KEY,
         },
-        body: JSON.stringify({ resume_text: resumeText }),
+        body: JSON.stringify({
+            resume_text: resumeText,
+            target_role: targetRole,
+            job_description: jobDescription,
+        }),
     });
 
     if (!res.ok) {

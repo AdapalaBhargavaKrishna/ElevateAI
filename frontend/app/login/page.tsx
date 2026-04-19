@@ -16,6 +16,7 @@ import { useTheme } from "next-themes";
 import Link from "next/link";
 import Image from "next/image";
 import { api } from '../lib/axios'
+import toast from 'react-hot-toast';
 
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -49,7 +50,7 @@ function LoginPageContent() {
     useEffect(() => {
         const error = searchParams.get("error");
         if (error === "email_exists_local") {
-            alert('This email is registered with a password. Please log in normally.')
+            toast.error('This email is registered with a password. Please log in normally.');
         }
     }, [searchParams]);
 
@@ -78,13 +79,16 @@ function LoginPageContent() {
         try {
             const { data } = await api.post('/auth/login', { email, password, });
             console.log(data)
+            toast.success('Logged in successfully.');
             if (data.isNewUser) {
                 router.replace("/onboarding/user");
             } else {
                 router.replace("/user/dashboard");
             }
         } catch (err: any) {
-            setError(err.response?.data?.message || "Something went wrong.");
+            const message = err.response?.data?.message || "Something went wrong.";
+            setError(message);
+            toast.error(message);
         } finally {
             setIsLoading(false);
         }

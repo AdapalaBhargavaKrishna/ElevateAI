@@ -25,6 +25,7 @@ import { useTheme } from "next-themes";
 import Link from "next/link";
 import Image from "next/image";
 import { api } from '../../lib/axios'
+import toast from 'react-hot-toast';
 
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -83,15 +84,21 @@ export default function RecruiterSignupPage() {
 
     const validateForm = () => {
         if (formData.password !== formData.confirmPassword) {
-            setError("Passwords do not match");
+            const message = "Passwords do not match";
+            setError(message);
+            toast.error(message);
             return false;
         }
         if (formData.password.length < 8) {
-            setError("Password must be at least 8 characters");
+            const message = "Password must be at least 8 characters";
+            setError(message);
+            toast.error(message);
             return false;
         }
         if (!agreedToTerms) {
-            setError("Please agree to the Terms of Service and Privacy Policy");
+            const message = "Please agree to the Terms of Service and Privacy Policy";
+            setError(message);
+            toast.error(message);
             return false;
         }
         return true;
@@ -115,6 +122,7 @@ export default function RecruiterSignupPage() {
                 password: formData.password,
             });
             console.log(data);
+            toast.success("Recruiter account created successfully.");
             
             // Redirect to onboarding or dashboard
             if (data.isNewRecruiter) {
@@ -123,7 +131,9 @@ export default function RecruiterSignupPage() {
                 router.replace("/recruiters/dashboard");
             }
         } catch (err: any) {
-            setError(err.response?.data?.message || "Something went wrong. Please try again.");
+            const message = err.response?.data?.message || "Something went wrong. Please try again.";
+            setError(message);
+            toast.error(message);
         } finally {
             setIsLoading(false);
         }

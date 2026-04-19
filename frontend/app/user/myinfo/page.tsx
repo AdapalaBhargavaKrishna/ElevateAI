@@ -22,6 +22,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
     Tooltip, TooltipContent, TooltipProvider, TooltipTrigger,
 } from "@/components/ui/tooltip";
+import toast from 'react-hot-toast';
 
 interface Experience {
     id: string; company: string; role: string; from: string; to: string; location: string; description: string; current: boolean;
@@ -195,6 +196,7 @@ export default function MyInfoPage() {
                 });
             } catch (err) {
                 console.error("Fetch error:", err);
+                toast.error("Failed to load your profile data.");
             } finally {
                 setLoading(false);
             }
@@ -255,9 +257,11 @@ export default function MyInfoPage() {
             setSaveStatus("saved");
             setLastSaved(new Date());
             setShowSaveReminder(false);
+            toast.success("Profile saved successfully.");
         } catch (err) {
             console.error("Save error:", err);
             setSaveStatus("unsaved");
+            toast.error("Failed to save profile. Please try again.");
         }
     };
 
@@ -270,6 +274,7 @@ export default function MyInfoPage() {
         setCertifications(JSON.parse(JSON.stringify(originalState.certifications)));
         setSaveStatus("saved");
         setShowSaveReminder(false);
+        toast.success("Changes reverted.");
     };
 
     const addSkill = (s: string) => {
