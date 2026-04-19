@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState } from 'react';
-import { Search, Moon, Sun, User, Menu } from 'lucide-react';
+import { Moon, Sun, User, Menu } from 'lucide-react';
 import { useTheme } from 'next-themes';
 import { useSidebar } from '@/context/SidebarContext';
 import { api } from '../../app/lib/axios'
@@ -29,7 +29,6 @@ export function TopBar() {
     const { theme, setTheme } = useTheme();
     const { toggleMobile } = useSidebar();
     const router = useRouter();
-    const [searchOpen, setSearchOpen] = useState(false);
 
 
     const handleLogout = async () => {
@@ -60,41 +59,6 @@ export function TopBar() {
                     >
                         <Menu className="h-5 w-5" />
                     </Button>
-
-                    {/* Desktop Search */}
-                    <div className="relative hidden md:block">
-                        <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                        <Input
-                            type="text"
-                            placeholder="Search..."
-                            className="h-9 w-64 rounded-lg pl-9"
-                        />
-                    </div>
-
-                    {/* Mobile Search */}
-                    <Sheet open={searchOpen} onOpenChange={setSearchOpen}>
-                        <SheetTrigger asChild>
-                            <Button variant="ghost" size="icon" className="md:hidden">
-                                <Search className="h-5 w-5" />
-                            </Button>
-                        </SheetTrigger>
-                        <SheetContent side="top" className="h-auto">
-                            <SheetHeader>
-                                <SheetTitle>Search</SheetTitle>
-                            </SheetHeader>
-                            <div className="mt-4">
-                                <div className="relative">
-                                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                                    <Input
-                                        type="text"
-                                        placeholder="Search..."
-                                        className="w-full pl-9"
-                                        autoFocus
-                                    />
-                                </div>
-                            </div>
-                        </SheetContent>
-                    </Sheet>
                 </div>
 
                 <div className="flex items-center gap-2 md:gap-3">

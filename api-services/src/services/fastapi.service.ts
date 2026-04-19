@@ -189,7 +189,7 @@ export async function aiAnalyzeResumeFile(
     mimetype: string
 ): Promise<ResumeAIResult> {
     const formData = new FormData();
-    const blob = new Blob([fileBuffer], { type: mimetype });
+    const blob = new Blob([new Uint8Array(fileBuffer)], { type: mimetype });
     formData.append("file", blob, filename);
 
     const res = await fetch(`${AI_SERVICE_URL}/resume/analyze-file`, {
@@ -296,6 +296,29 @@ export interface AssessmentsAIResult {
     questions: MCQQuestion[];
 }
 
+export interface BulkAssessmentsPhaseInput {
+    phase_number: number;
+    phase_title: string;
+    skills_to_learn: string[];
+    goals: string[];
+}
+
+export interface GenerateAssessmentsBatchRequest {
+    target_role: string;
+    questions_per_phase: number;
+    phases: BulkAssessmentsPhaseInput[];
+}
+
+export interface AssessmentsBatchItem {
+    phase_number: number;
+    phase_title: string;
+    questions: MCQQuestion[];
+}
+
+export interface AssessmentsBatchAIResult {
+    assessments: AssessmentsBatchItem[];
+}
+
 // ─── Roadmap service functions ────────────────────────────────────────────────
 
 export async function aiGenerateRoadmap(
@@ -316,6 +339,17 @@ export async function aiGenerateAssessments(
     return postToAI<AssessmentsAIResult>({
         userId,
         path: "/roadmap/assessments/generate",
+        body: payload as unknown as Record<string, unknown>,
+    });
+}
+
+export async function aiGenerateAssessmentsBatch(
+    userId: string,
+    payload: GenerateAssessmentsBatchRequest
+): Promise<AssessmentsBatchAIResult> {
+    return postToAI<AssessmentsBatchAIResult>({
+        userId,
+        path: "/roadmap/assessments/bulk-generate",
         body: payload as unknown as Record<string, unknown>,
     });
 }

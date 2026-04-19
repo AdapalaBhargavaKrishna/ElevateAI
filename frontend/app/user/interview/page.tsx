@@ -137,7 +137,7 @@ export default function InterviewCoachPage() {
 
     return (
         <div className="min-h-screen bg-background">
-            <div className="max-w-5xl mx-auto px-4 py-6 space-y-6">
+            <div className="max-w-7xl mx-auto px-4 py-6 space-y-6">
 
                 {/* Header */}
                 <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">

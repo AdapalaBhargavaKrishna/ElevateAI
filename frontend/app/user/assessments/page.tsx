@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useCallback, Suspense } from 'react';
+import { useState, useEffect, useCallback, Suspense, useRef } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
@@ -14,6 +14,49 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/com
 import { Progress } from '@/components/ui/progress';
 import { roadmapApi, AssessmentSummary, AssessmentDetail, SubmitResult } from '@/app/lib/roadmap.api';
 
+function RichText({ text, className = '' }: { text: string; className?: string }) {
+    const parts = text.split(/```([\s\S]*?)```/g);
+
+    return (
+        <div className={`space-y-2 ${className}`}>
+            {parts.map((part, idx) => {
+                if (idx % 2 === 1) {
+                    const lines = part.split('\n');
+                    const maybeLang = lines[0]?.trim();
+                    const hasLang = /^[a-zA-Z0-9_+#.-]{1,20}$/.test(maybeLang || '');
+                    const code = hasLang ? lines.slice(1).join('\n') : part;
+                    return (
+                        <pre
+                            key={idx}
+                            className="rounded-lg border border-border bg-muted/50 p-3 overflow-x-auto text-xs"
+                        >
+                            <code>{code}</code>
+                        </pre>
+                    );
+                }
+
+                const inlineParts = part.split(/`([^`]+)`/g);
+                return (
+                    <p key={idx} className="whitespace-pre-wrap leading-relaxed">
+                        {inlineParts.map((chunk, i) =>
+                            i % 2 === 1 ? (
+                                <code
+                                    key={i}
+                                    className="px-1.5 py-0.5 rounded bg-muted text-foreground text-[0.92em]"
+                                >
+                                    {chunk}
+                                </code>
+                            ) : (
+                                <span key={i}>{chunk}</span>
+                            )
+                        )}
+                    </p>
+                );
+            })}
+        </div>
+    );
+}
+
 // ─── Quiz phase ────────────────────────────────────────────────────────────────
 
 function QuizView({
@@ -24,44 +67,121 @@ function QuizView({
     onFinish: (result: SubmitResult) => void;
 }) {
     const [currentQ, setCurrentQ] = useState(0);
-    const [answers, setAnswers] = useState<number[]>([]);
-    const [selected, setSelected] = useState<number | null>(null);
+    const [answers, setAnswers] = useState<Array<number | null>>(
+        () => Array.from({ length: assessment.questions.length }, () => null)
+    );
     const [submitting, setSubmitting] = useState(false);
+    const [validationMessage, setValidationMessage] = useState('');
 
     const total = assessment.questions.length;
     const q = assessment.questions[currentQ];
+    const selected = answers[currentQ];
+    const answeredCount = answers.filter((a) => a !== null).length;
+
+    const setAnswerForCurrent = (optionIndex: number) => {
+        setAnswers((prev) => {
+            const next = [...prev];
+            next[currentQ] = optionIndex;
+            return next;
+        });
+        setValidationMessage('');
+    };
+
+    const goToQuestion = (idx: number) => {
+        setCurrentQ(idx);
+        setValidationMessage('');
+    };
+
+    const submitAll = async () => {
+        const firstUnanswered = answers.findIndex((a) => a === null);
+        if (firstUnanswered !== -1) {
+            setValidationMessage('Please answer all questions before finishing.');
+            setCurrentQ(firstUnanswered);
+            return;
+        }
+
+        setSubmitting(true);
+        try {
+            const result = await roadmapApi.submitAssessment(
+                assessment.id,
+                answers.map((a) => a as number)
+            );
+            onFinish(result);
+        } catch {
+            onFinish({
+                score: 0,
+                total,
+                percentage: 0,
+                passed: false,
+                message: 'Submission failed. Please try again.',
+                results: [],
+            });
+        } finally {
+            setSubmitting(false);
+        }
+    };
 
     const handleNext = async () => {
-        if (selected === null) return;
-        const newAnswers = [...answers, selected];
+        if (selected === null) {
+            setValidationMessage('Please select an option before continuing.');
+            return;
+        }
 
         if (currentQ + 1 < total) {
-            setAnswers(newAnswers);
             setCurrentQ((c) => c + 1);
-            setSelected(null);
+            setValidationMessage('');
         } else {
-            // Submit
-            setSubmitting(true);
-            try {
-                const result = await roadmapApi.submitAssessment(assessment.id, newAnswers);
-                onFinish(result);
-            } catch {
-                onFinish({
-                    score: 0,
-                    total,
-                    percentage: 0,
-                    passed: false,
-                    message: 'Submission failed. Please try again.',
-                    results: [],
-                });
-            } finally {
-                setSubmitting(false);
-            }
+            await submitAll();
         }
     };
 
     return (
-        <div className="max-w-2xl mx-auto space-y-6">
+        <div className="max-w-7xl mx-auto grid grid-cols-1 lg:grid-cols-4 gap-6">
+            <div className="lg:col-span-1 order-2 lg:order-1">
+                <Card className="sticky top-4">
+                    <CardHeader className="pb-3">
+                        <CardTitle className="text-base">Questions</CardTitle>
+                        <CardDescription>
+                            {answeredCount}/{total} answered
+                        </CardDescription>
+                    </CardHeader>
+                    <CardContent className="space-y-3">
+                        <div className="grid grid-cols-5 gap-2">
+                            {Array.from({ length: total }).map((_, idx) => {
+                                const answered = answers[idx] !== null;
+                                const isActive = idx === currentQ;
+                                return (
+                                    <button
+                                        key={idx}
+                                        onClick={() => goToQuestion(idx)}
+                                        className={`h-9 w-9 rounded-md text-xs font-semibold border transition-colors ${
+                                            isActive
+                                                ? 'border-primary bg-primary text-primary-foreground'
+                                                : answered
+                                                ? 'border-green-300 bg-green-500/10 text-green-700'
+                                                : 'border-border bg-background text-muted-foreground hover:border-primary/40'
+                                        }`}
+                                        title={answered ? `Question ${idx + 1} answered` : `Question ${idx + 1} not answered`}
+                                    >
+                                        {idx + 1}
+                                    </button>
+                                );
+                            })}
+                        </div>
+
+                        <div className="space-y-1 text-[11px] text-muted-foreground">
+                            <p className="flex items-center gap-1">
+                                <span className="inline-block h-2 w-2 rounded-full bg-green-500" /> Answered
+                            </p>
+                            <p className="flex items-center gap-1">
+                                <span className="inline-block h-2 w-2 rounded-full bg-primary" /> Current
+                            </p>
+                        </div>
+                    </CardContent>
+                </Card>
+            </div>
+
+            <div className="lg:col-span-3 order-1 lg:order-2 space-y-6">
             <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }}>
                 <div className="flex items-center justify-between mb-2">
                     <Badge variant="secondary" className="text-xs">
@@ -71,11 +191,14 @@ function QuizView({
                         {currentQ + 1} / {total}
                     </span>
                 </div>
-                <Progress value={((currentQ + 1) / total) * 100} className="h-2 mb-6" />
+                <Progress value={(answeredCount / total) * 100} className="h-2 mb-6" />
 
-                <Card>
+                <Card className="border-primary/20 shadow-sm">
                     <CardHeader>
-                        <CardTitle className="text-lg leading-snug">{q.question}</CardTitle>
+                        <CardDescription>Question prompt</CardDescription>
+                        <div className="text-lg font-semibold leading-snug text-foreground">
+                            <RichText text={q.question} />
+                        </div>
                     </CardHeader>
                     <CardContent className="space-y-3">
                         {q.options.map((opt, i) => (
@@ -83,7 +206,7 @@ function QuizView({
                                 key={i}
                                 whileHover={{ scale: 1.01 }}
                                 whileTap={{ scale: 0.99 }}
-                                onClick={() => setSelected(i)}
+                                onClick={() => setAnswerForCurrent(i)}
                                 className={`w-full text-left p-4 rounded-lg border-2 transition-all ${
                                     selected === i
                                         ? 'border-primary bg-primary/5'
@@ -100,33 +223,51 @@ function QuizView({
                                     >
                                         {String.fromCharCode(65 + i)}
                                     </span>
-                                    <span className="text-sm font-medium">{opt}</span>
+                                    <div className="text-sm font-medium flex-1">
+                                        <RichText text={opt} />
+                                    </div>
                                 </span>
                             </motion.button>
                         ))}
 
-                        <Button
-                            onClick={handleNext}
-                            disabled={selected === null || submitting}
-                            className="w-full mt-4 gap-2"
-                        >
-                            {submitting ? (
-                                <>
-                                    <RefreshCw className="h-4 w-4 animate-spin" /> Submitting…
-                                </>
-                            ) : currentQ + 1 === total ? (
-                                <>
-                                    Finish <CheckCircle2 className="h-4 w-4" />
-                                </>
-                            ) : (
-                                <>
-                                    Next <ArrowRight className="h-4 w-4" />
-                                </>
-                            )}
-                        </Button>
+                        {validationMessage && (
+                            <p className="text-xs text-amber-600">{validationMessage}</p>
+                        )}
+
+                        <div className="flex gap-2">
+                            <Button
+                                variant="outline"
+                                onClick={() => goToQuestion(Math.max(0, currentQ - 1))}
+                                disabled={currentQ === 0 || submitting}
+                                className="flex-1"
+                            >
+                                Previous
+                            </Button>
+
+                            <Button
+                                onClick={handleNext}
+                                disabled={submitting}
+                                className="flex-1 gap-2"
+                            >
+                                {submitting ? (
+                                    <>
+                                        <RefreshCw className="h-4 w-4 animate-spin" /> Submitting…
+                                    </>
+                                ) : currentQ + 1 === total ? (
+                                    <>
+                                        Finish <CheckCircle2 className="h-4 w-4" />
+                                    </>
+                                ) : (
+                                    <>
+                                        Next <ArrowRight className="h-4 w-4" />
+                                    </>
+                                )}
+                            </Button>
+                        </div>
                     </CardContent>
                 </Card>
             </motion.div>
+            </div>
         </div>
     );
 }
@@ -148,9 +289,10 @@ function ResultView({
     const [showAnswers, setShowAnswers] = useState(false);
 
     return (
-        <div className="max-w-lg mx-auto space-y-6">
+        <div className="max-w-7xl mx-auto space-y-6">
             <motion.div initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }}>
-                <Card className="text-center">
+                <Card className="text-center border-primary/20 overflow-hidden">
+                    <div className="h-2 bg-gradient-to-r from-primary/60 via-primary to-primary/70" />
                     <CardHeader>
                         <div className="mx-auto mb-4">
                             <Trophy
@@ -173,6 +315,23 @@ function ResultView({
                         <p className="text-sm text-muted-foreground">
                             {result.score} / {result.total} correct · {result.passed ? '✅ Next phase unlocked!' : '❌ Need 70% to pass'}
                         </p>
+
+                        <div className="grid grid-cols-3 gap-3">
+                            <div className="rounded-lg border border-border p-3">
+                                <p className="text-[11px] text-muted-foreground">Correct</p>
+                                <p className="text-xl font-bold text-foreground">{result.score}</p>
+                            </div>
+                            <div className="rounded-lg border border-border p-3">
+                                <p className="text-[11px] text-muted-foreground">Total</p>
+                                <p className="text-xl font-bold text-foreground">{result.total}</p>
+                            </div>
+                            <div className="rounded-lg border border-border p-3">
+                                <p className="text-[11px] text-muted-foreground">Status</p>
+                                <p className={`text-sm font-semibold ${result.passed ? 'text-green-600' : 'text-amber-600'}`}>
+                                    {result.passed ? 'Passed' : 'Retry'}
+                                </p>
+                            </div>
+                        </div>
 
                         {/* Per-question summary */}
                         {result.results.length > 0 && (
@@ -208,7 +367,9 @@ function ResultView({
                                                             <XCircle className="h-4 w-4 text-destructive shrink-0 mt-0.5" />
                                                         )}
                                                         <div>
-                                                            <p className="font-medium text-foreground">{r.question}</p>
+                                                            <div className="font-medium text-foreground">
+                                                                <RichText text={r.question} />
+                                                            </div>
                                                             {!r.isCorrect && (
                                                                 <p className="text-xs text-muted-foreground mt-1">
                                                                     You chose:{' '}
@@ -222,9 +383,9 @@ function ResultView({
                                                                 </p>
                                                             )}
                                                             {r.explanation && (
-                                                                <p className="text-xs text-muted-foreground mt-1 italic">
-                                                                    {r.explanation}
-                                                                </p>
+                                                                <div className="text-xs text-muted-foreground mt-1 italic">
+                                                                    <RichText text={r.explanation} />
+                                                                </div>
                                                             )}
                                                         </div>
                                                     </div>
@@ -282,6 +443,19 @@ function AssessmentList({
                     <span className="text-primary font-medium">{targetRole}</span> roadmap.
                 </p>
             </motion.div>
+
+            <div className="rounded-xl border border-primary/20 bg-gradient-to-r from-primary/10 via-primary/5 to-transparent p-4 flex items-center justify-between gap-3">
+                <div>
+                    <p className="text-sm font-semibold text-foreground">Assessment Progress</p>
+                    <p className="text-xs text-muted-foreground">
+                        Pass each phase to unlock the next one. Finish checklist goals before starting each test.
+                    </p>
+                </div>
+                <div className="text-right">
+                    <p className="text-2xl font-bold text-primary">{completedCount}/{assessments.length}</p>
+                    <p className="text-[11px] text-muted-foreground">Phases passed</p>
+                </div>
+            </div>
 
             {/* Stats */}
             <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
@@ -347,6 +521,21 @@ function AssessmentList({
                                 </CardDescription>
                             </CardHeader>
                             <CardContent className="mt-auto">
+                                {typeof assessment.checklistTotal === 'number' && assessment.checklistTotal > 0 && (
+                                    <div className="mb-3">
+                                        <div className="flex justify-between text-xs mb-1">
+                                            <span className="text-muted-foreground">Checklist</span>
+                                            <span className="font-medium text-foreground">
+                                                {assessment.checklistDone || 0}/{assessment.checklistTotal}
+                                            </span>
+                                        </div>
+                                        <Progress
+                                            value={Math.round(((assessment.checklistDone || 0) / assessment.checklistTotal) * 100)}
+                                            className="h-1.5"
+                                        />
+                                    </div>
+                                )}
+
                                 {assessment.passed && assessment.bestScore !== null && (
                                     <div className="mb-3">
                                         <div className="flex justify-between text-xs mb-1">
@@ -360,6 +549,10 @@ function AssessmentList({
                                     <p className="text-xs text-muted-foreground mb-2">
                                         {assessment.attemptCount} attempt{assessment.attemptCount > 1 ? 's' : ''} · Not passed yet
                                     </p>
+                                )}
+
+                                {assessment.isLocked && assessment.lockReason && (
+                                    <p className="text-[11px] text-amber-600 mb-2">{assessment.lockReason}</p>
                                 )}
 
                                 <Button
@@ -422,6 +615,7 @@ function AssessmentsInner() {
     const router = useRouter();
     const searchParams = useSearchParams();
     const autoStartId = searchParams.get('id');
+    const autoStartConsumedRef = useRef(false);
 
     type Phase = 'list' | 'quiz' | 'result';
     const [phase, setPhase] = useState<Phase>('list');
@@ -453,10 +647,12 @@ function AssessmentsInner() {
 
     // Auto-start quiz if ?id= param is present
     useEffect(() => {
-        if (autoStartId && assessments.length > 0) {
+        if (autoStartId && assessments.length > 0 && !autoStartConsumedRef.current) {
+            autoStartConsumedRef.current = true;
             handleStart(autoStartId);
+            router.replace('/user/assessments');
         }
-    }, [autoStartId, assessments]);
+    }, [autoStartId, assessments, router]);
 
     const handleStart = async (assessmentId: string) => {
         setLoadingQuiz(true);

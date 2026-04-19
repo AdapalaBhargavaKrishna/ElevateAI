@@ -1,27 +1,55 @@
 'use client';
 
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
-    CheckCircle2, Circle, Lock, Sparkles, BookOpen, Code, Server, Brain,
-    ArrowRight, Calendar, Clock, Zap, ChevronRight, Globe, Cloud,
-    Layers, Target, Briefcase, Plus, Trash2, ExternalLink, AlertCircle,
-    BarChart3, TrendingUp, Award, RefreshCw
+    CheckCircle2,
+    Circle,
+    Lock,
+    Sparkles,
+    BookOpen,
+    Code,
+    Server,
+    Brain,
+    ArrowRight,
+    Calendar,
+    Clock,
+    Zap,
+    ChevronRight,
+    Cloud,
+    Layers,
+    Target,
+    Briefcase,
+    Plus,
+    ExternalLink,
+    AlertCircle,
+    BarChart3,
+    TrendingUp,
+    RefreshCw,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 import { roadmapApi, Roadmap, RoadmapPhase, PhaseProgress } from '@/app/lib/roadmap.api';
 
-// ─── Helpers ──────────────────────────────────────────────────────────────────
-
 const PHASE_ICONS = [Code, Server, Cloud, Brain, Briefcase, Layers, Target, BarChart3];
 
-function getPhaseStatus(
-    phase: RoadmapPhase,
-    phaseProgress: PhaseProgress[]
-): 'completed' | 'in-progress' | 'locked' {
+type PhaseStatus = 'completed' | 'in-progress' | 'locked';
+
+const STATUS_COLORS: Record<PhaseStatus, string> = {
+    completed: 'bg-green-500/10 text-green-600 dark:text-green-400 border-green-200 dark:border-green-800',
+    'in-progress': 'bg-primary/10 text-primary border-primary/20',
+    locked: 'bg-muted text-muted-foreground border-border',
+};
+
+const STATUS_ICONS = {
+    completed: CheckCircle2,
+    'in-progress': Zap,
+    locked: Lock,
+};
+
+function getPhaseStatus(phase: RoadmapPhase, phaseProgress: PhaseProgress[]): PhaseStatus {
     const prog = phaseProgress.find((p) => p.phaseNumber === phase.phase_number);
     if (!prog) return 'locked';
     if (prog.completed) return 'completed';
@@ -29,13 +57,16 @@ function getPhaseStatus(
     return 'locked';
 }
 
-const STATUS_COLORS = {
-    completed: 'bg-green-500/10 text-green-600 dark:text-green-400 border-green-200 dark:border-green-800',
-    'in-progress': 'bg-primary/10 text-primary border-primary/20',
-    locked: 'bg-muted text-muted-foreground border-border',
-};
-
-// ─── Generate Form ────────────────────────────────────────────────────────────
+function normalizeGoalChecks(value: unknown): number[] {
+    if (!Array.isArray(value)) return [];
+    return Array.from(
+        new Set(
+            value
+                .map((v) => Number(v))
+                .filter((v) => Number.isInteger(v) && v >= 0)
+        )
+    ).sort((a, b) => a - b);
+}
 
 function GenerateRoadmapForm({ onGenerated }: { onGenerated: (roadmap: Roadmap) => void }) {
     const [targetRole, setTargetRole] = useState('');
@@ -78,24 +109,18 @@ function GenerateRoadmapForm({ onGenerated }: { onGenerated: (roadmap: Roadmap) 
 
     return (
         <div className="min-h-screen bg-background flex items-center justify-center px-4">
-            <motion.div
-                initial={{ opacity: 0, y: 20 }}
-                animate={{ opacity: 1, y: 0 }}
-                className="w-full max-w-lg"
-            >
-                {/* Header */}
+            <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="w-full max-w-lg">
                 <div className="text-center mb-8">
                     <div className="h-16 w-16 rounded-2xl bg-primary/10 flex items-center justify-center mx-auto mb-4">
                         <Sparkles className="h-8 w-8 text-primary" />
                     </div>
                     <h1 className="text-3xl font-bold text-foreground">Build Your Career Roadmap</h1>
                     <p className="text-muted-foreground mt-2 text-sm">
-                        Tell us your goal and we'll generate a personalized roadmap with assessments for each phase.
+                        Generate a personalized roadmap with deeper phase assessments and tracked learning progress.
                     </p>
                 </div>
 
                 <div className="bg-card border border-border rounded-2xl p-6 space-y-5 shadow-sm">
-                    {/* Target Role */}
                     <div>
                         <label className="text-sm font-medium text-foreground mb-1.5 block">
                             Target Role <span className="text-destructive">*</span>
@@ -109,11 +134,8 @@ function GenerateRoadmapForm({ onGenerated }: { onGenerated: (roadmap: Roadmap) 
                         />
                     </div>
 
-                    {/* Experience Level */}
                     <div>
-                        <label className="text-sm font-medium text-foreground mb-1.5 block">
-                            Experience Level
-                        </label>
+                        <label className="text-sm font-medium text-foreground mb-1.5 block">Experience Level</label>
                         <div className="grid grid-cols-3 gap-2">
                             {[
                                 { value: 'junior', label: 'Junior', desc: '0-1 yrs' },
@@ -136,7 +158,6 @@ function GenerateRoadmapForm({ onGenerated }: { onGenerated: (roadmap: Roadmap) 
                         </div>
                     </div>
 
-                    {/* Current Skills */}
                     <div>
                         <label className="text-sm font-medium text-foreground mb-1.5 block">
                             Current Skills <span className="text-muted-foreground text-xs">(optional)</span>
@@ -185,7 +206,7 @@ function GenerateRoadmapForm({ onGenerated }: { onGenerated: (roadmap: Roadmap) 
                         {loading ? (
                             <>
                                 <RefreshCw className="h-4 w-4 animate-spin" />
-                                Generating your roadmap…
+                                Generating your roadmap...
                             </>
                         ) : (
                             <>
@@ -197,7 +218,7 @@ function GenerateRoadmapForm({ onGenerated }: { onGenerated: (roadmap: Roadmap) 
 
                     {loading && (
                         <p className="text-center text-xs text-muted-foreground">
-                            AI is crafting your personalized plan and assessments. This takes ~20 seconds.
+                            AI is creating your roadmap and full phase assessment bank in two requests.
                         </p>
                     )}
                 </div>
@@ -206,34 +227,74 @@ function GenerateRoadmapForm({ onGenerated }: { onGenerated: (roadmap: Roadmap) 
     );
 }
 
-// ─── Roadmap View ─────────────────────────────────────────────────────────────
-
-function RoadmapView({
-    roadmap,
-    onRegenerate,
-}: {
-    roadmap: Roadmap;
-    onRegenerate: () => void;
-}) {
+function RoadmapView({ roadmap, onRegenerate }: { roadmap: Roadmap; onRegenerate: () => void }) {
     const router = useRouter();
-    const [selectedPhase, setSelectedPhase] = useState<number>(1);
 
     const { roadmapData, phaseProgress, assessments } = roadmap;
 
+    const initialGoalChecks = useMemo(() => {
+        const map: Record<number, number[]> = {};
+        phaseProgress.forEach((p) => {
+            map[p.phaseNumber] = normalizeGoalChecks(p.goalChecks);
+        });
+        return map;
+    }, [phaseProgress]);
+
+    const [selectedPhase, setSelectedPhase] = useState<number>(roadmapData.phases[0]?.phase_number || 1);
+    const [goalChecksByPhase, setGoalChecksByPhase] = useState<Record<number, number[]>>(initialGoalChecks);
+    const [savingKeys, setSavingKeys] = useState<Record<string, boolean>>({});
+
+    useEffect(() => {
+        setGoalChecksByPhase(initialGoalChecks);
+    }, [initialGoalChecks]);
+
     const totalPhases = roadmapData.phases.length;
     const completedPhases = phaseProgress.filter((p) => p.completed).length;
-    const progressPercent = Math.round((completedPhases / totalPhases) * 100);
 
-    const getAssessmentForPhase = (phaseNum: number) =>
-        assessments.find((a) => a.phaseNumber === phaseNum);
+    const totalGoals = roadmapData.phases.reduce((acc, p) => acc + p.goals.length, 0);
+    const checkedGoals = roadmapData.phases.reduce(
+        (acc, p) => acc + normalizeGoalChecks(goalChecksByPhase[p.phase_number]).length,
+        0
+    );
+    const overallProgress = totalGoals > 0 ? Math.round((checkedGoals / totalGoals) * 100) : 0;
 
-    const activePhase = roadmapData.phases.find((p) => p.phase_number === selectedPhase);
+    const getAssessmentForPhase = (phaseNumber: number) => assessments.find((a) => a.phaseNumber === phaseNumber);
+
+    const persistGoalChecks = async (phaseNumber: number, goalChecks: number[]) => {
+        const key = `${phaseNumber}`;
+        setSavingKeys((prev) => ({ ...prev, [key]: true }));
+        try {
+            await roadmapApi.updatePhaseProgress(phaseNumber, goalChecks);
+        } catch {
+            // Keep optimistic UI state; refresh will reconcile with server state.
+        } finally {
+            setSavingKeys((prev) => ({ ...prev, [key]: false }));
+        }
+    };
+
+    const toggleGoalCheck = async (phaseNumber: number, goalIndex: number, status: PhaseStatus) => {
+        if (status === 'locked') return;
+
+        const previous = normalizeGoalChecks(goalChecksByPhase[phaseNumber]);
+        const hasChecked = previous.includes(goalIndex);
+        const next = hasChecked
+            ? previous.filter((i) => i !== goalIndex)
+            : [...previous, goalIndex].sort((a, b) => a - b);
+
+        setGoalChecksByPhase((prev) => ({ ...prev, [phaseNumber]: next }));
+        await persistGoalChecks(phaseNumber, next);
+    };
+
+    const timelineItems = roadmapData.phases.map((phase) => ({
+        phaseNumber: phase.phase_number,
+        phaseTitle: phase.title,
+        duration: phase.duration,
+        status: getPhaseStatus(phase, phaseProgress),
+    }));
 
     return (
         <div className="min-h-screen bg-background">
             <div className="max-w-7xl mx-auto px-4 py-6 space-y-6">
-
-                {/* Header */}
                 <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
                     <div>
                         <h1 className="text-2xl font-bold text-foreground">Career Roadmap</h1>
@@ -261,75 +322,93 @@ function RoadmapView({
                     </div>
                 </div>
 
-                {/* Summary Card */}
                 <motion.div
                     initial={{ opacity: 0, y: 12 }}
                     animate={{ opacity: 1, y: 0 }}
                     className="bg-card border border-border rounded-xl p-5"
                 >
                     <p className="text-sm text-muted-foreground mb-4">{roadmapData.summary}</p>
-                    <div className="flex items-center justify-between mb-2">
+
+                    <div className="flex items-center justify-between mb-3">
                         <h3 className="text-sm font-semibold text-foreground flex items-center gap-2">
-                            <Layers className="h-4 w-4 text-primary" />
-                            Overall Progress
+                            <Layers className="h-4 w-4 text-primary" /> Overall Progress
                         </h3>
                         <span className="text-xs font-medium bg-primary/10 text-primary px-2 py-1 rounded-full">
-                            {completedPhases}/{totalPhases} phases · {progressPercent}%
+                            {overallProgress}% complete
                         </span>
                     </div>
+
                     <div className="h-2 bg-muted/30 rounded-full overflow-hidden">
                         <motion.div
                             initial={{ width: 0 }}
-                            animate={{ width: `${progressPercent}%` }}
-                            transition={{ duration: 0.8, delay: 0.2 }}
+                            animate={{ width: `${overallProgress}%` }}
+                            transition={{ duration: 0.8, delay: 0.15 }}
                             className="h-full bg-gradient-to-r from-primary to-primary/80 rounded-full"
                         />
                     </div>
 
-                    {/* Phase pills */}
+                    <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mt-4">
+                        <div className="border border-border rounded-lg p-3">
+                            <p className="text-[11px] text-muted-foreground">Phases Passed</p>
+                            <p className="text-lg font-bold text-foreground">{completedPhases}/{totalPhases}</p>
+                        </div>
+                        <div className="border border-border rounded-lg p-3">
+                            <p className="text-[11px] text-muted-foreground">Goals Done</p>
+                            <p className="text-lg font-bold text-foreground">{checkedGoals}/{totalGoals}</p>
+                        </div>
+                        <div className="border border-border rounded-lg p-3">
+                            <p className="text-[11px] text-muted-foreground">Assessments Passed</p>
+                            <p className="text-lg font-bold text-foreground">{assessments.filter((a) => a.passed).length}</p>
+                        </div>
+                        <div className="border border-border rounded-lg p-3">
+                            <p className="text-[11px] text-muted-foreground">Timeline</p>
+                            <p className="text-lg font-bold text-foreground">{roadmapData.estimated_timeline}</p>
+                        </div>
+                    </div>
+
                     <div className="flex flex-wrap gap-2 mt-4">
                         {roadmapData.phases.map((phase) => {
                             const status = getPhaseStatus(phase, phaseProgress);
-                            const IconEl = status === 'completed' ? CheckCircle2 : status === 'in-progress' ? Zap : Lock;
+                            const StatusIcon = STATUS_ICONS[status];
                             return (
                                 <button
                                     key={phase.phase_number}
                                     onClick={() => setSelectedPhase(phase.phase_number)}
-                                    className={`flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs border transition-colors ${
+                                    className={`flex items-center gap-1.5 px-2 py-1 rounded-full text-xs border transition-colors ${
                                         selectedPhase === phase.phase_number
-                                            ? 'border-primary bg-primary/5 text-primary'
+                                            ? 'border-primary bg-primary/5'
                                             : STATUS_COLORS[status]
                                     }`}
                                 >
-                                    <IconEl className="h-3 w-3" />
-                                    Phase {phase.phase_number}
+                                    <StatusIcon className="h-3 w-3" />
+                                    <span>Phase {phase.phase_number}</span>
                                 </button>
                             );
                         })}
                     </div>
                 </motion.div>
 
-                {/* Main content */}
                 <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-                    {/* Phases list */}
-                    <div className="lg:col-span-2 space-y-3">
-                        {roadmapData.phases.map((phase, idx) => {
+                    <div className="lg:col-span-2 space-y-4">
+                        {roadmapData.phases.map((phase, phaseIndex) => {
                             const status = getPhaseStatus(phase, phaseProgress);
-                            const PhaseIcon = PHASE_ICONS[idx % PHASE_ICONS.length];
-                            const assessment = getAssessmentForPhase(phase.phase_number);
+                            const PhaseIcon = PHASE_ICONS[phaseIndex % PHASE_ICONS.length];
                             const isSelected = selectedPhase === phase.phase_number;
+                            const assessment = getAssessmentForPhase(phase.phase_number);
+                            const checks = normalizeGoalChecks(goalChecksByPhase[phase.phase_number]);
+                            const checklistComplete = phase.goals.length === 0 || checks.length >= phase.goals.length;
+                            const key = `${phase.phase_number}`;
 
                             return (
                                 <motion.div
                                     key={phase.phase_number}
                                     initial={{ opacity: 0, y: 12 }}
                                     animate={{ opacity: 1, y: 0 }}
-                                    transition={{ delay: idx * 0.07 }}
+                                    transition={{ delay: phaseIndex * 0.07 }}
                                     className={`bg-card border border-border rounded-xl overflow-hidden transition-all ${
-                                        status === 'locked' ? 'opacity-60' : ''
-                                    } ${isSelected ? 'ring-2 ring-primary shadow-md' : ''}`}
+                                        status === 'locked' ? 'opacity-70' : ''
+                                    } ${isSelected ? 'ring-2 ring-primary shadow-lg' : ''}`}
                                 >
-                                    {/* Phase header */}
                                     <div
                                         className={`p-4 cursor-pointer transition-colors ${
                                             isSelected ? 'bg-primary/5' : 'hover:bg-muted/30'
@@ -356,9 +435,10 @@ function RoadmapView({
                                                     }`}
                                                 />
                                             </div>
+
                                             <div className="flex-1 min-w-0">
                                                 <div className="flex items-center gap-2 flex-wrap">
-                                                    <span className="text-xs text-muted-foreground">
+                                                    <span className="text-xs font-medium text-muted-foreground">
                                                         Phase {phase.phase_number}
                                                     </span>
                                                     <span
@@ -369,21 +449,25 @@ function RoadmapView({
                                                         {status === 'locked' && 'Locked'}
                                                     </span>
                                                     <span className="text-[10px] text-muted-foreground flex items-center gap-1">
-                                                        <Clock className="h-3 w-3" />
-                                                        {phase.duration}
+                                                        <Clock className="h-3 w-3" /> {phase.duration}
                                                     </span>
+                                                    {savingKeys[key] && (
+                                                        <span className="text-[10px] text-primary flex items-center gap-1">
+                                                            <RefreshCw className="h-3 w-3 animate-spin" /> Saving
+                                                        </span>
+                                                    )}
                                                 </div>
                                                 <h3 className="font-semibold text-foreground truncate">{phase.title}</h3>
                                             </div>
+
                                             <ChevronRight
-                                                className={`h-4 w-4 text-muted-foreground transition-transform shrink-0 ${
+                                                className={`h-4 w-4 text-muted-foreground transition-transform ${
                                                     isSelected ? 'rotate-90' : ''
                                                 }`}
                                             />
                                         </div>
                                     </div>
 
-                                    {/* Expanded content */}
                                     <AnimatePresence>
                                         {isSelected && (
                                             <motion.div
@@ -394,68 +478,102 @@ function RoadmapView({
                                                 className="border-t border-border"
                                             >
                                                 <div className="p-4 space-y-4">
-                                                    {/* Goals */}
                                                     <div>
                                                         <p className="text-xs font-medium text-muted-foreground mb-2">
-                                                            Goals
+                                                            Learning Checklist
                                                         </p>
-                                                        <ul className="space-y-1">
-                                                            {phase.goals.map((g, i) => (
-                                                                <li key={i} className="flex items-start gap-2 text-sm">
-                                                                    <CheckCircle2 className="h-3.5 w-3.5 text-primary shrink-0 mt-0.5" />
-                                                                    {g}
-                                                                </li>
-                                                            ))}
-                                                        </ul>
+                                                        <div className="space-y-2">
+                                                            {phase.goals.map((goal, idx) => {
+                                                                const checked = checks.includes(idx);
+                                                                return (
+                                                                    <button
+                                                                        key={`${phase.phase_number}-${idx}`}
+                                                                        onClick={() =>
+                                                                            toggleGoalCheck(phase.phase_number, idx, status)
+                                                                        }
+                                                                        disabled={status === 'locked'}
+                                                                        className={`w-full text-left border rounded-lg p-3 transition-colors ${
+                                                                            checked
+                                                                                ? 'border-green-300 bg-green-500/5'
+                                                                                : 'border-border hover:border-primary/30'
+                                                                        } ${status === 'locked' ? 'cursor-not-allowed' : ''}`}
+                                                                    >
+                                                                        <div className="flex items-start gap-2">
+                                                                            {checked ? (
+                                                                                <CheckCircle2 className="h-4 w-4 text-green-500 shrink-0 mt-0.5" />
+                                                                            ) : (
+                                                                                <Circle className="h-4 w-4 text-primary shrink-0 mt-0.5" />
+                                                                            )}
+                                                                            <span
+                                                                                className={`text-sm ${
+                                                                                    checked
+                                                                                        ? 'text-muted-foreground line-through'
+                                                                                        : 'text-foreground'
+                                                                                }`}
+                                                                            >
+                                                                                {goal}
+                                                                            </span>
+                                                                        </div>
+                                                                    </button>
+                                                                );
+                                                            })}
+                                                        </div>
+                                                        <p className="text-xs text-muted-foreground mt-2">
+                                                            {checks.length}/{phase.goals.length} checklist items completed
+                                                        </p>
                                                     </div>
 
-                                                    {/* Skills */}
                                                     <div>
                                                         <p className="text-xs font-medium text-muted-foreground mb-2">
                                                             Skills to Master
                                                         </p>
                                                         <div className="flex flex-wrap gap-1.5">
-                                                            {phase.skills_to_learn.map((s) => (
+                                                            {phase.skills_to_learn.map((skill) => (
                                                                 <span
-                                                                    key={s}
+                                                                    key={skill}
                                                                     className="text-xs px-2 py-1 bg-muted/50 rounded-full text-foreground"
                                                                 >
-                                                                    {s}
+                                                                    {skill}
                                                                 </span>
                                                             ))}
                                                         </div>
                                                     </div>
 
-                                                    {/* Resources */}
                                                     {phase.resources.length > 0 && (
                                                         <div>
                                                             <p className="text-xs font-medium text-muted-foreground mb-2">
-                                                                Resources
+                                                                Recommended Resources
                                                             </p>
-                                                            <div className="space-y-1.5">
-                                                                {phase.resources.map((r, i) => (
+                                                            <div className="space-y-2">
+                                                                {phase.resources.map((resource, i) => (
                                                                     <div
-                                                                        key={i}
-                                                                        className="flex items-center gap-2 text-sm"
+                                                                        key={`${resource.title}-${i}`}
+                                                                        className="flex items-center gap-2 p-2 rounded-lg hover:bg-muted/30 transition-colors"
                                                                     >
-                                                                        <BookOpen className="h-3.5 w-3.5 text-primary shrink-0" />
-                                                                        <span className="flex-1 truncate">{r.title}</span>
-                                                                        <span className="text-[10px] text-muted-foreground capitalize">
-                                                                            {r.type}
-                                                                        </span>
-                                                                        {r.is_free && (
+                                                                        <div className="h-6 w-6 rounded bg-primary/10 flex items-center justify-center">
+                                                                            <BookOpen className="h-3 w-3 text-primary" />
+                                                                        </div>
+                                                                        <div className="flex-1 min-w-0">
+                                                                            <p className="text-xs font-medium text-foreground truncate">
+                                                                                {resource.title}
+                                                                            </p>
+                                                                            <p className="text-[10px] text-muted-foreground capitalize">
+                                                                                {resource.type}
+                                                                            </p>
+                                                                        </div>
+                                                                        {resource.is_free && (
                                                                             <Badge variant="secondary" className="text-[9px] h-4">
                                                                                 Free
                                                                             </Badge>
                                                                         )}
-                                                                        {r.url && (
+                                                                        {resource.url && (
                                                                             <a
-                                                                                href={r.url}
+                                                                                href={resource.url}
                                                                                 target="_blank"
                                                                                 rel="noopener noreferrer"
-                                                                                className="text-primary hover:text-primary/80"
+                                                                                className="text-muted-foreground hover:text-primary"
                                                                             >
-                                                                                <ExternalLink className="h-3 w-3" />
+                                                                                <ExternalLink className="h-3.5 w-3.5" />
                                                                             </a>
                                                                         )}
                                                                     </div>
@@ -464,31 +582,23 @@ function RoadmapView({
                                                         </div>
                                                     )}
 
-                                                    {/* Projects */}
                                                     {phase.projects.length > 0 && (
                                                         <div>
-                                                            <p className="text-xs font-medium text-muted-foreground mb-2">
-                                                                Projects to Build
-                                                            </p>
+                                                            <p className="text-xs font-medium text-muted-foreground mb-2">Projects</p>
                                                             <div className="space-y-2">
-                                                                {phase.projects.map((proj, i) => (
-                                                                    <div
-                                                                        key={i}
-                                                                        className="border border-border rounded-lg p-3"
-                                                                    >
-                                                                        <p className="text-sm font-medium text-foreground">
-                                                                            {proj.title}
-                                                                        </p>
+                                                                {phase.projects.map((project, i) => (
+                                                                    <div key={`${project.title}-${i}`} className="border border-border rounded-lg p-3">
+                                                                        <p className="text-sm font-medium text-foreground">{project.title}</p>
                                                                         <p className="text-xs text-muted-foreground mt-1">
-                                                                            {proj.description}
+                                                                            {project.description}
                                                                         </p>
                                                                         <div className="flex flex-wrap gap-1 mt-2">
-                                                                            {proj.tech_stack.map((t) => (
+                                                                            {project.tech_stack.map((tech) => (
                                                                                 <span
-                                                                                    key={t}
+                                                                                    key={tech}
                                                                                     className="text-[10px] px-1.5 py-0.5 bg-primary/10 text-primary rounded"
                                                                                 >
-                                                                                    {t}
+                                                                                    {tech}
                                                                                 </span>
                                                                             ))}
                                                                         </div>
@@ -498,37 +608,47 @@ function RoadmapView({
                                                         </div>
                                                     )}
 
-                                                    {/* Assessment CTA */}
                                                     {assessment && (
-                                                        <div className="pt-2">
+                                                        <div className="pt-1">
                                                             {assessment.passed ? (
                                                                 <div className="flex items-center gap-2 p-3 bg-green-500/10 border border-green-200 dark:border-green-800 rounded-lg">
                                                                     <CheckCircle2 className="h-4 w-4 text-green-500" />
                                                                     <span className="text-sm text-green-700 dark:text-green-400 font-medium">
-                                                                        Assessment passed! Score: {assessment.bestScore}%
+                                                                        Assessment passed! Best score: {assessment.bestScore}%
                                                                     </span>
                                                                 </div>
                                                             ) : assessment.isLocked ? (
                                                                 <Button variant="outline" size="sm" className="w-full" disabled>
                                                                     <Lock className="h-3.5 w-3.5 mr-1.5" />
-                                                                    Complete previous phase to unlock assessment
+                                                                    {assessment.lockReason || 'Complete previous phase assessment first'}
+                                                                </Button>
+                                                            ) : !checklistComplete ? (
+                                                                <Button variant="outline" size="sm" className="w-full" disabled>
+                                                                    <Lock className="h-3.5 w-3.5 mr-1.5" />
+                                                                    Complete all checklist items first
                                                                 </Button>
                                                             ) : (
                                                                 <Button
                                                                     size="sm"
                                                                     className="w-full gap-2"
                                                                     onClick={() =>
-                                                                        router.push(
-                                                                            `/user/assessments?id=${assessment.id}`
-                                                                        )
+                                                                        router.push(`/user/assessments?id=${assessment.id}`)
                                                                     }
                                                                 >
                                                                     <Brain className="h-3.5 w-3.5" />
                                                                     {assessment.attemptCount > 0
                                                                         ? 'Retake Phase Assessment'
-                                                                        : 'Take Phase Assessment'}
+                                                                        : 'Start Phase Assessment'}
                                                                     <ArrowRight className="h-3.5 w-3.5" />
                                                                 </Button>
+                                                            )}
+                                                            <p className="text-[11px] text-muted-foreground mt-2">
+                                                                {assessment.questionCount} questions in this phase assessment.
+                                                            </p>
+                                                            {!assessment.passed && !assessment.isLocked && !checklistComplete && (
+                                                                <p className="text-[11px] text-amber-600 mt-1">
+                                                                    Finish {phase.goals.length - checks.length} checklist item(s) to unlock this assessment.
+                                                                </p>
                                                             )}
                                                         </div>
                                                     )}
@@ -541,13 +661,10 @@ function RoadmapView({
                         })}
                     </div>
 
-                    {/* Sidebar */}
                     <div className="lg:col-span-1 space-y-4">
-                        {/* Industry Insights */}
                         <div className="bg-card border border-border rounded-xl p-4">
                             <h3 className="text-sm font-semibold text-foreground flex items-center gap-2 mb-3">
-                                <TrendingUp className="h-4 w-4 text-primary" />
-                                Industry Insights
+                                <TrendingUp className="h-4 w-4 text-primary" /> Industry Insights
                             </h3>
                             <div className="space-y-2 text-sm">
                                 <div className="flex justify-between">
@@ -564,96 +681,46 @@ function RoadmapView({
                                 </div>
                                 <div className="flex justify-between">
                                     <span className="text-muted-foreground">Avg Salary</span>
-                                    <span className="font-medium text-foreground text-xs">
+                                    <span className="font-medium text-foreground">
                                         {roadmapData.industry_insights.avg_salary_range}
                                     </span>
                                 </div>
-                                <div>
-                                    <p className="text-muted-foreground mb-1">Top Hiring</p>
-                                    <div className="flex flex-wrap gap-1">
-                                        {roadmapData.industry_insights.top_companies_hiring.slice(0, 4).map((c) => (
-                                            <span key={c} className="text-[10px] px-1.5 py-0.5 bg-muted rounded text-foreground">
-                                                {c}
-                                            </span>
-                                        ))}
-                                    </div>
-                                </div>
-                                <div>
-                                    <p className="text-muted-foreground mb-1">Key Technologies</p>
-                                    <div className="flex flex-wrap gap-1">
-                                        {roadmapData.industry_insights.key_technologies.slice(0, 5).map((t) => (
-                                            <span key={t} className="text-[10px] px-1.5 py-0.5 bg-primary/10 text-primary rounded">
-                                                {t}
-                                            </span>
-                                        ))}
-                                    </div>
-                                </div>
                             </div>
                         </div>
 
-                        {/* Skill Gaps */}
-                        {roadmapData.skill_gaps.length > 0 && (
-                            <div className="bg-card border border-border rounded-xl p-4">
-                                <h3 className="text-sm font-semibold text-foreground flex items-center gap-2 mb-3">
-                                    <Target className="h-4 w-4 text-primary" />
-                                    Skill Gaps
-                                </h3>
-                                <div className="space-y-2">
-                                    {roadmapData.skill_gaps.slice(0, 5).map((gap) => (
-                                        <div key={gap.skill} className="flex items-start gap-2">
-                                            <span
-                                                className={`text-[10px] px-1.5 py-0.5 rounded shrink-0 mt-0.5 font-medium ${
-                                                    gap.priority === 'high'
-                                                        ? 'bg-red-500/10 text-red-500'
-                                                        : gap.priority === 'medium'
-                                                        ? 'bg-yellow-500/10 text-yellow-600'
-                                                        : 'bg-muted text-muted-foreground'
-                                                }`}
-                                            >
-                                                {gap.priority}
-                                            </span>
-                                            <div>
-                                                <p className="text-xs font-medium text-foreground">{gap.skill}</p>
-                                                <p className="text-[10px] text-muted-foreground">{gap.reason}</p>
-                                            </div>
-                                        </div>
-                                    ))}
-                                </div>
-                            </div>
-                        )}
-
-                        {/* Timeline */}
                         <div className="bg-gradient-to-br from-primary/5 to-primary/10 border border-primary/20 rounded-xl p-4">
                             <h3 className="text-sm font-semibold text-foreground flex items-center gap-2 mb-2">
-                                <Calendar className="h-4 w-4 text-primary" />
-                                Estimated Timeline
+                                <Zap className="h-4 w-4 text-primary" /> Next Goal
                             </h3>
-                            <p className="text-2xl font-bold text-primary">{roadmapData.estimated_timeline}</p>
-                            <p className="text-xs text-muted-foreground mt-1">
-                                {totalPhases} phases · {roadmapData.phases.reduce((acc, p) => acc + (p.resources?.length || 0), 0)} resources
+                            <p className="text-sm text-foreground">
+                                {roadmapData.phases.find((p) => getPhaseStatus(p, phaseProgress) === 'in-progress')?.title ||
+                                    'Complete current unlocked phase'}
                             </p>
+                            <p className="text-xs text-muted-foreground mt-1">
+                                Keep checking off goals, then pass the phase assessment to unlock the next phase.
+                            </p>
+                            <div className="h-1.5 bg-muted/30 rounded-full mt-3 overflow-hidden">
+                                <div className="h-full bg-primary rounded-full" style={{ width: `${overallProgress}%` }} />
+                            </div>
+                            <p className="text-[10px] text-primary mt-2">Overall completion: {overallProgress}%</p>
                         </div>
 
-                        {/* Certifications */}
                         {roadmapData.certifications.length > 0 && (
                             <div className="bg-card border border-border rounded-xl p-4">
-                                <h3 className="text-sm font-semibold text-foreground flex items-center gap-2 mb-3">
-                                    <Award className="h-4 w-4 text-primary" />
-                                    Recommended Certs
-                                </h3>
+                                <h3 className="text-sm font-semibold text-foreground mb-3">Suggested Certifications</h3>
                                 <div className="space-y-2">
                                     {roadmapData.certifications.slice(0, 4).map((cert) => (
-                                        <div key={cert.name} className="flex items-center gap-2">
-                                            <div className="h-1.5 w-1.5 rounded-full bg-primary shrink-0" />
-                                            <div className="flex-1 min-w-0">
+                                        <div
+                                            key={cert.name}
+                                            className="flex items-center justify-between p-2 rounded-lg border border-border"
+                                        >
+                                            <div className="min-w-0">
                                                 <p className="text-xs font-medium text-foreground truncate">{cert.name}</p>
-                                                <p className="text-[10px] text-muted-foreground">{cert.provider}</p>
+                                                <p className="text-[10px] text-muted-foreground truncate">{cert.provider}</p>
                                             </div>
-                                            {cert.is_free && (
-                                                <Badge variant="secondary" className="text-[9px] h-4 shrink-0">
-                                                    Free
-                                                </Badge>
-                                            )}
+                                            <Badge variant="outline" className="text-[9px] h-4 shrink-0">
+                                                {cert.priority}
+                                            </Badge>
                                         </div>
                                     ))}
                                 </div>
@@ -661,12 +728,49 @@ function RoadmapView({
                         )}
                     </div>
                 </div>
+
+                <motion.div
+                    initial={{ opacity: 0, y: 12 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ delay: 0.35 }}
+                    className="bg-card border border-border rounded-xl p-4"
+                >
+                    <h3 className="text-sm font-semibold text-foreground flex items-center gap-2 mb-3">
+                        <Calendar className="h-4 w-4 text-primary" /> Estimated Timeline
+                    </h3>
+                    <div className="flex items-center justify-between gap-2 overflow-x-auto pb-1">
+                        {timelineItems.map((item, idx) => (
+                            <React.Fragment key={item.phaseNumber}>
+                                <div className="text-center min-w-[76px]">
+                                    <div
+                                        className={`h-6 w-6 rounded-full flex items-center justify-center mx-auto mb-1 ${
+                                            item.status === 'completed'
+                                                ? 'bg-green-500/20'
+                                                : item.status === 'in-progress'
+                                                ? 'bg-primary/20'
+                                                : 'bg-muted'
+                                        }`}
+                                    >
+                                        {item.status === 'completed' ? (
+                                            <CheckCircle2 className="h-3 w-3 text-green-500" />
+                                        ) : item.status === 'locked' ? (
+                                            <Lock className="h-3 w-3 text-muted-foreground" />
+                                        ) : (
+                                            <span className="text-[10px] text-primary">{idx + 1}</span>
+                                        )}
+                                    </div>
+                                    <p className="text-[10px] font-medium text-foreground">Phase {item.phaseNumber}</p>
+                                    <p className="text-[9px] text-muted-foreground truncate">{item.duration}</p>
+                                </div>
+                                {idx < timelineItems.length - 1 && <div className="flex-1 h-px bg-border min-w-[18px]" />}
+                            </React.Fragment>
+                        ))}
+                    </div>
+                </motion.div>
             </div>
         </div>
     );
 }
-
-// ─── Main Page ─────────────────────────────────────────────────────────────────
 
 export default function CareerRoadmapPage() {
     const [roadmap, setRoadmap] = useState<Roadmap | null>(null);
@@ -698,7 +802,9 @@ export default function CareerRoadmapPage() {
         if (roadmap) {
             try {
                 await roadmapApi.delete(roadmap.id);
-            } catch {}
+            } catch {
+                // ignore delete failure and allow retrying generation
+            }
         }
         setRoadmap(null);
         setShowForm(true);
@@ -709,7 +815,7 @@ export default function CareerRoadmapPage() {
             <div className="min-h-screen bg-background flex items-center justify-center">
                 <div className="text-center space-y-3">
                     <div className="h-10 w-10 rounded-full border-2 border-primary border-t-transparent animate-spin mx-auto" />
-                    <p className="text-sm text-muted-foreground">Loading your roadmap…</p>
+                    <p className="text-sm text-muted-foreground">Loading your roadmap...</p>
                 </div>
             </div>
         );

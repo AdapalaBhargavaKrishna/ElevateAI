@@ -1,44 +1,26 @@
+"use strict";
+Object.defineProperty(exports, "__esModule", { value: true });
 // routes/roadmap.routes.ts
-import { Router } from "express";
-import {
-    generateRoadmap,
-    getUserRoadmap,
-    deleteRoadmap,
-    getUserAssessments,
-    getAssessmentById,
-    submitAssessment,
-    updateRoadmapProgress,
-} from "../controllers/roadmap.controllers";
-import { requireAuth } from "../middleware/auth.middleware";
-
-const router = Router();
-
+const express_1 = require("express");
+const roadmap_controllers_1 = require("../controllers/roadmap.controllers");
+const auth_middleware_1 = require("../middleware/auth.middleware");
+const router = (0, express_1.Router)();
 // All roadmap routes require authentication
-router.use(requireAuth);
-
+router.use(auth_middleware_1.requireAuth);
 // ─── Roadmap ──────────────────────────────────────────────────────────────────
-
 // POST /roadmap/generate  – generate roadmap + assessments via AI
-router.post("/generate", generateRoadmap);
-
+router.post("/generate", roadmap_controllers_1.generateRoadmap);
 // GET /roadmap  – get user's current roadmap (null if none)
-router.get("/", getUserRoadmap);
-
+router.get("/", roadmap_controllers_1.getUserRoadmap);
 // DELETE /roadmap/:roadmapId
-router.delete("/:roadmapId", deleteRoadmap);
-
+router.delete("/:roadmapId", roadmap_controllers_1.deleteRoadmap);
 // PATCH /roadmap/progress  – save phase goal checkbox progress
-router.patch("/progress", updateRoadmapProgress);
-
+router.patch("/progress", roadmap_controllers_1.updateRoadmapProgress);
 // ─── Assessments ──────────────────────────────────────────────────────────────
-
 // GET /roadmap/assessments  – list all assessments with lock/pass state
-router.get("/assessments", getUserAssessments);
-
+router.get("/assessments", roadmap_controllers_1.getUserAssessments);
 // GET /roadmap/assessments/:assessmentId  – get one assessment to take
-router.get("/assessments/:assessmentId", getAssessmentById);
-
+router.get("/assessments/:assessmentId", roadmap_controllers_1.getAssessmentById);
 // POST /roadmap/assessments/:assessmentId/submit  – submit answers
-router.post("/assessments/:assessmentId/submit", submitAssessment);
-
-export default router;
+router.post("/assessments/:assessmentId/submit", roadmap_controllers_1.submitAssessment);
+exports.default = router;

@@ -156,7 +156,12 @@ export async function getResumeHistory(req: Request, res: Response) {
 export async function getResumeDetail(req: Request, res: Response) {
     try {
         const userId       = (req as any).userId as string;
-        const { analysisId } = req.params;
+        const analysisIdParam = req.params.analysisId;
+        const analysisId = Array.isArray(analysisIdParam) ? analysisIdParam[0] : analysisIdParam;
+
+        if (!analysisId) {
+            return res.status(400).json({ message: "analysisId is required." });
+        }
 
         const a = await prisma.resumeAnalysis.findFirst({
             where: { id: analysisId, userId },

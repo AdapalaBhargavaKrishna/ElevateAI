@@ -245,13 +245,14 @@ def get_assessment_prompt(
     phase_title: str,
     skills_to_learn: list,
     goals: list,
+    question_count: int = 10,
 ) -> str:
     skills_str = ", ".join(skills_to_learn) if skills_to_learn else "general concepts"
     goals_str = "; ".join(goals) if goals else "understanding core concepts"
 
     return f"""You are an expert technical educator creating a skills assessment quiz.
 
-Generate exactly 5 multiple-choice questions (MCQs) to test understanding of the following roadmap phase:
+Generate exactly {question_count} multiple-choice questions (MCQs) to test understanding of the following roadmap phase:
 
 - Target Role: {target_role}
 - Phase {phase_number}: {phase_title}
@@ -276,6 +277,62 @@ Response format:
       "options": ["Option A", "Option B", "Option C", "Option D"],
       "correct": 0,
       "explanation": "Brief explanation of why this answer is correct and what to learn from it"
+    }}
+  ]
+}}"""
+
+
+def get_assessments_batch_prompt(
+    target_role: str,
+    phases: list,
+    questions_per_phase: int,
+) -> str:
+    phases_json = []
+    for phase in phases:
+        phases_json.append(
+            {
+                "phase_number": phase.get("phase_number"),
+                "phase_title": phase.get("phase_title"),
+                "skills_to_learn": phase.get("skills_to_learn", []),
+                "goals": phase.get("goals", []),
+            }
+        )
+
+    return f"""You are an expert technical educator creating robust, role-specific assessment banks.
+
+Generate assessment question sets for ALL roadmap phases below in one response.
+
+Target role: {target_role}
+Questions per phase: {questions_per_phase}
+Phases input:
+{phases_json}
+
+Requirements:
+1. Return assessments for every provided phase_number with matching phase_title.
+2. For each phase, generate exactly {questions_per_phase} MCQs.
+3. Each question must have exactly 4 options.
+4. Mix conceptual, applied, and scenario-based questions.
+5. Include a short explanation for each answer.
+6. Correct must be 0-based index in [0,1,2,3].
+7. Questions must be aligned to that phase goals and skills.
+8. Difficulty progression inside each phase: roughly 30% easy, 50% medium, 20% challenging.
+
+Respond ONLY valid JSON. No markdown, no commentary.
+
+Response format:
+{{
+  "assessments": [
+    {{
+      "phase_number": 1,
+      "phase_title": "Phase title",
+      "questions": [
+        {{
+          "question": "...",
+          "options": ["...", "...", "...", "..."],
+          "correct": 0,
+          "explanation": "..."
+        }}
+      ]
     }}
   ]
 }}"""

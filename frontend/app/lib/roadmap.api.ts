@@ -45,6 +45,8 @@ export interface PhaseProgress {
     phaseNumber: number;
     completed: boolean;
     unlockedAt: string | null;
+    goalChecks?: number[];
+    lastUpdatedAt?: string | null;
 }
 
 export interface AssessmentSummary {
@@ -53,6 +55,9 @@ export interface AssessmentSummary {
     phaseTitle: string;
     questionCount: number;
     isLocked: boolean;
+    lockReason?: string | null;
+    checklistDone?: number;
+    checklistTotal?: number;
     passed: boolean;
     bestScore: number | null;
     attemptCount: number;
@@ -121,6 +126,14 @@ export const roadmapApi = {
 
     delete: async (roadmapId: string): Promise<void> => {
         await api.delete(`/roadmap/${roadmapId}`);
+    },
+
+    updatePhaseProgress: async (
+        phaseNumber: number,
+        goalChecks: number[]
+    ): Promise<{ message: string; phaseNumber: number; goalChecks: number[] }> => {
+        const res = await api.patch('/roadmap/progress', { phaseNumber, goalChecks });
+        return res.data;
     },
 
     getAssessments: async (): Promise<{

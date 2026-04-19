@@ -12,7 +12,7 @@ import {
     Github, Linkedin, MapPin, ExternalLink, Code, Share2,
     Eye, Plus, Briefcase, GraduationCap, Sparkles,
     FolderOpen, Award, Globe, Calendar, CheckCircle,
-    Pencil
+    Pencil, Mail, Phone, Trophy
 } from "lucide-react";
 
 interface UserInfo {
@@ -90,6 +90,30 @@ export default function ProfilePage() {
 
     const goToMyInfo = () => router.push('/user/myinfo');
 
+    const skillsCount = userInfo?.skills?.length ?? 0;
+    const experienceCount = userInfo?.experiences?.length ?? 0;
+    const projectsCount = userInfo?.projects?.length ?? 0;
+    const certificationsCount = userInfo?.certifications?.length ?? 0;
+
+    const sectionsDone = [
+        Boolean(userInfo?.currentRole),
+        Boolean(userInfo?.location),
+        Boolean(userInfo?.bio),
+        skillsCount > 0,
+        experienceCount > 0,
+        projectsCount > 0,
+        (userInfo?.education?.length ?? 0) > 0,
+        certificationsCount > 0,
+    ].filter(Boolean).length;
+    const profileCompletion = Math.round((sectionsDone / 8) * 100);
+
+    const linksCount = [
+        userInfo?.github,
+        userInfo?.linkedin,
+        userInfo?.leetcode,
+        userInfo?.website,
+    ].filter(Boolean).length;
+
     if (loading) {
         return (
             <div className="min-h-screen bg-background flex items-center justify-center">
@@ -100,13 +124,13 @@ export default function ProfilePage() {
 
     return (
         <div className="min-h-screen bg-background">
-            <div className="max-w-5xl mx-auto px-4 sm:px-6 py-6 sm:py-8 space-y-6">
+            <div className="max-w-7xl mx-auto px-4 sm:px-6 py-6 sm:py-8 space-y-6">
 
                 {/* Header */}
                 <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
                     <div>
                         <h1 className="text-2xl sm:text-3xl font-bold text-foreground">My Profile</h1>
-                        <p className="text-sm text-muted-foreground mt-1">Your public developer profile</p>
+                        <p className="text-sm text-muted-foreground mt-1">Your complete developer identity for recruiters and AI insights</p>
                     </div>
                     <div className="flex gap-2">
                         <Button variant="outline" size="sm" className="gap-1.5">
@@ -119,6 +143,69 @@ export default function ProfilePage() {
                         </Button>
                     </div>
                 </div>
+
+                {/* Completion Banner */}
+                <motion.div {...fadeUp}>
+                    <Card className="border-primary/20 bg-gradient-to-r from-primary/10 via-primary/5 to-transparent">
+                        <CardContent className="p-5 sm:p-6">
+                            <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
+                                <div>
+                                    <p className="text-sm font-semibold text-foreground flex items-center gap-2">
+                                        <Sparkles className="h-4 w-4 text-primary" /> Profile Strength
+                                    </p>
+                                    <p className="text-xs text-muted-foreground mt-1">
+                                        Complete more sections to improve discoverability and get better AI recommendations.
+                                    </p>
+                                    <div className="mt-3">
+                                        <div className="h-2 w-full bg-muted/40 rounded-full overflow-hidden">
+                                            <div
+                                                className="h-full bg-primary rounded-full transition-all"
+                                                style={{ width: `${profileCompletion}%` }}
+                                            />
+                                        </div>
+                                        <p className="text-xs text-muted-foreground mt-1">{profileCompletion}% complete</p>
+                                    </div>
+                                </div>
+                                <div className="flex flex-wrap gap-2">
+                                    <Badge variant="secondary" className="text-xs">{skillsCount} skills</Badge>
+                                    <Badge variant="secondary" className="text-xs">{projectsCount} projects</Badge>
+                                    <Badge variant="secondary" className="text-xs">{experienceCount} experiences</Badge>
+                                    <Button size="sm" className="gap-1.5" onClick={goToMyInfo}>
+                                        <Pencil className="h-3.5 w-3.5" /> Complete Profile
+                                    </Button>
+                                </div>
+                            </div>
+                        </CardContent>
+                    </Card>
+                </motion.div>
+
+                {/* Quick Stats */}
+                <motion.div {...fadeUp} className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+                    <Card>
+                        <CardContent className="p-4">
+                            <p className="text-[11px] text-muted-foreground">Skills</p>
+                            <p className="text-xl font-bold text-foreground">{skillsCount}</p>
+                        </CardContent>
+                    </Card>
+                    <Card>
+                        <CardContent className="p-4">
+                            <p className="text-[11px] text-muted-foreground">Experience</p>
+                            <p className="text-xl font-bold text-foreground">{experienceCount}</p>
+                        </CardContent>
+                    </Card>
+                    <Card>
+                        <CardContent className="p-4">
+                            <p className="text-[11px] text-muted-foreground">Projects</p>
+                            <p className="text-xl font-bold text-foreground">{projectsCount}</p>
+                        </CardContent>
+                    </Card>
+                    <Card>
+                        <CardContent className="p-4">
+                            <p className="text-[11px] text-muted-foreground">Certifications</p>
+                            <p className="text-xl font-bold text-foreground">{certificationsCount}</p>
+                        </CardContent>
+                    </Card>
+                </motion.div>
 
                 {/* Profile Card */}
                 <motion.div {...fadeUp}>
@@ -174,7 +261,9 @@ export default function ProfilePage() {
                                             </div>
                                             <div>
                                                 <p className="text-sm font-medium text-foreground">Elevate Score</p>
-                                                <p className="text-xs text-muted-foreground">Your AI rating</p>
+                                                <p className="text-xs text-muted-foreground flex items-center gap-1">
+                                                    <Trophy className="h-3 w-3 text-primary" /> Your AI rating
+                                                </p>
                                             </div>
                                         </div>
                                     </div>
@@ -182,6 +271,26 @@ export default function ProfilePage() {
                                     {userInfo?.bio && (
                                         <p className="text-sm text-muted-foreground mt-4 leading-relaxed">{userInfo.bio}</p>
                                     )}
+
+                                    {!userInfo?.bio && (
+                                        <div className="mt-4 rounded-lg border border-dashed border-border bg-muted/20 p-3">
+                                            <p className="text-xs text-muted-foreground">
+                                                Add a short bio to help recruiters understand your strengths and interests.
+                                            </p>
+                                        </div>
+                                    )}
+
+                                    <div className="flex flex-wrap gap-3 mt-4 text-xs text-muted-foreground">
+                                        <span className="flex items-center gap-1.5">
+                                            <Mail className="h-3.5 w-3.5 text-primary" /> {me?.email || 'No email'}
+                                        </span>
+                                        <span className="flex items-center gap-1.5">
+                                            <Phone className="h-3.5 w-3.5 text-primary" /> {userInfo?.phone || 'No phone'}
+                                        </span>
+                                        <span className="flex items-center gap-1.5">
+                                            <Globe className="h-3.5 w-3.5 text-primary" /> {linksCount} profile links
+                                        </span>
+                                    </div>
 
                                     {/* Links */}
                                     <div className="flex flex-wrap gap-2 mt-4">

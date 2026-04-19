@@ -1,7 +1,7 @@
 // app/user/interview/summary/page.tsx
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { Suspense, useState, useEffect } from 'react';
 import { useSearchParams, useRouter } from 'next/navigation';
 import { interviewApi, SessionSummaryResponse } from '../../../lib/interview.api';
 import { motion } from "framer-motion";
@@ -15,7 +15,7 @@ import {
 } from "lucide-react";
 import Link from "next/link";
 
-export default function InterviewSummaryPage() {
+function InterviewSummaryPageContent() {
     const router = useRouter();
     const searchParams = useSearchParams();
     const sessionId = searchParams.get('session_id');
@@ -51,8 +51,8 @@ export default function InterviewSummaryPage() {
 
     const getScoreBgColor = (pct: number) => {
         if (pct >= 80) return 'bg-green-500';
-        if (pct >= 60) return 'bg-blue-500';
-        if (pct >= 40) return 'bg-yellow-500';
+        if (pct >= 60) return 'bg-yellow-500';
+        if (pct >= 40) return 'bg-orange-500';
         return 'bg-red-500';
     };
 
@@ -347,5 +347,13 @@ export default function InterviewSummaryPage() {
                 </div>
             </div>
         </div>
+    );
+}
+
+export default function InterviewSummaryPage() {
+    return (
+        <Suspense fallback={<div className="min-h-screen bg-background" />}>
+            <InterviewSummaryPageContent />
+        </Suspense>
     );
 }

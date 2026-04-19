@@ -11,6 +11,7 @@ from app.utils.prompts import (
     get_followup_prompt,
     get_roadmap_prompt,
     get_assessment_prompt,
+    get_assessments_batch_prompt,
 )
 
 # ✅ Configure Gemini
@@ -258,8 +259,9 @@ def generate_assessments(
     phase_title: str,
     skills_to_learn: list,
     goals: list,
+    question_count: int = 10,
 ) -> dict:
-    """Generate 5 MCQ questions for a roadmap phase."""
+    """Generate MCQ questions for a single roadmap phase."""
 
     prompt = get_assessment_prompt(
         target_role=target_role,
@@ -267,6 +269,7 @@ def generate_assessments(
         phase_title=phase_title,
         skills_to_learn=skills_to_learn,
         goals=goals,
+        question_count=question_count,
     )
 
     response = _generate_content_with_retry(prompt)
@@ -288,4 +291,99 @@ def generate_assessments(
             )
         q["explanation"] = q.get("explanation", "")
 
-    return {"questions": questions[:5]}
+    return {"questions": questions[:question_count]}
+
+
+def generate_assessments_batch(
+    target_role: str,
+    phases: list,
+    questions_per_phase: int = 10,
+) -> dict:
+    """Generate MCQ questions for all roadmap phases in one AI call."""
+
+    prompt = get_assessments_batch_prompt(
+        target_role=target_role,
+        phases=phases,
+        questions_per_phase=questions_per_phase,
+    )
+
+    response = _generate_content_with_retry(prompt)
+    data = _parse_json_safe(response.text)
+
+    assessments = data.get("assessments", [])
+    if not assessments:
+        raise HTTPException(
+            status_code=status.HTTP_502_BAD_GATEWAY,
+            detail="AI returned no assessments"
+        )
+
+    phase_by_number = {int(p.get("phase_number")): p for p in phases}
+    validated = []
+
+    for assessment in assessments:
+        phase_number = int(assessment.get("phase_number", 0))
+        if phase_number not in phase_by_number:
+            continue
+
+        expected_title = phase_by_number[phase_number].get("phase_title", "")
+        questions = assessment.get("questions", [])
+
+        if not isinstance(questions, list) or len(questions) == 0:
+            raise HTTPException(
+                status_code=status.HTTP_502_BAD_GATEWAY,
+                detail=f"AI returned malformed questions for phase {phase_number}"
+            )
+
+        normalized_questions = []
+        for q in questions[:questions_per_phase]:
+            if "question" not in q or "options" not in q or "correct" not in q:
+                raise HTTPException(
+                    status_code=status.HTTP_502_BAD_GATEWAY,
+                    detail=f"AI returned malformed MCQ question in phase {phase_number}"
+                )
+
+            options = q.get("options", [])
+            if not isinstance(options, list) or len(options) != 4:
+                raise HTTPException(
+                    status_code=status.HTTP_502_BAD_GATEWAY,
+                    detail=f"AI returned invalid options for phase {phase_number}"
+                )
+
+            correct = int(q.get("correct", -1))
+            if correct < 0 or correct > 3:
+                raise HTTPException(
+                    status_code=status.HTTP_502_BAD_GATEWAY,
+                    detail=f"AI returned invalid correct answer index for phase {phase_number}"
+                )
+
+            normalized_questions.append(
+                {
+                    "question": str(q.get("question", "")).strip(),
+                    "options": [str(opt) for opt in options],
+                    "correct": correct,
+                    "explanation": str(q.get("explanation", "")).strip(),
+                }
+            )
+
+        if len(normalized_questions) < questions_per_phase:
+            raise HTTPException(
+                status_code=status.HTTP_502_BAD_GATEWAY,
+                detail=f"AI returned fewer than {questions_per_phase} questions for phase {phase_number}"
+            )
+
+        validated.append(
+            {
+                "phase_number": phase_number,
+                "phase_title": expected_title,
+                "questions": normalized_questions,
+            }
+        )
+
+    if len(validated) != len(phases):
+        raise HTTPException(
+            status_code=status.HTTP_502_BAD_GATEWAY,
+            detail="AI response did not include all roadmap phases"
+        )
+
+    validated.sort(key=lambda x: x["phase_number"])
+    return {"assessments": validated}

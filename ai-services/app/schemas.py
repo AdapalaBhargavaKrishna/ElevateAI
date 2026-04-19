@@ -195,6 +195,7 @@ class AssessmentsGenerateRequest(BaseModel):
     phase_title: str
     skills_to_learn: List[str]
     goals: List[str]
+    question_count: int = Field(default=10, ge=6, le=20)
 
 
 class MCQQuestion(BaseModel):
@@ -206,3 +207,26 @@ class MCQQuestion(BaseModel):
 
 class AssessmentsGenerateResponse(BaseModel):
     questions: List[MCQQuestion]
+
+
+class BatchAssessmentPhase(BaseModel):
+    phase_number: int
+    phase_title: str
+    skills_to_learn: List[str]
+    goals: List[str]
+
+
+class AssessmentsBatchGenerateRequest(BaseModel):
+    target_role: str
+    phases: List[BatchAssessmentPhase]
+    questions_per_phase: int = Field(default=10, ge=6, le=20)
+
+
+class PhaseAssessmentQuestions(BaseModel):
+    phase_number: int
+    phase_title: str
+    questions: List[MCQQuestion]
+
+
+class AssessmentsBatchGenerateResponse(BaseModel):
+    assessments: List[PhaseAssessmentQuestions]

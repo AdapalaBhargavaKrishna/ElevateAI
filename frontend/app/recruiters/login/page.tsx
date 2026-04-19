@@ -14,7 +14,7 @@ import {
     Users,
     BarChart3
 } from "lucide-react";
-import { useState, useEffect } from "react";
+import { Suspense, useState, useEffect } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useTheme } from "next-themes";
 import Link from "next/link";
@@ -39,7 +39,7 @@ import {
     TooltipTrigger,
 } from "@/components/ui/tooltip";
 
-export default function RecruiterLoginPage() {
+function RecruiterLoginPageContent() {
     const router = useRouter();
     const [error, setError] = useState<string | null>(null);
     const [mounted, setMounted] = useState(false);
@@ -277,5 +277,13 @@ export default function RecruiterLoginPage() {
                 </motion.div>
             </div>
         </TooltipProvider>
+    );
+}
+
+export default function RecruiterLoginPage() {
+    return (
+        <Suspense fallback={<div className="min-h-screen bg-background" />}>
+            <RecruiterLoginPageContent />
+        </Suspense>
     );
 }

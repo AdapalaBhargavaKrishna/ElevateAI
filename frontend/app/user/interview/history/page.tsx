@@ -36,7 +36,6 @@ export default function InterviewHistoryPage() {
     const [sessions, setSessions] = useState<SessionHistory[]>([]);
     const [isLoading, setIsLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
-    const [filter, setFilter] = useState<'all' | 'completed' | 'in_progress'>('all');
 
     useEffect(() => {
         fetchHistory();
@@ -114,13 +113,6 @@ export default function InterviewHistoryPage() {
         }
     };
 
-    const filteredSessions = sessions.filter(session => {
-        if (filter === 'all') return true;
-        if (filter === 'completed') return session.status === 'completed';
-        if (filter === 'in_progress') return session.status === 'in_progress' || session.status === 'awaiting_summary';
-        return true;
-    });
-
     const completedSessions = sessions.filter(s => s.status === 'completed');
     const totalInterviews = sessions.length;
     const averageScore = completedSessions.length > 0 
@@ -169,10 +161,9 @@ export default function InterviewHistoryPage() {
                     description="Track your mock interview performance and progress over time"
                 />
 
-                {/* Stats Cards */}
-                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
                     <Card className="bg-card border-border">
-                        <CardContent className="pt-6">
+                        <CardContent className="pt-2">
                             <div className="flex items-center justify-between">
                                 <div>
                                     <p className="text-sm text-muted-foreground">Total Interviews</p>
@@ -184,23 +175,8 @@ export default function InterviewHistoryPage() {
                             </div>
                         </CardContent>
                     </Card>
-                    
                     <Card className="bg-card border-border">
-                        <CardContent className="pt-6">
-                            <div className="flex items-center justify-between">
-                                <div>
-                                    <p className="text-sm text-muted-foreground">Completed</p>
-                                    <p className="text-3xl font-bold text-foreground">{completedSessions.length}</p>
-                                </div>
-                                <div className="h-10 w-10 rounded-full bg-green-500/10 flex items-center justify-center">
-                                    <Award className="h-5 w-5 text-green-500" />
-                                </div>
-                            </div>
-                        </CardContent>
-                    </Card>
-
-                    <Card className="bg-card border-border">
-                        <CardContent className="pt-6">
+                        <CardContent className="pt-2">
                             <div className="flex items-center justify-between">
                                 <div>
                                     <p className="text-sm text-muted-foreground">Average Score</p>
@@ -214,7 +190,7 @@ export default function InterviewHistoryPage() {
                     </Card>
 
                     <Card className="bg-card border-border">
-                        <CardContent className="pt-6">
+                        <CardContent className="pt-2">
                             <div className="flex items-center justify-between">
                                 <div>
                                     <p className="text-sm text-muted-foreground">Best Score</p>
@@ -228,58 +204,6 @@ export default function InterviewHistoryPage() {
                     </Card>
                 </div>
 
-                {/* Filter Tabs */}
-                <div className="flex gap-2 border-b border-border">
-                    <button
-                        onClick={() => setFilter('all')}
-                        className={`px-4 py-2 text-sm font-medium transition-colors relative ${
-                            filter === 'all' 
-                                ? 'text-primary' 
-                                : 'text-muted-foreground hover:text-foreground'
-                        }`}
-                    >
-                        All Interviews
-                        {filter === 'all' && (
-                            <motion.div
-                                layoutId="activeTab"
-                                className="absolute bottom-0 left-0 right-0 h-0.5 bg-primary"
-                            />
-                        )}
-                    </button>
-                    <button
-                        onClick={() => setFilter('completed')}
-                        className={`px-4 py-2 text-sm font-medium transition-colors relative ${
-                            filter === 'completed' 
-                                ? 'text-primary' 
-                                : 'text-muted-foreground hover:text-foreground'
-                        }`}
-                    >
-                        Completed
-                        {filter === 'completed' && (
-                            <motion.div
-                                layoutId="activeTab"
-                                className="absolute bottom-0 left-0 right-0 h-0.5 bg-primary"
-                            />
-                        )}
-                    </button>
-                    <button
-                        onClick={() => setFilter('in_progress')}
-                        className={`px-4 py-2 text-sm font-medium transition-colors relative ${
-                            filter === 'in_progress' 
-                                ? 'text-primary' 
-                                : 'text-muted-foreground hover:text-foreground'
-                        }`}
-                    >
-                        In Progress
-                        {filter === 'in_progress' && (
-                            <motion.div
-                                layoutId="activeTab"
-                                className="absolute bottom-0 left-0 right-0 h-0.5 bg-primary"
-                            />
-                        )}
-                    </button>
-                </div>
-
                 {/* History Table */}
                 <Card className="bg-card border-border">
                     <CardHeader>
@@ -289,19 +213,13 @@ export default function InterviewHistoryPage() {
                         </CardTitle>
                     </CardHeader>
                     <CardContent>
-                        {filteredSessions.length === 0 ? (
+                        {sessions.length === 0 ? (
                             <div className="text-center py-12">
                                 <div className="h-20 w-20 rounded-full bg-muted flex items-center justify-center mx-auto mb-4">
                                     <FileText className="h-10 w-10 text-muted-foreground" />
                                 </div>
                                 <p className="text-muted-foreground mb-2">No interviews found</p>
-                                <p className="text-sm text-muted-foreground mb-4">
-                                    {filter === 'all' 
-                                        ? "You haven't taken any interviews yet." 
-                                        : filter === 'completed' 
-                                        ? "No completed interviews yet." 
-                                        : "No in-progress interviews."}
-                                </p>
+                                <p className="text-sm text-muted-foreground mb-4">You haven't taken any interviews yet.</p>
                                 <Link href="/user/interview">
                                     <Button>Start Your First Interview</Button>
                                 </Link>
@@ -317,13 +235,12 @@ export default function InterviewHistoryPage() {
                                             <th className="text-left p-3 text-xs font-medium text-muted-foreground">Difficulty</th>
                                             <th className="text-left p-3 text-xs font-medium text-muted-foreground">Score</th>
                                             <th className="text-left p-3 text-xs font-medium text-muted-foreground">Questions</th>
-                                            <th className="text-left p-3 text-xs font-medium text-muted-foreground">Status</th>
                                             <th className="text-left p-3 text-xs font-medium text-muted-foreground">Date</th>
                                             <th className="text-left p-3 text-xs font-medium text-muted-foreground">Verdict</th>
                                         </tr>
                                     </thead>
                                     <tbody>
-                                        {filteredSessions.map((session, i) => {
+                                        {sessions.map((session, i) => {
                                             const verdict = getVerdictFromScore(session.totalScore);
                                             return (
                                                 <motion.tr
@@ -335,9 +252,6 @@ export default function InterviewHistoryPage() {
                                                     onClick={() => {
                                                         if (session.status === 'completed') {
                                                             router.push(`/user/interview/summary?session_id=${session.id}`);
-                                                        } else if (session.status === 'in_progress' || session.status === 'awaiting_summary') {
-                                                            // Could resume interview here if you implement that feature
-                                                            console.log('Resume interview:', session.id);
                                                         }
                                                     }}
                                                 >
@@ -370,11 +284,6 @@ export default function InterviewHistoryPage() {
                                                     <td className="p-3 text-sm text-muted-foreground">
                                                         {session.questionCount}
                                                     </td>
-                                                    <td className="p-3">
-                                                        <Badge variant={session.status === 'completed' ? 'default' : 'secondary'}>
-                                                            {session.status === 'awaiting_summary' ? 'Processing' : session.status}
-                                                        </Badge>
-                                                    </td>
                                                     <td className="p-3 text-sm text-muted-foreground">
                                                         {new Date(session.createdAt).toLocaleDateString('en-US', {
                                                             month: 'short',
@@ -396,67 +305,6 @@ export default function InterviewHistoryPage() {
                         )}
                     </CardContent>
                 </Card>
-
-                {/* Performance Insights */}
-                {completedSessions.length > 0 && (
-                    <Card className="bg-card border-border">
-                        <CardHeader>
-                            <CardTitle className="text-foreground flex items-center gap-2">
-                                <BarChart3 className="h-5 w-5 text-primary" />
-                                Performance Insights
-                            </CardTitle>
-                        </CardHeader>
-                        <CardContent>
-                            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                                <div>
-                                    <h4 className="text-sm font-medium text-foreground mb-3">Score Trend</h4>
-                                    <div className="space-y-2">
-                                        {completedSessions.slice(0, 5).map((session, idx) => (
-                                            <div key={session.id} className="flex items-center gap-3">
-                                                <span className="text-xs text-muted-foreground w-20">
-                                                    {new Date(session.createdAt).toLocaleDateString()}
-                                                </span>
-                                                <div className="flex-1">
-                                                    <div className="h-2 bg-muted rounded-full overflow-hidden">
-                                                        <div 
-                                                            className="h-full bg-primary rounded-full"
-                                                            style={{ width: `${(session.totalScore || 0) * 10}%` }}
-                                                        />
-                                                    </div>
-                                                </div>
-                                                <span className={`text-sm font-medium ${getScoreColor(session.totalScore)}`}>
-                                                    {getScoreDisplay(session.totalScore)}
-                                                </span>
-                                            </div>
-                                        ))}
-                                    </div>
-                                </div>
-                                <div>
-                                    <h4 className="text-sm font-medium text-foreground mb-3">Performance by Role</h4>
-                                    <div className="space-y-3">
-                                        {Object.entries(
-                                            completedSessions.reduce((acc, session) => {
-                                                if (!acc[session.role]) {
-                                                    acc[session.role] = { total: 0, count: 0 };
-                                                }
-                                                acc[session.role].total += session.totalScore || 0;
-                                                acc[session.role].count++;
-                                                return acc;
-                                            }, {} as Record<string, { total: number; count: number }>)
-                                        ).map(([role, data]) => (
-                                            <div key={role} className="flex items-center justify-between">
-                                                <span className="text-sm text-foreground">{role}</span>
-                                                <span className="text-sm font-medium text-primary">
-                                                    {((data.total / data.count) * 10).toFixed(0)} avg
-                                                </span>
-                                            </div>
-                                        ))}
-                                    </div>
-                                </div>
-                            </div>
-                        </CardContent>
-                    </Card>
-                )}
             </div>
         </div>
     );

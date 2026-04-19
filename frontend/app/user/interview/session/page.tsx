@@ -1,7 +1,7 @@
 // app/user/interview/session/page.tsx
 'use client';
 
-import React, { useState, useEffect, useRef, useCallback } from 'react';
+import React, { Suspense, useState, useEffect, useRef, useCallback } from 'react';
 import { useSearchParams, useRouter } from 'next/navigation';
 import { interviewApi } from '../../../lib/interview.api';
 import { motion, AnimatePresence } from "framer-motion";
@@ -126,7 +126,7 @@ function ScoreBars({ evaluation }: { evaluation: Evaluation }) {
 
 // ─── Component ────────────────────────────────────────────────────────────────
 
-export default function InterviewSessionPage() {
+function InterviewSessionPageContent() {
     const router       = useRouter();
     const searchParams = useSearchParams();
     const mode         = searchParams.get('mode')          || 'technical';
@@ -449,8 +449,9 @@ export default function InterviewSessionPage() {
                                         </Button>
                                     </div>
                                 </CardHeader>
+                                
                                 <CardContent className="pb-4">
-                                    <div className="relative aspect-video bg-muted rounded-lg overflow-hidden">
+                                    <div className="relative aspect-video bg-muted rounded-lg w-full h-full overflow-hidden">
                                         {cameraEnabled ? (
                                             <video ref={videoRef} autoPlay playsInline muted className="w-full h-full object-cover" />
                                         ) : (
@@ -582,7 +583,7 @@ export default function InterviewSessionPage() {
                                                                 ? "🎤 Listening… speak your answer…"
                                                                 : "Type your answer here, or click 🎤 to speak…"
                                                         }
-                                                        className={`w-full min-h-[160px] rounded-xl border bg-background px-4 py-3 text-sm text-foreground resize-none focus:outline-none focus:ring-2 focus:ring-primary transition-all ${
+                                                        className={`w-full min-h-[300px] rounded-xl border bg-background px-4 py-3 text-sm text-foreground resize-none focus:outline-none focus:ring-2 focus:ring-primary transition-all ${
                                                             isListening ? 'border-destructive ring-2 ring-destructive/30' : 'border-border'
                                                         }`}
                                                         disabled={isSubmitting}
@@ -723,5 +724,13 @@ export default function InterviewSessionPage() {
                 </div>
             </div>
         </div>
+    );
+}
+
+export default function InterviewSessionPage() {
+    return (
+        <Suspense fallback={<div className="min-h-screen bg-background" />}>
+            <InterviewSessionPageContent />
+        </Suspense>
     );
 }

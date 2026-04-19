@@ -10,7 +10,7 @@ import {
     Sun,
     Moon
 } from "lucide-react";
-import { useState, useEffect, } from "react";
+import { Suspense, useState, useEffect, } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useTheme } from "next-themes";
 import Link from "next/link";
@@ -35,7 +35,7 @@ import {
     TooltipTrigger,
 } from "@/components/ui/tooltip";
 
-export default function LoginPage() {
+function LoginPageContent() {
     const router = useRouter();
     const [error, setError] = useState(null);
     const [mounted, setMounted] = useState(false);
@@ -239,5 +239,13 @@ export default function LoginPage() {
                 </motion.div>
             </div>
         </TooltipProvider>
+    );
+}
+
+export default function LoginPage() {
+    return (
+        <Suspense fallback={<div className="min-h-screen bg-background" />}>
+            <LoginPageContent />
+        </Suspense>
     );
 }
