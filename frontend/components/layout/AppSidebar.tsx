@@ -18,6 +18,7 @@ import {
     Menu,
     Code2,
     Inbox,
+    TestTube,
 } from 'lucide-react';
 import { useSidebar } from '@/context/SidebarContext';
 import { Button } from '@/components/ui/button';
@@ -117,6 +118,7 @@ const mainNav = [
 const toolsNav = [
     { to: '/user/assistant', icon: MessageSquare, label: 'AI Assistant', badge: 'New' },
     { to: '/user/playground', icon: Code2, label: 'Code Playground' },
+    { to: '/user/assessments', icon: TestTube, label: 'Assessments' },
     { to: '/user/messages', icon: Inbox, label: 'Messages' },
 ];
 

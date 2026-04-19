@@ -201,36 +201,12 @@ export default function CareerRoadmapPage() {
                     description="Your personalized path to becoming a Senior Full-Stack Developer"
                     actions={
                         <div className="flex gap-2">
-                            <Button variant="outline" size="sm" className="h-8 gap-1.5 text-xs">
-                                <Download className="h-3.5 w-3.5" /> Export
-                            </Button>
                             <Button size="sm" className="h-8 gap-1.5 text-xs bg-primary hover:bg-primary/90">
                                 <Sparkles className="h-3.5 w-3.5" /> Regenerate
                             </Button>
                         </div>
                     }
                 />
-
-                <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-                    {[
-                        { label: "Progress", value: `${progress}%`, icon: Target, color: "bg-blue-400" },
-                        { label: "Learning Hours", value: learningStats.totalHours, icon: Clock, color: "bg-green-400" },
-                        { label: "Projects Built", value: learningStats.projectsBuilt, icon: Layers, color: "bg-purple-400" },
-                        { label: "Day Streak", value: learningStats.currentStreak, icon: TrendingUp, color: "bg-orange-400" },
-                    ].map((stat) => (
-                        <div key={stat.label} className="bg-card border border-border rounded-lg p-3">
-                            <div className="flex items-center gap-2">
-                                <div className={`h-8 w-8 rounded-lg bg-gradient-to-br ${stat.color} flex items-center justify-center`}>
-                                    <stat.icon className="h-4 w-4 text-white" />
-                                </div>
-                                <div>
-                                    <p className="text-lg font-bold text-foreground">{stat.value}</p>
-                                    <p className="text-xs text-muted-foreground">{stat.label}</p>
-                                </div>
-                            </div>
-                        </div>
-                    ))}
-                </div>
 
                 <motion.div
                     initial={{ opacity: 0, y: 12 }}
@@ -422,31 +398,6 @@ export default function CareerRoadmapPage() {
                     </div>
 
                     <div className="lg:col-span-1 space-y-4">
-                        <div className="bg-card border border-border rounded-xl p-4">
-                            <h3 className="text-sm font-semibold text-foreground flex items-center gap-2 mb-3">
-                                <Award className="h-4 w-4 text-primary" />
-                                Milestones
-                            </h3>
-                            <div className="space-y-3">
-                                {milestones.map((milestone) => (
-                                    <div key={milestone.id} className="flex items-start gap-2">
-                                        <div className={`h-5 w-5 rounded-full flex items-center justify-center shrink-0 mt-0.5 ${milestone.completed ? 'bg-green-500/20' : 'bg-muted'
-                                            }`}>
-                                            {milestone.completed ? (
-                                                <CheckCircle2 className="h-3 w-3 text-green-500" />
-                                            ) : (
-                                                <Circle className="h-3 w-3 text-muted-foreground" />
-                                            )}
-                                        </div>
-                                        <div className="flex-1">
-                                            <p className="text-sm font-medium text-foreground">{milestone.title}</p>
-                                            <p className="text-xs text-muted-foreground">{milestone.description}</p>
-                                            <p className="text-[10px] text-primary mt-1">{milestone.date}</p>
-                                        </div>
-                                    </div>
-                                ))}
-                            </div>
-                        </div>
 
                         <div className="bg-card border border-border rounded-xl p-4">
                             <h3 className="text-sm font-semibold text-foreground flex items-center gap-2 mb-3">
