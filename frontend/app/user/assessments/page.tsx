@@ -1,493 +1,587 @@
-"use client";
+'use client';
 
-import { useState } from "react";
-import { useRouter } from "next/navigation";
-import { motion } from "framer-motion";
+import { useState, useEffect, useCallback, Suspense } from 'react';
+import { useRouter, useSearchParams } from 'next/navigation';
+import { motion, AnimatePresence } from 'framer-motion';
 import {
-  Brain,
-  Clock,
-  Trophy,
-  CheckCircle2,
-  XCircle,
-  ArrowRight,
-  RotateCcw,
-  Zap,
-  Target,
-  Lock,
-} from "lucide-react";
+    Brain, Clock, Trophy, CheckCircle2, XCircle, ArrowRight,
+    RotateCcw, Target, Lock, AlertCircle, RefreshCw, ChevronLeft,
+    Sparkles, BookOpen
+} from 'lucide-react';
+import { Button } from '@/components/ui/button';
+import { Badge } from '@/components/ui/badge';
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
+import { Progress } from '@/components/ui/progress';
+import { roadmapApi, AssessmentSummary, AssessmentDetail, SubmitResult } from '@/app/lib/roadmap.api';
 
-import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
-import { Progress } from "@/components/ui/progress";
+// ─── Quiz phase ────────────────────────────────────────────────────────────────
 
-interface Question {
-  question: string;
-  options: string[];
-  correct: number;
+function QuizView({
+    assessment,
+    onFinish,
+}: {
+    assessment: AssessmentDetail;
+    onFinish: (result: SubmitResult) => void;
+}) {
+    const [currentQ, setCurrentQ] = useState(0);
+    const [answers, setAnswers] = useState<number[]>([]);
+    const [selected, setSelected] = useState<number | null>(null);
+    const [submitting, setSubmitting] = useState(false);
+
+    const total = assessment.questions.length;
+    const q = assessment.questions[currentQ];
+
+    const handleNext = async () => {
+        if (selected === null) return;
+        const newAnswers = [...answers, selected];
+
+        if (currentQ + 1 < total) {
+            setAnswers(newAnswers);
+            setCurrentQ((c) => c + 1);
+            setSelected(null);
+        } else {
+            // Submit
+            setSubmitting(true);
+            try {
+                const result = await roadmapApi.submitAssessment(assessment.id, newAnswers);
+                onFinish(result);
+            } catch {
+                onFinish({
+                    score: 0,
+                    total,
+                    percentage: 0,
+                    passed: false,
+                    message: 'Submission failed. Please try again.',
+                    results: [],
+                });
+            } finally {
+                setSubmitting(false);
+            }
+        }
+    };
+
+    return (
+        <div className="max-w-2xl mx-auto space-y-6">
+            <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }}>
+                <div className="flex items-center justify-between mb-2">
+                    <Badge variant="secondary" className="text-xs">
+                        Phase {assessment.phaseNumber}: {assessment.phaseTitle}
+                    </Badge>
+                    <span className="text-sm text-muted-foreground">
+                        {currentQ + 1} / {total}
+                    </span>
+                </div>
+                <Progress value={((currentQ + 1) / total) * 100} className="h-2 mb-6" />
+
+                <Card>
+                    <CardHeader>
+                        <CardTitle className="text-lg leading-snug">{q.question}</CardTitle>
+                    </CardHeader>
+                    <CardContent className="space-y-3">
+                        {q.options.map((opt, i) => (
+                            <motion.button
+                                key={i}
+                                whileHover={{ scale: 1.01 }}
+                                whileTap={{ scale: 0.99 }}
+                                onClick={() => setSelected(i)}
+                                className={`w-full text-left p-4 rounded-lg border-2 transition-all ${
+                                    selected === i
+                                        ? 'border-primary bg-primary/5'
+                                        : 'border-border hover:border-muted-foreground/30'
+                                }`}
+                            >
+                                <span className="flex items-center gap-3">
+                                    <span
+                                        className={`w-8 h-8 rounded-full flex items-center justify-center text-sm font-bold shrink-0 ${
+                                            selected === i
+                                                ? 'bg-primary text-primary-foreground'
+                                                : 'bg-muted text-muted-foreground'
+                                        }`}
+                                    >
+                                        {String.fromCharCode(65 + i)}
+                                    </span>
+                                    <span className="text-sm font-medium">{opt}</span>
+                                </span>
+                            </motion.button>
+                        ))}
+
+                        <Button
+                            onClick={handleNext}
+                            disabled={selected === null || submitting}
+                            className="w-full mt-4 gap-2"
+                        >
+                            {submitting ? (
+                                <>
+                                    <RefreshCw className="h-4 w-4 animate-spin" /> Submitting…
+                                </>
+                            ) : currentQ + 1 === total ? (
+                                <>
+                                    Finish <CheckCircle2 className="h-4 w-4" />
+                                </>
+                            ) : (
+                                <>
+                                    Next <ArrowRight className="h-4 w-4" />
+                                </>
+                            )}
+                        </Button>
+                    </CardContent>
+                </Card>
+            </motion.div>
+        </div>
+    );
 }
 
-interface Quiz {
-  id: string;
-  title: string;
-  category: string;
-  questions: Question[];
-  duration: number;
-  difficulty: "Beginner" | "Intermediate" | "Advanced";
-  icon: string;
+// ─── Result phase ──────────────────────────────────────────────────────────────
+
+function ResultView({
+    result,
+    assessment,
+    onRetry,
+    onBack,
+}: {
+    result: SubmitResult;
+    assessment: AssessmentDetail;
+    onRetry: () => void;
+    onBack: () => void;
+}) {
+    const router = useRouter();
+    const [showAnswers, setShowAnswers] = useState(false);
+
+    return (
+        <div className="max-w-lg mx-auto space-y-6">
+            <motion.div initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }}>
+                <Card className="text-center">
+                    <CardHeader>
+                        <div className="mx-auto mb-4">
+                            <Trophy
+                                className={`h-16 w-16 mx-auto ${
+                                    result.percentage >= 80
+                                        ? 'text-yellow-500'
+                                        : result.percentage >= 70
+                                        ? 'text-primary'
+                                        : 'text-muted-foreground'
+                                }`}
+                            />
+                        </div>
+                        <CardTitle className="text-2xl">
+                            {result.passed ? (result.percentage >= 90 ? 'Excellent!' : 'Phase Passed!') : 'Keep Practicing!'}
+                        </CardTitle>
+                        <CardDescription>{result.message}</CardDescription>
+                    </CardHeader>
+                    <CardContent className="space-y-5">
+                        <div className="text-5xl font-bold text-primary">{result.percentage}%</div>
+                        <p className="text-sm text-muted-foreground">
+                            {result.score} / {result.total} correct · {result.passed ? '✅ Next phase unlocked!' : '❌ Need 70% to pass'}
+                        </p>
+
+                        {/* Per-question summary */}
+                        {result.results.length > 0 && (
+                            <div className="text-left space-y-2">
+                                <button
+                                    onClick={() => setShowAnswers((v) => !v)}
+                                    className="text-xs text-primary flex items-center gap-1 hover:underline"
+                                >
+                                    <BookOpen className="h-3 w-3" />
+                                    {showAnswers ? 'Hide' : 'Show'} detailed answers
+                                </button>
+                                <AnimatePresence>
+                                    {showAnswers && (
+                                        <motion.div
+                                            initial={{ height: 0, opacity: 0 }}
+                                            animate={{ height: 'auto', opacity: 1 }}
+                                            exit={{ height: 0, opacity: 0 }}
+                                            className="space-y-3 overflow-hidden"
+                                        >
+                                            {result.results.map((r, i) => (
+                                                <div
+                                                    key={i}
+                                                    className={`p-3 rounded-lg border text-sm ${
+                                                        r.isCorrect
+                                                            ? 'bg-green-500/5 border-green-200 dark:border-green-800'
+                                                            : 'bg-destructive/5 border-destructive/20'
+                                                    }`}
+                                                >
+                                                    <div className="flex items-start gap-2">
+                                                        {r.isCorrect ? (
+                                                            <CheckCircle2 className="h-4 w-4 text-green-500 shrink-0 mt-0.5" />
+                                                        ) : (
+                                                            <XCircle className="h-4 w-4 text-destructive shrink-0 mt-0.5" />
+                                                        )}
+                                                        <div>
+                                                            <p className="font-medium text-foreground">{r.question}</p>
+                                                            {!r.isCorrect && (
+                                                                <p className="text-xs text-muted-foreground mt-1">
+                                                                    You chose:{' '}
+                                                                    <span className="text-destructive">
+                                                                        {assessment.questions[i]?.options[r.chosen]}
+                                                                    </span>
+                                                                    {' · '}Correct:{' '}
+                                                                    <span className="text-green-600">
+                                                                        {assessment.questions[i]?.options[r.correct]}
+                                                                    </span>
+                                                                </p>
+                                                            )}
+                                                            {r.explanation && (
+                                                                <p className="text-xs text-muted-foreground mt-1 italic">
+                                                                    {r.explanation}
+                                                                </p>
+                                                            )}
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                            ))}
+                                        </motion.div>
+                                    )}
+                                </AnimatePresence>
+                            </div>
+                        )}
+
+                        <div className="flex gap-3 pt-2">
+                            <Button variant="outline" className="flex-1 gap-2" onClick={onRetry}>
+                                <RotateCcw className="h-4 w-4" /> Retry
+                            </Button>
+                            {result.passed ? (
+                                <Button className="flex-1 gap-2" onClick={() => router.push('/user/roadmap')}>
+                                    View Roadmap <ArrowRight className="h-4 w-4" />
+                                </Button>
+                            ) : (
+                                <Button className="flex-1" onClick={onBack}>
+                                    All Assessments
+                                </Button>
+                            )}
+                        </div>
+                    </CardContent>
+                </Card>
+            </motion.div>
+        </div>
+    );
 }
 
-const quizzes: Quiz[] = [
-  {
-    id: "js-fundamentals",
-    title: "JavaScript Fundamentals",
-    category: "Frontend",
-    difficulty: "Beginner",
-    duration: 5,
-    icon: "🟨",
-    questions: [
-      {
-        question: "What is the output of typeof null?",
-        options: ["'null'", "'object'", "'undefined'", "'boolean'"],
-        correct: 1,
-      },
-      {
-        question: "Which method converts JSON to a JS object?",
-        options: ["JSON.parse()", "JSON.stringify()", "JSON.convert()", "JSON.toObject()"],
-        correct: 0,
-      },
-      {
-        question: "What does '===' check?",
-        options: ["Value only", "Type only", "Value and type", "Reference"],
-        correct: 2,
-      },
-      {
-        question: "Which is NOT a JavaScript data type?",
-        options: ["Symbol", "BigInt", "Float", "Undefined"],
-        correct: 2,
-      },
-      {
-        question: "What does Array.prototype.map() return?",
-        options: ["Original array", "New array", "undefined", "Boolean"],
-        correct: 1,
-      },
-    ],
-  },
-  {
-    id: "react-basics",
-    title: "React Core Concepts",
-    category: "Frontend",
-    difficulty: "Intermediate",
-    duration: 8,
-    icon: "⚛️",
-    questions: [
-      {
-        question: "What hook manages side effects?",
-        options: ["useState", "useEffect", "useRef", "useMemo"],
-        correct: 1,
-      },
-      {
-        question: "What is the virtual DOM?",
-        options: [
-          "A browser API",
-          "A lightweight copy of the real DOM",
-          "A CSS framework",
-          "A testing tool",
-        ],
-        correct: 1,
-      },
-      {
-        question: "Which is true about React keys?",
-        options: [
-          "They must be globally unique",
-          "They help React identify changes",
-          "They are optional",
-          "They must be numbers",
-        ],
-        correct: 1,
-      },
-      {
-        question: "What does useCallback do?",
-        options: ["Caches a value", "Memoizes a function", "Creates a ref", "Manages state"],
-        correct: 1,
-      },
-      {
-        question: "JSX is compiled to?",
-        options: ["HTML", "React.createElement()", "document.createElement()", "Virtual nodes"],
-        correct: 1,
-      },
-    ],
-  },
-  {
-    id: "python-ds",
-    title: "Python Data Structures",
-    category: "Backend",
-    difficulty: "Intermediate",
-    duration: 7,
-    icon: "🐍",
-    questions: [
-      {
-        question: "Which is immutable in Python?",
-        options: ["List", "Dictionary", "Tuple", "Set"],
-        correct: 2,
-      },
-      {
-        question: "Time complexity of dict lookup?",
-        options: ["O(n)", "O(1)", "O(log n)", "O(n²)"],
-        correct: 1,
-      },
-      {
-        question: "What does list.pop() remove?",
-        options: ["First element", "Last element", "Random element", "All elements"],
-        correct: 1,
-      },
-      {
-        question: "Which creates a set?",
-        options: ["{1,2,3}", "[1,2,3]", "(1,2,3)", "set[1,2,3]"],
-        correct: 0,
-      },
-      {
-        question: "deque is from which module?",
-        options: ["os", "sys", "collections", "itertools"],
-        correct: 2,
-      },
-    ],
-  },
-  {
-    id: "sql-queries",
-    title: "SQL Mastery",
-    category: "Database",
-    difficulty: "Advanced",
-    duration: 10,
-    icon: "🗄️",
-    questions: [
-      {
-        question: "Which JOIN returns all rows from both tables?",
-        options: ["INNER JOIN", "LEFT JOIN", "FULL OUTER JOIN", "CROSS JOIN"],
-        correct: 2,
-      },
-      {
-        question: "What does HAVING filter?",
-        options: ["Rows", "Columns", "Groups", "Tables"],
-        correct: 2,
-      },
-      {
-        question: "Which is fastest for existence check?",
-        options: ["COUNT(*) > 0", "EXISTS", "IN", "LIKE"],
-        correct: 1,
-      },
-      {
-        question: "What does COALESCE do?",
-        options: ["Joins tables", "Returns first non-null", "Counts rows", "Groups data"],
-        correct: 1,
-      },
-      {
-        question: "Window functions operate on?",
-        options: ["Single row", "All rows", "A set of rows related to current", "Random sample"],
-        correct: 2,
-      },
-    ],
-  },
-];
+// ─── Assessment List ───────────────────────────────────────────────────────────
 
-type Phase = "list" | "quiz" | "result";
+function AssessmentList({
+    assessments,
+    targetRole,
+    onStart,
+}: {
+    assessments: AssessmentSummary[];
+    targetRole: string;
+    onStart: (id: string) => void;
+}) {
+    const router = useRouter();
+    const completedCount = assessments.filter((a) => a.passed).length;
+
+    return (
+        <div className="space-y-6">
+            <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }}>
+                <h1 className="text-2xl sm:text-3xl font-bold text-foreground flex items-center gap-2">
+                    <Brain className="h-7 w-7 text-primary" /> Skill Assessments
+                </h1>
+                <p className="text-muted-foreground mt-1 text-sm">
+                    Complete assessments to unlock the next phase of your{' '}
+                    <span className="text-primary font-medium">{targetRole}</span> roadmap.
+                </p>
+            </motion.div>
+
+            {/* Stats */}
+            <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
+                {[
+                    { icon: Target, label: 'Total Phases', value: assessments.length, color: 'text-primary' },
+                    { icon: CheckCircle2, label: 'Passed', value: completedCount, color: 'text-green-500' },
+                    {
+                        icon: Lock,
+                        label: 'Locked',
+                        value: assessments.filter((a) => a.isLocked).length,
+                        color: 'text-muted-foreground',
+                    },
+                ].map((s, i) => (
+                    <motion.div
+                        key={s.label}
+                        initial={{ opacity: 0, y: 12 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        transition={{ delay: i * 0.05 }}
+                    >
+                        <Card className="p-4">
+                            <div className="flex items-center gap-3">
+                                <s.icon className={`h-5 w-5 ${s.color}`} />
+                                <div>
+                                    <p className="text-xs text-muted-foreground">{s.label}</p>
+                                    <p className="text-lg font-bold">{s.value}</p>
+                                </div>
+                            </div>
+                        </Card>
+                    </motion.div>
+                ))}
+            </div>
+
+            {/* Assessment cards */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                {assessments.map((assessment, i) => (
+                    <motion.div
+                        key={assessment.id}
+                        initial={{ opacity: 0, y: 16 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        transition={{ delay: 0.1 + i * 0.05 }}
+                    >
+                        <Card
+                            className={`h-full flex flex-col transition-shadow ${
+                                assessment.isLocked ? 'opacity-60' : 'hover:shadow-md'
+                            }`}
+                        >
+                            <CardHeader className="pb-3">
+                                <div className="flex items-center justify-between">
+                                    <span className="text-xs font-medium text-muted-foreground">
+                                        Phase {assessment.phaseNumber}
+                                    </span>
+                                    {assessment.passed ? (
+                                        <CheckCircle2 className="h-4 w-4 text-green-500" />
+                                    ) : assessment.isLocked ? (
+                                        <Lock className="h-4 w-4 text-muted-foreground" />
+                                    ) : null}
+                                </div>
+                                <CardTitle className="text-base mt-1">{assessment.phaseTitle}</CardTitle>
+                                <CardDescription className="flex items-center gap-2 text-xs">
+                                    <Clock className="h-3 w-3" />
+                                    {assessment.questionCount} questions ·{' '}
+                                    {Math.ceil(assessment.questionCount * 1.5)} min est.
+                                </CardDescription>
+                            </CardHeader>
+                            <CardContent className="mt-auto">
+                                {assessment.passed && assessment.bestScore !== null && (
+                                    <div className="mb-3">
+                                        <div className="flex justify-between text-xs mb-1">
+                                            <span className="text-muted-foreground">Best Score</span>
+                                            <span className="text-green-500 font-medium">{assessment.bestScore}%</span>
+                                        </div>
+                                        <Progress value={assessment.bestScore} className="h-1.5" />
+                                    </div>
+                                )}
+                                {assessment.attemptCount > 0 && !assessment.passed && (
+                                    <p className="text-xs text-muted-foreground mb-2">
+                                        {assessment.attemptCount} attempt{assessment.attemptCount > 1 ? 's' : ''} · Not passed yet
+                                    </p>
+                                )}
+
+                                <Button
+                                    size="sm"
+                                    className="w-full gap-2"
+                                    disabled={assessment.isLocked}
+                                    variant={assessment.passed ? 'outline' : 'default'}
+                                    onClick={() => onStart(assessment.id)}
+                                >
+                                    {assessment.isLocked ? (
+                                        <>
+                                            <Lock className="h-3 w-3" /> Locked
+                                        </>
+                                    ) : assessment.passed ? (
+                                        <>
+                                            <RotateCcw className="h-3 w-3" /> Retake
+                                        </>
+                                    ) : (
+                                        <>
+                                            {assessment.attemptCount > 0 ? 'Try Again' : 'Start Quiz'}
+                                            <ArrowRight className="h-3 w-3" />
+                                        </>
+                                    )}
+                                </Button>
+                            </CardContent>
+                        </Card>
+                    </motion.div>
+                ))}
+            </div>
+        </div>
+    );
+}
+
+// ─── No Roadmap State ─────────────────────────────────────────────────────────
+
+function NoRoadmap() {
+    const router = useRouter();
+    return (
+        <div className="max-w-lg mx-auto flex flex-col items-center justify-center min-h-[60vh] text-center space-y-4">
+            <motion.div initial={{ opacity: 0, scale: 0.9 }} animate={{ opacity: 1, scale: 1 }}>
+                <div className="h-20 w-20 rounded-full bg-muted flex items-center justify-center mx-auto mb-4">
+                    <Lock className="h-10 w-10 text-muted-foreground" />
+                </div>
+                <h2 className="text-xl font-bold text-foreground">Assessments Locked</h2>
+                <p className="text-sm text-muted-foreground mt-2 max-w-md">
+                    Generate your Career Roadmap first to unlock phase-based assessments. Each assessment unlocks the
+                    next phase of your roadmap.
+                </p>
+                <Button className="mt-6 gap-2" onClick={() => router.push('/user/roadmap')}>
+                    <Sparkles className="h-4 w-4" /> Create Your Roadmap
+                </Button>
+            </motion.div>
+        </div>
+    );
+}
+
+// ─── Inner component using searchParams ───────────────────────────────────────
+
+function AssessmentsInner() {
+    const router = useRouter();
+    const searchParams = useSearchParams();
+    const autoStartId = searchParams.get('id');
+
+    type Phase = 'list' | 'quiz' | 'result';
+    const [phase, setPhase] = useState<Phase>('list');
+    const [loadingList, setLoadingList] = useState(true);
+    const [loadingQuiz, setLoadingQuiz] = useState(false);
+    const [roadmapExists, setRoadmapExists] = useState(false);
+    const [targetRole, setTargetRole] = useState('');
+    const [assessments, setAssessments] = useState<AssessmentSummary[]>([]);
+    const [activeAssessment, setActiveAssessment] = useState<AssessmentDetail | null>(null);
+    const [result, setResult] = useState<SubmitResult | null>(null);
+    const [error, setError] = useState('');
+
+    const fetchList = useCallback(async () => {
+        try {
+            const res = await roadmapApi.getAssessments();
+            setRoadmapExists(res.roadmapExists);
+            setAssessments(res.assessments);
+            setTargetRole(res.targetRole || '');
+        } catch {
+            setRoadmapExists(false);
+        } finally {
+            setLoadingList(false);
+        }
+    }, []);
+
+    useEffect(() => {
+        fetchList();
+    }, [fetchList]);
+
+    // Auto-start quiz if ?id= param is present
+    useEffect(() => {
+        if (autoStartId && assessments.length > 0) {
+            handleStart(autoStartId);
+        }
+    }, [autoStartId, assessments]);
+
+    const handleStart = async (assessmentId: string) => {
+        setLoadingQuiz(true);
+        setError('');
+        try {
+            const detail = await roadmapApi.getAssessmentById(assessmentId);
+            setActiveAssessment(detail);
+            setPhase('quiz');
+        } catch (err: any) {
+            setError(err?.response?.data?.message || 'Failed to load assessment.');
+        } finally {
+            setLoadingQuiz(false);
+        }
+    };
+
+    const handleFinish = (res: SubmitResult) => {
+        setResult(res);
+        setPhase('result');
+        // Refresh list to update pass/lock state
+        fetchList();
+    };
+
+    const handleRetry = () => {
+        if (activeAssessment) {
+            setResult(null);
+            setPhase('quiz');
+        }
+    };
+
+    const handleBackToList = () => {
+        setPhase('list');
+        setActiveAssessment(null);
+        setResult(null);
+    };
+
+    if (loadingList) {
+        return (
+            <div className="flex items-center justify-center min-h-[60vh]">
+                <div className="text-center space-y-3">
+                    <div className="h-8 w-8 rounded-full border-2 border-primary border-t-transparent animate-spin mx-auto" />
+                    <p className="text-sm text-muted-foreground">Loading assessments…</p>
+                </div>
+            </div>
+        );
+    }
+
+    if (!roadmapExists) return <NoRoadmap />;
+
+    if (loadingQuiz) {
+        return (
+            <div className="flex items-center justify-center min-h-[60vh]">
+                <div className="text-center space-y-3">
+                    <div className="h-8 w-8 rounded-full border-2 border-primary border-t-transparent animate-spin mx-auto" />
+                    <p className="text-sm text-muted-foreground">Preparing your assessment…</p>
+                </div>
+            </div>
+        );
+    }
+
+    if (error) {
+        return (
+            <div className="max-w-md mx-auto flex flex-col items-center justify-center min-h-[40vh] text-center space-y-4">
+                <AlertCircle className="h-10 w-10 text-destructive" />
+                <p className="text-sm text-muted-foreground">{error}</p>
+                <Button onClick={handleBackToList} variant="outline" className="gap-2">
+                    <ChevronLeft className="h-4 w-4" /> Back
+                </Button>
+            </div>
+        );
+    }
+
+    if (phase === 'quiz' && activeAssessment) {
+        return (
+            <div className="space-y-4">
+                <button
+                    onClick={handleBackToList}
+                    className="flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground transition-colors"
+                >
+                    <ChevronLeft className="h-4 w-4" /> Back to assessments
+                </button>
+                <QuizView assessment={activeAssessment} onFinish={handleFinish} />
+            </div>
+        );
+    }
+
+    if (phase === 'result' && result && activeAssessment) {
+        return (
+            <div className="space-y-4">
+                <button
+                    onClick={handleBackToList}
+                    className="flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground transition-colors"
+                >
+                    <ChevronLeft className="h-4 w-4" /> Back to assessments
+                </button>
+                <ResultView
+                    result={result}
+                    assessment={activeAssessment}
+                    onRetry={handleRetry}
+                    onBack={handleBackToList}
+                />
+            </div>
+        );
+    }
+
+    return (
+        <AssessmentList
+            assessments={assessments}
+            targetRole={targetRole}
+            onStart={handleStart}
+        />
+    );
+}
+
+// ─── Main export with Suspense boundary ──────────────────────────────────────
 
 export default function SkillAssessments() {
-  const router = useRouter();
-  const [phase, setPhase] = useState<Phase>("list");
-  const [activeQuiz, setActiveQuiz] = useState<Quiz | null>(null);
-  const [currentQ, setCurrentQ] = useState(0);
-  const [answers, setAnswers] = useState<number[]>([]);
-  const [selected, setSelected] = useState<number | null>(null);
-  const [completedQuizzes, setCompletedQuizzes] = useState<string[]>([]);
-
-  // Check if roadmap is created
-  const roadmapData = localStorage.getItem("roadmapData");
-  const isLocked = !roadmapData;
-
-  if (!isLocked) {
     return (
-      <div className="max-w-lg mx-auto flex flex-col items-center justify-center min-h-[60vh] text-center space-y-4">
-        <motion.div
-          initial={{ opacity: 0, scale: 0.9 }}
-          animate={{ opacity: 1, scale: 1 }}
-        >
-          <div className="h-20 w-20 rounded-full bg-muted flex items-center justify-center mx-auto mb-4">
-            <Lock className="h-10 w-10 text-muted-foreground" />
-          </div>
-          <h2 className="text-xl font-bold text-foreground">Assessments Locked</h2>
-          <p className="text-sm text-muted-foreground mt-2 max-w-md">
-            Complete the Career Roadmap questionnaire first to unlock Skill
-            Assessments. This ensures your quizzes match your career goals.
-          </p>
-          <Button className="mt-6 gap-2" onClick={() => router.push("/user/roadmap")}>
-            Create Your Roadmap <Lock className="h-4 w-4" />
-          </Button>
-        </motion.div>
-      </div>
-    );
-  }
-
-  const startQuiz = (quiz: Quiz) => {
-    setActiveQuiz(quiz);
-    setCurrentQ(0);
-    setAnswers([]);
-    setSelected(null);
-    setPhase("quiz");
-  };
-
-  const handleAnswer = () => {
-    if (selected === null || !activeQuiz) return;
-    const newAnswers = [...answers, selected];
-    setAnswers(newAnswers);
-    if (currentQ + 1 < activeQuiz.questions.length) {
-      setCurrentQ(currentQ + 1);
-      setSelected(null);
-    } else {
-      setCompletedQuizzes((prev) => [...new Set([...prev, activeQuiz.id])]);
-      setPhase("result");
-    }
-  };
-
-  const score =
-    activeQuiz && answers.length > 0
-      ? answers.filter((a, i) => a === activeQuiz.questions[i].correct).length
-      : 0;
-  const total = activeQuiz?.questions.length || 0;
-  const percentage = total > 0 ? Math.round((score / total) * 100) : 0;
-
-  if (phase === "quiz" && activeQuiz) {
-    const q = activeQuiz.questions[currentQ];
-    return (
-      <div className="max-w-2xl mx-auto space-y-6">
-        <motion.div
-          initial={{ opacity: 0, y: 12 }}
-          animate={{ opacity: 1, y: 0 }}
-        >
-          <div className="flex items-center justify-between mb-2">
-            <Badge variant="secondary">{activeQuiz.title}</Badge>
-            <span className="text-sm text-muted-foreground">
-              {currentQ + 1} / {total}
-            </span>
-          </div>
-          <Progress
-            value={((currentQ + 1) / total) * 100}
-            className="h-2 mb-6"
-          />
-          <Card>
-            <CardHeader>
-              <CardTitle className="text-lg">{q.question}</CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-3">
-              {q.options.map((opt, i) => (
-                <motion.button
-                  key={i}
-                  whileHover={{ scale: 1.01 }}
-                  whileTap={{ scale: 0.99 }}
-                  onClick={() => setSelected(i)}
-                  className={`w-full text-left p-4 rounded-lg border-2 transition-all ${
-                    selected === i
-                      ? "border-primary bg-primary/5"
-                      : "border-border hover:border-muted-foreground/30"
-                  }`}
-                >
-                  <span className="flex items-center gap-3">
-                    <span
-                      className={`w-8 h-8 rounded-full flex items-center justify-center text-sm font-bold ${
-                        selected === i
-                          ? "bg-primary text-primary-foreground"
-                          : "bg-muted text-muted-foreground"
-                      }`}
-                    >
-                      {String.fromCharCode(65 + i)}
-                    </span>
-                    <span className="text-sm font-medium">{opt}</span>
-                  </span>
-                </motion.button>
-              ))}
-              <Button
-                onClick={handleAnswer}
-                disabled={selected === null}
-                className="w-full mt-4 gap-2"
-              >
-                {currentQ + 1 === total ? "Finish" : "Next"}{" "}
-                <ArrowRight className="h-4 w-4" />
-              </Button>
-            </CardContent>
-          </Card>
-        </motion.div>
-      </div>
-    );
-  }
-
-  if (phase === "result" && activeQuiz) {
-    return (
-      <div className="max-w-lg mx-auto space-y-6">
-        <motion.div
-          initial={{ opacity: 0, scale: 0.95 }}
-          animate={{ opacity: 1, scale: 1 }}
-        >
-          <Card className="text-center">
-            <CardHeader>
-              <div className="mx-auto mb-4">
-                <Trophy
-                  className={`h-16 w-16 ${
-                    percentage >= 80
-                      ? "text-yellow-500"
-                      : percentage >= 50
-                      ? "text-primary"
-                      : "text-muted-foreground"
-                  }`}
-                />
-              </div>
-              <CardTitle className="text-2xl">
-                {percentage >= 80
-                  ? "Excellent!"
-                  : percentage >= 50
-                  ? "Good Job!"
-                  : "Keep Practicing!"}
-              </CardTitle>
-              <CardDescription>
-                You scored {score} out of {total}
-              </CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-6">
-              <div className="text-5xl font-bold text-primary">{percentage}%</div>
-              <div className="space-y-2">
-                {activeQuiz.questions.map((q, i) => (
-                  <div
-                    key={i}
-                    className="flex items-center gap-3 text-sm p-2 rounded-lg bg-muted/30"
-                  >
-                    {answers[i] === q.correct ? (
-                      <CheckCircle2 className="h-4 w-4 text-green-500 shrink-0" />
-                    ) : (
-                      <XCircle className="h-4 w-4 text-destructive shrink-0" />
-                    )}
-                    <span className="text-left truncate">{q.question}</span>
-                  </div>
-                ))}
-              </div>
-              <div className="flex gap-3">
-                <Button
-                  variant="outline"
-                  className="flex-1 gap-2"
-                  onClick={() => startQuiz(activeQuiz)}
-                >
-                  <RotateCcw className="h-4 w-4" /> Retry
-                </Button>
-                <Button className="flex-1" onClick={() => setPhase("list")}>
-                  All Quizzes
-                </Button>
-              </div>
-            </CardContent>
-          </Card>
-        </motion.div>
-      </div>
-    );
-  }
-
-  return (
-    <div className="space-y-6">
-      <motion.div
-        initial={{ opacity: 0, y: 12 }}
-        animate={{ opacity: 1, y: 0 }}
-      >
-        <h1 className="text-2xl sm:text-3xl font-bold text-foreground flex items-center gap-2">
-          <Brain className="h-7 w-7 text-primary" /> Skill Assessments
-        </h1>
-        <p className="text-muted-foreground mt-1">
-          Test your knowledge and track your progress
-        </p>
-      </motion.div>
-
-      <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
-        {[
-          {
-            icon: Target,
-            label: "Available",
-            value: quizzes.length,
-            color: "text-primary",
-          },
-          {
-            icon: CheckCircle2,
-            label: "Completed",
-            value: completedQuizzes.length,
-            color: "text-green-500",
-          },
-        ].map((s, i) => (
-          <motion.div
-            key={s.label}
-            initial={{ opacity: 0, y: 12 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: i * 0.05 }}
-          >
-            <Card className="p-4">
-              <div className="flex items-center gap-3">
-                <s.icon className={`h-5 w-5 ${s.color}`} />
-                <div>
-                  <p className="text-xs text-muted-foreground">{s.label}</p>
-                  <p className="text-lg font-bold">{s.value}</p>
+        <Suspense
+            fallback={
+                <div className="flex items-center justify-center min-h-[60vh]">
+                    <div className="h-8 w-8 rounded-full border-2 border-primary border-t-transparent animate-spin" />
                 </div>
-              </div>
-            </Card>
-          </motion.div>
-        ))}
-      </div>
-
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-        {quizzes.map((quiz, i) => (
-          <motion.div
-            key={quiz.id}
-            initial={{ opacity: 0, y: 16 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.1 + i * 0.05 }}
-          >
-            <Card className="hover:shadow-md transition-shadow h-full flex flex-col">
-              <CardHeader className="pb-3">
-                <div className="flex items-center justify-between">
-                  <span className="text-2xl">{quiz.icon}</span>
-                  {completedQuizzes.includes(quiz.id) && (
-                    <CheckCircle2 className="h-4 w-4 text-green-500" />
-                  )}
-                </div>
-                <CardTitle className="text-base mt-2">{quiz.title}</CardTitle>
-                <CardDescription className="flex items-center gap-2 text-xs">
-                  <Clock className="h-3 w-3" /> {quiz.duration} min ·{" "}
-                  {quiz.questions.length} questions
-                </CardDescription>
-              </CardHeader>
-              <CardContent className="mt-auto">
-                <div className="flex items-center justify-between mb-3">
-                  <Badge variant="secondary" className="text-[10px]">
-                    {quiz.category}
-                  </Badge>
-                  <Badge
-                    variant={
-                      quiz.difficulty === "Beginner"
-                        ? "secondary"
-                        : quiz.difficulty === "Intermediate"
-                        ? "outline"
-                        : "destructive"
-                    }
-                    className="text-[10px]"
-                  >
-                    {quiz.difficulty}
-                  </Badge>
-                </div>
-                <Button
-                  size="sm"
-                  className="w-full gap-2"
-                  onClick={() => startQuiz(quiz)}
-                >
-                  {completedQuizzes.includes(quiz.id) ? "Retake" : "Start Quiz"}{" "}
-                  <ArrowRight className="h-3 w-3" />
-                </Button>
-              </CardContent>
-            </Card>
-          </motion.div>
-        ))}
-      </div>
-    </div>
-  );
+            }
+        >
+            <AssessmentsInner />
+        </Suspense>
+    );
 }

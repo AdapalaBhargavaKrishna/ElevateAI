@@ -1,5 +1,5 @@
 from pydantic import BaseModel, Field, field_validator
-from typing import Optional, List
+from typing import Optional, List, Any, Dict
 from enum import Enum
 
 
@@ -120,3 +120,89 @@ class SessionSummaryResponse(BaseModel):
     weaknesses: str
     final_score: float
     verdict: str
+
+
+# =========================
+# 🗺️ ROADMAP
+# =========================
+
+class RoadmapGenerateRequest(BaseModel):
+    target_role: str = Field(..., min_length=1, max_length=255)
+    experience_level: str
+    current_skills: Optional[List[str]] = []
+
+
+class RoadmapPhaseResource(BaseModel):
+    type: str
+    title: str
+    url: str = ""
+    is_free: bool = True
+
+
+class RoadmapPhaseProject(BaseModel):
+    title: str
+    description: str
+    tech_stack: List[str] = []
+
+
+class RoadmapPhase(BaseModel):
+    phase_number: int
+    title: str
+    duration: str
+    goals: List[str]
+    skills_to_learn: List[str]
+    resources: List[RoadmapPhaseResource] = []
+    projects: List[RoadmapPhaseProject] = []
+
+
+class SkillGap(BaseModel):
+    skill: str
+    priority: str
+    reason: str
+
+
+class Certification(BaseModel):
+    name: str
+    provider: str
+    priority: str
+    is_free: bool = False
+
+
+class IndustryInsights(BaseModel):
+    demand_level: str
+    avg_salary_range: str
+    top_companies_hiring: List[str]
+    key_technologies: List[str]
+
+
+class RoadmapGenerateResponse(BaseModel):
+    target_role: str
+    summary: str
+    estimated_timeline: str
+    skill_gaps: List[SkillGap] = []
+    phases: List[RoadmapPhase]
+    certifications: List[Certification] = []
+    industry_insights: IndustryInsights
+
+
+# =========================
+# 📝 ASSESSMENTS
+# =========================
+
+class AssessmentsGenerateRequest(BaseModel):
+    target_role: str
+    phase_number: int
+    phase_title: str
+    skills_to_learn: List[str]
+    goals: List[str]
+
+
+class MCQQuestion(BaseModel):
+    question: str
+    options: List[str]
+    correct: int
+    explanation: str
+
+
+class AssessmentsGenerateResponse(BaseModel):
+    questions: List[MCQQuestion]

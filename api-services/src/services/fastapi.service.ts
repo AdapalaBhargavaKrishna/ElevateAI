@@ -41,7 +41,7 @@ async function postToAI<T>({ userId, path, body }: FastAPIRequestOptions): Promi
     return res.json() as Promise<T>;
 }
 
-// ─── Request / Response types matching FastAPI schema ───────────────────────
+// ─── Interview Types ──────────────────────────────────────────────────────────
 
 export interface StartInterviewRequest {
     role: string;
@@ -110,7 +110,7 @@ export interface SessionSummaryResponse {
     verdict: string;
 }
 
-// ─── Exported service functions ──────────────────────────────────────────────
+// ─── Interview service functions ──────────────────────────────────────────────
 
 export async function aiStartInterview(
     userId: string,
@@ -182,8 +182,6 @@ export interface ResumeAIResult {
     };
 }
 
-// ─── Resume: File upload (multipart) ─────────────────────────────────────────
-
 export async function aiAnalyzeResumeFile(
     userId: string,
     fileBuffer: Buffer,
@@ -197,7 +195,6 @@ export async function aiAnalyzeResumeFile(
     const res = await fetch(`${AI_SERVICE_URL}/resume/analyze-file`, {
         method: "POST",
         headers: {
-            // Do NOT set Content-Type — fetch sets it with boundary automatically for FormData
             "X-User-Id":      userId,
             "X-Internal-Key": INTERNAL_KEY,
         },
@@ -211,8 +208,6 @@ export async function aiAnalyzeResumeFile(
 
     return res.json() as Promise<ResumeAIResult>;
 }
-
-// ─── Resume: Text analysis ────────────────────────────────────────────────────
 
 export async function aiAnalyzeResumeText(
     userId: string,
@@ -234,4 +229,93 @@ export async function aiAnalyzeResumeText(
     }
 
     return res.json() as Promise<ResumeAIResult>;
+}
+
+// ─── Roadmap Types ────────────────────────────────────────────────────────────
+
+export interface GenerateRoadmapRequest {
+    target_role: string;
+    experience_level: string;
+    current_skills: string[];
+}
+
+export interface RoadmapPhaseResource {
+    type: string;
+    title: string;
+    url: string;
+    is_free: boolean;
+}
+
+export interface RoadmapPhaseProject {
+    title: string;
+    description: string;
+    tech_stack: string[];
+}
+
+export interface RoadmapPhase {
+    phase_number: number;
+    title: string;
+    duration: string;
+    goals: string[];
+    skills_to_learn: string[];
+    resources: RoadmapPhaseResource[];
+    projects: RoadmapPhaseProject[];
+}
+
+export interface RoadmapAIResult {
+    target_role: string;
+    summary: string;
+    estimated_timeline: string;
+    skill_gaps: Array<{ skill: string; priority: string; reason: string }>;
+    phases: RoadmapPhase[];
+    certifications: Array<{ name: string; provider: string; priority: string; is_free: boolean }>;
+    industry_insights: {
+        demand_level: string;
+        avg_salary_range: string;
+        top_companies_hiring: string[];
+        key_technologies: string[];
+    };
+}
+
+export interface GenerateAssessmentsRequest {
+    target_role: string;
+    phase_number: number;
+    phase_title: string;
+    skills_to_learn: string[];
+    goals: string[];
+}
+
+export interface MCQQuestion {
+    question: string;
+    options: string[];
+    correct: number;
+    explanation: string;
+}
+
+export interface AssessmentsAIResult {
+    questions: MCQQuestion[];
+}
+
+// ─── Roadmap service functions ────────────────────────────────────────────────
+
+export async function aiGenerateRoadmap(
+    userId: string,
+    payload: GenerateRoadmapRequest
+): Promise<RoadmapAIResult> {
+    return postToAI<RoadmapAIResult>({
+        userId,
+        path: "/roadmap/generate",
+        body: payload as unknown as Record<string, unknown>,
+    });
+}
+
+export async function aiGenerateAssessments(
+    userId: string,
+    payload: GenerateAssessmentsRequest
+): Promise<AssessmentsAIResult> {
+    return postToAI<AssessmentsAIResult>({
+        userId,
+        path: "/roadmap/assessments/generate",
+        body: payload as unknown as Record<string, unknown>,
+    });
 }

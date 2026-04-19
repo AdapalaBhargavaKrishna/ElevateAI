@@ -10,6 +10,7 @@ from app.utils.prompts import (
     get_evaluation_prompt,
     get_followup_prompt,
     get_roadmap_prompt,
+    get_assessment_prompt,
 )
 
 # ✅ Configure Gemini
@@ -39,7 +40,6 @@ def _parse_json_safe(raw: str) -> Dict[str, Any]:
 
 
 def _extract_retry_delay_seconds(error_text: str, default_seconds: float = 2.0) -> float:
-    # Gemini messages often include either "retry in 15.2s" or "retry_delay { seconds: 15 }".
     inline_match = re.search(r"retry\s+in\s+([0-9]+(?:\.[0-9]+)?)s", error_text, re.IGNORECASE)
     if inline_match:
         return max(float(inline_match.group(1)), 0.5)
@@ -109,14 +109,10 @@ def generate_questions(
     )
 
     if weak_topics:
-        prompt += f"""
-PRIORITIZE weak topics: {weak_topics}
-"""
+        prompt += f"\nPRIORITIZE weak topics: {weak_topics}\n"
 
     if strong_topics:
-        prompt += f"""
-AVOID strong topics: {strong_topics}
-"""
+        prompt += f"\nAVOID strong topics: {strong_topics}\n"
 
     response = _generate_content_with_retry(prompt)
     data = _parse_json_safe(response.text)
@@ -168,7 +164,6 @@ def evaluate_answer(
                 detail=f"Missing field: {field}"
             )
 
-    # clamp scores
     for f in [
         "technical_score", "depth_score", "clarity_score",
         "relevance_score", "structure_score"
@@ -182,11 +177,10 @@ def evaluate_answer(
 
 
 # =========================
-# 🧠 SUMMARY GENERATION (NEW)
+# 🧠 SUMMARY GENERATION
 # =========================
 def generate_summary(text: str) -> Dict[str, Any]:
-    prompt = f"""
-You are an AI interview evaluator.
+    prompt = f"""You are an AI interview evaluator.
 
 Analyze the following interview:
 
@@ -209,14 +203,11 @@ IMPORTANT:
 """
 
     response = _generate_content_with_retry(prompt)
-    raw = response.text.strip()
+    return _parse_json_safe(response.text.strip())
 
-    print("RAW GEMINI RESPONSE:", raw)
-
-    return _parse_json_safe(raw)
 
 # =========================
-# 🧠 FOLLOW-UP (optional)
+# 🧠 FOLLOW-UP
 # =========================
 def generate_followup_question(
     original_question: str,
@@ -244,7 +235,7 @@ def generate_followup_question(
 
 
 # =========================
-# 🧠 ROADMAP (optional)
+# 🗺️ ROADMAP
 # =========================
 def generate_roadmap(
     target_role: str,
@@ -256,3 +247,45 @@ def generate_roadmap(
 
     response = _generate_content_with_retry(prompt)
     return _parse_json_safe(response.text)
+
+
+# =========================
+# 📝 ASSESSMENTS (NEW)
+# =========================
+def generate_assessments(
+    target_role: str,
+    phase_number: int,
+    phase_title: str,
+    skills_to_learn: list,
+    goals: list,
+) -> dict:
+    """Generate 5 MCQ questions for a roadmap phase."""
+
+    prompt = get_assessment_prompt(
+        target_role=target_role,
+        phase_number=phase_number,
+        phase_title=phase_title,
+        skills_to_learn=skills_to_learn,
+        goals=goals,
+    )
+
+    response = _generate_content_with_retry(prompt)
+    data = _parse_json_safe(response.text)
+
+    questions = data.get("questions", [])
+    if not questions:
+        raise HTTPException(
+            status_code=status.HTTP_502_BAD_GATEWAY,
+            detail="AI returned no assessment questions"
+        )
+
+    # Validate structure
+    for q in questions:
+        if "question" not in q or "options" not in q or "correct" not in q:
+            raise HTTPException(
+                status_code=status.HTTP_502_BAD_GATEWAY,
+                detail="AI returned malformed MCQ question"
+            )
+        q["explanation"] = q.get("explanation", "")
+
+    return {"questions": questions[:5]}

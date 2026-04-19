@@ -28,6 +28,7 @@ def get_question_generation_prompt(
     """
     level_context = {
         "fresher": "0-1 years of experience, recently graduated",
+        "junior": "0-1 years of experience, recently graduated",
         "mid": "2-4 years of experience, has worked on real projects",
         "senior": "5+ years of experience, leads teams and systems"
     }
@@ -41,14 +42,12 @@ def get_question_generation_prompt(
 
     return f"""{mode_instruction}
 
-
-
 Generate exactly {count} {difficulty}-difficulty interview questions for the following candidate profile:
 - Role: {role}
 - Experience: {level_context.get(level, level)}
 - Interview Focus: {type_context.get(interview_type, interview_type)}
 
-Requirements for the questions:
+Requirements:
 1. Each question must test REAL-WORLD understanding, not textbook definitions
 2. Questions must be appropriate for {difficulty} difficulty
 3. Each question should take 2-5 minutes to answer thoughtfully
@@ -112,31 +111,8 @@ Evaluate the answer strictly and fairly on these 5 axes, each scored 0-10:
 4. REAL-WORLD RELEVANCE (0-10): Does the answer include practical examples or industry awareness?
 5. STRUCTURE (0-10): Does the answer have a clear intro → body → conclusion?
 
-Scoring guide:
-- 9-10: Exceptional, would impress at top companies
-- 7-8: Good, above average candidate
-- 5-6: Average, basic understanding present
-- 3-4: Below average, significant gaps
-- 0-2: Very poor or irrelevant answer
-
 You MUST respond with ONLY valid JSON. No explanation, no preamble, no markdown.
-Also extract weak and strong topics.
 
-Return weak_topics and strong_topics as STRICT 1-word keywords only.
-
-Rules:
-- Only single words (no phrases)
-- Examples: "api", "network", "database"
-- Do NOT return phrases like "REST API" or "HTTP methods"
-- Maximum 5 topics
-
-Example:
-weak_topics: ["database", "api design"]
-strong_topics: ["arrays", "basics"]
-
-Do NOT return sentences.
-Do NOT explain.
-Only return clean topic keywords.
 Response format:
 {{
   "technical_score": <float 0-10>,
@@ -146,13 +122,12 @@ Response format:
   "structure_score": <float 0-10>,
   "strengths": "...",
   "weaknesses": "...",
-  "weak_topics": ["..."],
-  "strong_topics": ["..."],
   "improvement_suggestions": "...",
-
   "explanation": "Explain the correct concept clearly",
   "teaching_note": "Give a helpful learning tip"
 }}"""
+
+
 def get_followup_prompt(
     original_question: str,
     user_answer: str,
@@ -189,6 +164,8 @@ Respond with ONLY valid JSON:
   "question_text": "Your follow-up question here",
   "category": "Same category as original"
 }}"""
+
+
 def get_roadmap_prompt(
     target_role: str,
     current_skills: list,
@@ -256,4 +233,49 @@ Return a comprehensive roadmap with the following structure:
   }}
 }}
 
-You MUST respond with ONLY valid JSON. No explanation, no preamble, no markdown."""
+RULES:
+- Generate between 3 and 6 phases depending on the role complexity
+- Each phase must have at least 2 resources and 1 project
+- You MUST respond with ONLY valid JSON. No explanation, no preamble, no markdown."""
+
+
+def get_assessment_prompt(
+    target_role: str,
+    phase_number: int,
+    phase_title: str,
+    skills_to_learn: list,
+    goals: list,
+) -> str:
+    skills_str = ", ".join(skills_to_learn) if skills_to_learn else "general concepts"
+    goals_str = "; ".join(goals) if goals else "understanding core concepts"
+
+    return f"""You are an expert technical educator creating a skills assessment quiz.
+
+Generate exactly 5 multiple-choice questions (MCQs) to test understanding of the following roadmap phase:
+
+- Target Role: {target_role}
+- Phase {phase_number}: {phase_title}
+- Skills to test: {skills_str}
+- Learning goals: {goals_str}
+
+Requirements:
+1. Questions must test practical understanding, not just memorization
+2. Each question must have exactly 4 options (A, B, C, D)
+3. Questions should range from basic to intermediate difficulty
+4. Include a brief explanation for the correct answer
+5. The "correct" field must be a 0-based index (0=A, 1=B, 2=C, 3=D)
+6. Questions must be directly relevant to {phase_title} and the target role of {target_role}
+
+You MUST respond with ONLY valid JSON. No explanation, no preamble, no markdown.
+
+Response format:
+{{
+  "questions": [
+    {{
+      "question": "The full question text here?",
+      "options": ["Option A", "Option B", "Option C", "Option D"],
+      "correct": 0,
+      "explanation": "Brief explanation of why this answer is correct and what to learn from it"
+    }}
+  ]
+}}"""

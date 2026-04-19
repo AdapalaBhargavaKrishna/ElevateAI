@@ -8,20 +8,22 @@ datasource db {
 }
 
 model User {
-  id               String             @id @default(cuid())
-  email            String             @unique
+  id               String               @id @default(cuid())
+  email            String               @unique
   password         String?
   fullName         String
-  isNewUser        Boolean            @default(true)
-  provider         String             @default("local")
-  googleId         String?            @unique
+  isNewUser        Boolean              @default(true)
+  provider         String               @default("local")
+  googleId         String?              @unique
   avatar           String?
-  elevateScore     Int                @default(0)
-  createdAt        DateTime           @default(now())
-  updatedAt        DateTime           @updatedAt
+  elevateScore     Int                  @default(0)
+  createdAt        DateTime             @default(now())
+  updatedAt        DateTime             @updatedAt
   userInfo         UserInfo?
   interviewSessions InterviewSession[]
   resumeAnalyses   ResumeAnalysis[]
+  roadmaps         Roadmap[]
+  assessmentAttempts AssessmentAttempt[]
 
   @@map("users")
 }
@@ -133,7 +135,6 @@ model InterviewSession {
   difficulty      String
   questionCount   Int
   totalScore      Float?
-  // "in_progress" | "awaiting_summary" | "completed"
   status          String              @default("in_progress")
   timerEnabled    Boolean             @default(false)
   timePerQuestion Int?
@@ -181,7 +182,6 @@ model ResumeAnalysis {
   userId String
 
   fileName String?
-
   name     String?
   email    String?
   phone    String?
@@ -217,4 +217,57 @@ model ResumeAnalysis {
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@map("resume_analyses")
+}
+
+// ─── Roadmap Models ───────────────────────────────────────────────────────────
+
+model Roadmap {
+  id              String       @id @default(uuid())
+  userId          String
+  targetRole      String
+  experienceLevel String
+  currentSkills   String?      // comma-separated
+  roadmapData     String       // JSON string of full roadmap from AI
+  // phaseProgress: JSON array of { phaseNumber, completed, unlockedAt }
+  phaseProgress   String       @default("[]")
+  createdAt       DateTime     @default(now())
+  updatedAt       DateTime     @updatedAt
+
+  user            User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  assessments     Assessment[]
+
+  @@map("roadmaps")
+}
+
+model Assessment {
+  id          String              @id @default(uuid())
+  roadmapId   String
+  phaseNumber Int
+  phaseTitle  String
+  // JSON array of { question, options: string[], correct: number, explanation: string }
+  questions   String
+
+  createdAt   DateTime            @default(now())
+
+  roadmap     Roadmap             @relation(fields: [roadmapId], references: [id], onDelete: Cascade)
+  attempts    AssessmentAttempt[]
+
+  @@map("assessments")
+}
+
+model AssessmentAttempt {
+  id           String     @id @default(uuid())
+  assessmentId String
+  userId       String
+  // JSON array of chosen indices
+  answers      String
+  score        Int
+  total        Int
+  passed       Boolean    @default(false)
+  completedAt  DateTime   @default(now())
+
+  assessment   Assessment @relation(fields: [assessmentId], references: [id], onDelete: Cascade)
+  user         User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("assessment_attempts")
 }

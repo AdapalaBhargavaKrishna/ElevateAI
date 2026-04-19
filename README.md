@@ -6,4 +6,3 @@ Start-Process powershell -ArgumentList "cd api-services; npm run dev"
 
 # Start Frontend
 Start-Process powershell -ArgumentList "cd frontend; npm run dev"
-
