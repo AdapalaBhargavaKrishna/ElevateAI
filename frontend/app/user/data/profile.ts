@@ -1,3 +1,5 @@
+import { api } from "../../lib/axios";
+
 export interface SocialLink {
   icon: string;
   label: string;
@@ -37,6 +39,7 @@ export interface Certification {
 }
 
 export interface UserProfile {
+  id: string;
   fullName: string;
   currentRole: string;
   yearsOfExp: string;
@@ -45,9 +48,12 @@ export interface UserProfile {
   careerGoal: string;
   elevateScore: number;
   email: string;
+  avatar?: string;
   github: string;
   linkedin: string;
+  leetcode?: string;
   website: string;
+  phone?: string;
   skills: string[];
   experiences: Experience[];
   projects: Project[];
@@ -56,6 +62,7 @@ export interface UserProfile {
 }
 
 export const profileData: UserProfile = {
+  id: "demo-user",
   fullName: "Bhargava Krishna Adapala",
   currentRole: "Full-Stack Developer",
   yearsOfExp: "3",
@@ -144,11 +151,11 @@ export const profileData: UserProfile = {
   ],
 };
 
-// Simulate async database fetch
-export const fetchUserProfile = (): Promise<UserProfile> => {
-  return new Promise((resolve) => {
-    setTimeout(() => {
-      resolve(profileData);
-    }, 1500); // Simulate network delay
-  });
+interface PublicProfileResponse {
+  profile: UserProfile;
+}
+
+export const fetchUserProfile = async (userId: string): Promise<UserProfile> => {
+  const response = await api.get<PublicProfileResponse>(`/user-info/public/${userId}`);
+  return response.data.profile;
 };

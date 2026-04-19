@@ -47,6 +47,7 @@ interface UserInfo {
 }
 
 interface Me {
+    id: string;
     fullName: string;
     email: string;
     avatar?: string;
@@ -89,6 +90,20 @@ export default function ProfilePage() {
         : "?";
 
     const goToMyInfo = () => router.push('/user/myinfo');
+
+    const handlePreview = () => router.push('/preview');
+
+    const handleShare = async () => {
+        if (!me?.id) {
+            return;
+        }
+
+        try {
+            await navigator.clipboard.writeText(`localhost:3000/profile/${me.id}`);
+        } catch (err) {
+            console.error("Copy profile link failed:", err);
+        }
+    };
 
     const skillsCount = userInfo?.skills?.length ?? 0;
     const experienceCount = userInfo?.experiences?.length ?? 0;
@@ -133,11 +148,11 @@ export default function ProfilePage() {
                         <p className="text-sm text-muted-foreground mt-1">Your complete developer identity for recruiters and AI insights</p>
                     </div>
                     <div className="flex gap-2">
-                        <Button variant="outline" size="sm" className="gap-1.5">
+                        <Button variant="outline" size="sm" className="gap-1.5" onClick={handlePreview}>
                             <Eye className="h-3.5 w-3.5" />
                             <span className="hidden sm:inline">Preview</span>
                         </Button>
-                        <Button size="sm" className="gap-1.5">
+                        <Button size="sm" className="gap-1.5" onClick={handleShare}>
                             <Share2 className="h-3.5 w-3.5" />
                             <span className="hidden sm:inline">Share</span>
                         </Button>
