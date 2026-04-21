@@ -1,7 +1,7 @@
 import json
 import re
 import time
-import google.generativeai as genai
+from google import genai
 from typing import List, Dict, Any
 from fastapi import HTTPException, status
 from app.config import settings
@@ -14,9 +14,8 @@ from app.utils.prompts import (
     get_assessments_batch_prompt,
 )
 
-# ✅ Configure Gemini
-genai.configure(api_key=settings.GEMINI_API_KEY)
-model = genai.GenerativeModel(settings.LLM_MODEL)
+# ✅ Configure Gemini with the new SDK
+client = genai.Client(api_key=settings.GEMINI_API_KEY)
 
 
 # =========================
@@ -62,7 +61,10 @@ def _generate_content_with_retry(prompt: str, max_attempts: int = 3):
 
     for attempt in range(1, max_attempts + 1):
         try:
-            return model.generate_content(prompt)
+            return client.models.generate_content(
+                model=settings.LLM_MODEL,
+                contents=prompt
+            )
         except Exception as e:
             last_error = str(e)
 
