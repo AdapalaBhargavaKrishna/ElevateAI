@@ -39,7 +39,7 @@ import {
 
 export default function SignupPage() {
     const router = useRouter();
-    const [error, setError] = useState(null);
+    const [error, setError] = useState<string | null>(null);
     const [mounted, setMounted] = useState(false);
     const [showPassword, setShowPassword] = useState(false);
     const [email, setEmail] = useState("");
@@ -70,8 +70,14 @@ export default function SignupPage() {
             });
             toast.success("Account created successfully.");
             router.push("/onboarding/user");
-        } catch (error: any) {
-            const message = error.response?.data?.message || "Something went wrong";
+        } catch (error: unknown) {
+            const message =
+                typeof error === "object" &&
+                error !== null &&
+                "response" in error &&
+                typeof (error as { response?: { data?: { message?: string } } }).response?.data?.message === "string"
+                    ? (error as { response?: { data?: { message?: string } } }).response?.data?.message ?? "Something went wrong"
+                    : "Something went wrong";
             setError(message);
             toast.error(message);
         } finally {

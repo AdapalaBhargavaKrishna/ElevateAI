@@ -1,0 +1,196 @@
+[0m[0m
+[0m[4mC:\Users\Bhargava\Newest Folder\Own Development\ElevateAI\frontend\app\page.tsx[24m[0m
+[0m    [2m5:23[22m   [33mwarning[39m  'TrendingUp' is defined but never used                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                           [2m@typescript-eslint/no-unused-vars[22m[0m
+[0m    [2m5:40[22m   [33mwarning[39m  'Brain' is defined but never used                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                [2m@typescript-eslint/no-unused-vars[22m[0m
+[0m    [2m8:3[22m    [33mwarning[39m  'MessageSquare' is defined but never used                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                        [2m@typescript-eslint/no-unused-vars[22m[0m
+[0m    [2m8:18[22m   [33mwarning[39m  'Bell' is defined but never used                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                 [2m@typescript-eslint/no-unused-vars[22m[0m
+[0m    [2m8:24[22m   [33mwarning[39m  'UserCog' is defined but never used                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                              [2m@typescript-eslint/no-unused-vars[22m[0m
+[0m    [2m8:33[22m   [33mwarning[39m  'Trophy' is defined but never used                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                               [2m@typescript-eslint/no-unused-vars[22m[0m
+[0m    [2m8:41[22m   [33mwarning[39m  'Activity' is defined but never used                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                             [2m@typescript-eslint/no-unused-vars[22m[0m
+[0m    [2m8:51[22m   [33mwarning[39m  'GitBranch' is defined but never used                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                            [2m@typescript-eslint/no-unused-vars[22m[0m
+[0m    [2m9:3[22m    [33mwarning[39m  'Share2' is defined but never used                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                               [2m@typescript-eslint/no-unused-vars[22m[0m
+[0m    [2m9:11[22m   [33mwarning[39m  'Link2' is defined but never used                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                [2m@typescript-eslint/no-unused-vars[22m[0m
+[0m    [2m9:18[22m   [33mwarning[39m  'Palette' is defined but never used                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                              [2m@typescript-eslint/no-unused-vars[22m[0m
+[0m   [2m54:5[22m    [31merror[39m    Error: Calling setState synchronously within an effect can trigger cascading renders[0m
+[0m[0m
+[0mEffects are intended to synchronize state between React and external systems such as manually updating the DOM, state management libraries, or other platform APIs. In general, the body of an effect should do one or both of the following:[0m
+[0m* Update external systems with the latest state from React.[0m
+[0m* Subscribe for updates from some external system, calling setState in a callback function when external state changes.[0m
+[0m[0m
+[0mCalling setState synchronously within an effect body causes cascading renders that can hurt performance, and is not recommended. (https://react.dev/learn/you-might-not-need-an-effect).[0m
+[0m[0m
+[0mC:\Users\Bhargava\Newest Folder\Own Development\ElevateAI\frontend\app\page.tsx:54:5[0m
+[0m  52 |[0m
+[0m  53 |   useEffect(() => {[0m
+[0m> 54 |     setMounted(true);[0m
+[0m     |     ^^^^^^^^^^ Avoid calling setState() directly within an effect[0m
+[0m  55 |     const handleScroll = () => setScrolled(window.scrollY > 20);[0m
+[0m  56 |     window.addEventListener('scroll', handleScroll);[0m
+[0m  57 |     return () => window.removeEventListener('scroll', handleScroll);  [2mreact-hooks/set-state-in-effect[22m[0m
+[0m   [2m63:120[22m  [31merror[39m    Unexpected any. Specify a different type                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                         [2m@typescript-eslint/no-explicit-any[22m[0m
+[0m   [2m69:127[22m  [31merror[39m    Unexpected any. Specify a different type                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                         [2m@typescript-eslint/no-explicit-any[22m[0m
+[0m  [2m171:17[22m   [31merror[39m    `'` can be escaped with `&apos;`, `&lsquo;`, `&#39;`, `&rsquo;`                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                  [2mreact/no-unescaped-entities[22m[0m
+[0m[0m
+[0m[4mC:\Users\Bhargava\Newest Folder\Own Development\ElevateAI\frontend\app\signup\page.tsx[24m[0m
+[0m  [2m42:12[22m  [33mwarning[39m  'error' is assigned a value but never used  [2m@typescript-eslint/no-unused-vars[22m[0m
+[0m  [2m73:25[22m  [31merror[39m    Unexpected any. Specify a different type    [2m@typescript-eslint/no-explicit-any[22m[0m
+[0m[0m
+[0m[4mC:\Users\Bhargava\Newest Folder\Own Development\ElevateAI\frontend\app\user\assessments\page.tsx[24m[0m
+[0m  [2m432:11[22m  [33mwarning[39m  'router' is assigned a value but never used  [2m@typescript-eslint/no-unused-vars[22m[0m
+[0m  [2m664:23[22m  [31merror[39m    Unexpected any. Specify a different type     [2m@typescript-eslint/no-explicit-any[22m[0m
+[0m[0m
+[0m[4mC:\Users\Bhargava\Newest Folder\Own Development\ElevateAI\frontend\app\user\assistant\page.tsx[24m[0m
+[0m  [2m5:10[22m  [33mwarning[39m  'MessageSquare' is defined but never used  [2m@typescript-eslint/no-unused-vars[22m[0m
+[0m[0m
+[0m[4mC:\Users\Bhargava\Newest Folder\Own Development\ElevateAI\frontend\app\user\interview\history\page.tsx[24m[0m
+[0m   [2m11:38[22m  [33mwarning[39m  'Clock' is defined but never used                                [2m@typescript-eslint/no-unused-vars[22m[0m
+[0m   [2m11:52[22m  [33mwarning[39m  'BarChart3' is defined but never used                            [2m@typescript-eslint/no-unused-vars[22m[0m
+[0m   [2m12:5[22m   [33mwarning[39m  'Brain' is defined but never used                                [2m@typescript-eslint/no-unused-vars[22m[0m
+[0m   [2m12:12[22m  [33mwarning[39m  'Target' is defined but never used                               [2m@typescript-eslint/no-unused-vars[22m[0m
+[0m   [2m12:20[22m  [33mwarning[39m  'Users' is defined but never used                                [2m@typescript-eslint/no-unused-vars[22m[0m
+[0m   [2m50:25[22m  [31merror[39m    Unexpected any. Specify a different type                         [2m@typescript-eslint/no-explicit-any[22m[0m
+[0m  [2m222:92[22m  [31merror[39m    `'` can be escaped with `&apos;`, `&lsquo;`, `&#39;`, `&rsquo;`  [2mreact/no-unescaped-entities[22m[0m
+[0m[0m
+[0m[4mC:\Users\Bhargava\Newest Folder\Own Development\ElevateAI\frontend\app\user\interview\session\page.tsx[24m[0m
+[0m   [2m45:28[22m  [31merror[39m    Unexpected any. Specify a different type                                                                                           [2m@typescript-eslint/no-explicit-any[22m[0m
+[0m   [2m46:34[22m  [31merror[39m    Unexpected any. Specify a different type                                                                                           [2m@typescript-eslint/no-explicit-any[22m[0m
+[0m  [2m161:36[22m  [31merror[39m    Unexpected any. Specify a different type                                                                                           [2m@typescript-eslint/no-explicit-any[22m[0m
+[0m  [2m211:8[22m   [33mwarning[39m  React Hook useEffect has missing dependencies: 'startCamera' and 'stopCamera'. Either include them or remove the dependency array  [2mreact-hooks/exhaustive-deps[22m[0m
+[0m  [2m229:40[22m  [31merror[39m    Unexpected any. Specify a different type                                                                                           [2m@typescript-eslint/no-explicit-any[22m[0m
+[0m  [2m242:39[22m  [31merror[39m    Unexpected any. Specify a different type                                                                                           [2m@typescript-eslint/no-explicit-any[22m[0m
+[0m  [2m266:44[22m  [33mwarning[39m  React Hook useEffect has a missing dependency: 'stopListening'. Either include it or remove the dependency array                   [2mreact-hooks/exhaustive-deps[22m[0m
+[0m  [2m270:47[22m  [33mwarning[39m  React Hook useEffect has a missing dependency: 'loadFirstQuestion'. Either include it or remove the dependency array               [2mreact-hooks/exhaustive-deps[22m[0m
+[0m  [2m289:23[22m  [31merror[39m    Unexpected any. Specify a different type                                                                                           [2m@typescript-eslint/no-explicit-any[22m[0m
+[0m  [2m324:23[22m  [31merror[39m    Unexpected any. Specify a different type                                                                                           [2m@typescript-eslint/no-explicit-any[22m[0m
+[0m[0m
+[0m[4mC:\Users\Bhargava\Newest Folder\Own Development\ElevateAI\frontend\app\user\interview\summary\page.tsx[24m[0m
+[0m  [2m31:8[22m   [33mwarning[39m  React Hook useEffect has missing dependencies: 'fetchSummaryData' and 'router'. Either include them or remove the dependency array  [2mreact-hooks/exhaustive-deps[22m[0m
+[0m  [2m39:23[22m  [31merror[39m    Unexpected any. Specify a different type                                                                                            [2m@typescript-eslint/no-explicit-any[22m[0m
+[0m[0m
+[0m[4mC:\Users\Bhargava\Newest Folder\Own Development\ElevateAI\frontend\app\user\myinfo\page.tsx[24m[0m
+[0m  [2m174:57[22m  [31merror[39m    Unexpected any. Specify a different type                         [2m@typescript-eslint/no-explicit-any[22m[0m
+[0m  [2m175:67[22m  [31merror[39m    Unexpected any. Specify a different type                         [2m@typescript-eslint/no-explicit-any[22m[0m
+[0m  [2m176:63[22m  [31merror[39m    Unexpected any. Specify a different type                         [2m@typescript-eslint/no-explicit-any[22m[0m
+[0m  [2m177:61[22m  [31merror[39m    Unexpected any. Specify a different type                         [2m@typescript-eslint/no-explicit-any[22m[0m
+[0m  [2m178:64[22m  [31merror[39m    Unexpected any. Specify a different type                         [2m@typescript-eslint/no-explicit-any[22m[0m
+[0m  [2m240:49[22m  [33mwarning[39m  'id' is defined but never used                                   [2m@typescript-eslint/no-unused-vars[22m[0m
+[0m  [2m241:45[22m  [33mwarning[39m  'id' is defined but never used                                   [2m@typescript-eslint/no-unused-vars[22m[0m
+[0m  [2m242:43[22m  [33mwarning[39m  'id' is defined but never used                                   [2m@typescript-eslint/no-unused-vars[22m[0m
+[0m  [2m243:55[22m  [33mwarning[39m  'id' is defined but never used                                   [2m@typescript-eslint/no-unused-vars[22m[0m
+[0m  [2m358:85[22m  [31merror[39m    `'` can be escaped with `&apos;`, `&lsquo;`, `&#39;`, `&rsquo;`  [2mreact/no-unescaped-entities[22m[0m
+[0m[0m
+[0m[4mC:\Users\Bhargava\Newest Folder\Own Development\ElevateAI\frontend\app\user\playground\page.tsx[24m[0m
+[0m  [2m106:7[22m  [33mwarning[39m  Unused eslint-disable directive (no problems were reported from 'no-new-func')[0m
+[0m[0m
+[0m[4mC:\Users\Bhargava\Newest Folder\Own Development\ElevateAI\frontend\app\user\profile\profile-preview-view.tsx[24m[0m
+[0m  [2m238:29[22m  [33mwarning[39m  Using `<img>` could result in slower LCP and higher bandwidth. Consider using `<Image />` from `next/image` or a custom image loader to automatically optimize images. This may incur additional usage or cost from your provider. See: https://nextjs.org/docs/messages/no-img-element  [2m@next/next/no-img-element[22m[0m
+[0m[0m
+[0m[4mC:\Users\Bhargava\Newest Folder\Own Development\ElevateAI\frontend\app\user\resume\page.tsx[24m[0m
+[0m    [2m3:27[22m   [33mwarning[39m  'useEffect' is defined but never used                            [2m@typescript-eslint/no-unused-vars[22m[0m
+[0m    [2m6:71[22m   [33mwarning[39m  'ArrowRight' is defined but never used                           [2m@typescript-eslint/no-unused-vars[22m[0m
+[0m    [2m7:12[22m   [33mwarning[39m  'Eye' is defined but never used                                  [2m@typescript-eslint/no-unused-vars[22m[0m
+[0m    [2m7:17[22m   [33mwarning[39m  'Trash2' is defined but never used                               [2m@typescript-eslint/no-unused-vars[22m[0m
+[0m    [2m7:25[22m   [33mwarning[39m  'Calendar' is defined but never used                             [2m@typescript-eslint/no-unused-vars[22m[0m
+[0m    [2m8:5[22m    [33mwarning[39m  'Star' is defined but never used                                 [2m@typescript-eslint/no-unused-vars[22m[0m
+[0m   [2m13:10[22m   [33mwarning[39m  'Progress' is defined but never used                             [2m@typescript-eslint/no-unused-vars[22m[0m
+[0m   [2m16:10[22m   [33mwarning[39m  'Separator' is defined but never used                            [2m@typescript-eslint/no-unused-vars[22m[0m
+[0m   [2m75:23[22m   [31merror[39m    Unexpected any. Specify a different type                         [2m@typescript-eslint/no-explicit-any[22m[0m
+[0m  [2m390:53[22m   [31merror[39m    `"` can be escaped with `&quot;`, `&ldquo;`, `&#34;`, `&rdquo;`  [2mreact/no-unescaped-entities[22m[0m
+[0m  [2m390:76[22m   [31merror[39m    `"` can be escaped with `&quot;`, `&ldquo;`, `&#34;`, `&rdquo;`  [2mreact/no-unescaped-entities[22m[0m
+[0m  [2m407:94[22m   [31merror[39m    Unexpected any. Specify a different type                         [2m@typescript-eslint/no-explicit-any[22m[0m
+[0m  [2m469:115[22m  [31merror[39m    Unexpected any. Specify a different type                         [2m@typescript-eslint/no-explicit-any[22m[0m
+[0m  [2m488:118[22m  [31merror[39m    Unexpected any. Specify a different type                         [2m@typescript-eslint/no-explicit-any[22m[0m
+[0m  [2m532:109[22m  [31merror[39m    `'` can be escaped with `&apos;`, `&lsquo;`, `&#39;`, `&rsquo;`  [2mreact/no-unescaped-entities[22m[0m
+[0m[0m
+[0m[4mC:\Users\Bhargava\Newest Folder\Own Development\ElevateAI\frontend\app\user\roadmap\page.tsx[24m[0m
+[0m  [2m103:23[22m  [31merror[39m  Unexpected any. Specify a different type  [2m@typescript-eslint/no-explicit-any[22m[0m
+[0m[0m
+[0m[4mC:\Users\Bhargava\Newest Folder\Own Development\ElevateAI\frontend\app\user\settings\page.tsx[24m[0m
+[0m    [2m5:16[22m  [33mwarning[39m  'Bell' is defined but never used                         [2m@typescript-eslint/no-unused-vars[22m[0m
+[0m    [2m5:30[22m  [33mwarning[39m  'Palette' is defined but never used                      [2m@typescript-eslint/no-unused-vars[22m[0m
+[0m    [2m5:46[22m  [33mwarning[39m  'Moon' is defined but never used                         [2m@typescript-eslint/no-unused-vars[22m[0m
+[0m    [2m5:52[22m  [33mwarning[39m  'Sun' is defined but never used                          [2m@typescript-eslint/no-unused-vars[22m[0m
+[0m    [2m5:57[22m  [33mwarning[39m  'Mail' is defined but never used                         [2m@typescript-eslint/no-unused-vars[22m[0m
+[0m    [2m5:63[22m  [33mwarning[39m  'Key' is defined but never used                          [2m@typescript-eslint/no-unused-vars[22m[0m
+[0m    [2m5:68[22m  [33mwarning[39m  'CreditCard' is defined but never used                   [2m@typescript-eslint/no-unused-vars[22m[0m
+[0m   [2m28:7[22m   [33mwarning[39m  'Switch' is assigned a value but never used              [2m@typescript-eslint/no-unused-vars[22m[0m
+[0m  [2m115:12[22m  [33mwarning[39m  'toggles' is assigned a value but never used             [2m@typescript-eslint/no-unused-vars[22m[0m
+[0m  [2m123:11[22m  [33mwarning[39m  'handleToggleChange' is assigned a value but never used  [2m@typescript-eslint/no-unused-vars[22m[0m
+[0m[0m
+[0m[4mC:\Users\Bhargava\Newest Folder\Own Development\ElevateAI\frontend\components\layout\AppSidebar.tsx[24m[0m
+[0m   [2m43:11[22m  [31merror[39m  Unexpected any. Specify a different type                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                               [2m@typescript-eslint/no-explicit-any[22m[0m
+[0m  [2m351:14[22m  [31merror[39m  Error: Cannot create components during render[0m
+[0m[0m
+[0mComponents created during render will reset their state each time they are created. Declare components outside of render.[0m
+[0m[0m
+[0mC:\Users\Bhargava\Newest Folder\Own Development\ElevateAI\frontend\components\layout\AppSidebar.tsx:351:14[0m
+[0m  349 |     return ([0m
+[0m  350 |         <>[0m
+[0m> 351 |             <DesktopSidebar />[0m
+[0m      |              ^^^^^^^^^^^^^^ This component is created during render[0m
+[0m  352 |             <MobileSidebar />[0m
+[0m  353 |         </>[0m
+[0m  354 |     );[0m
+[0m[0m
+[0mC:\Users\Bhargava\Newest Folder\Own Development\ElevateAI\frontend\components\layout\AppSidebar.tsx:182:28[0m
+[0m  180 |     };[0m
+[0m  181 |[0m
+[0m> 182 |     const DesktopSidebar = () => ([0m
+[0m      |                            ^^^^^^^[0m
+[0m> 183 |         <motion.aside[0m
+[0m      | ^^^^^^^^^^^^^^^^^^^^^[0m
+[0m> 184 |             initial={false}[0m
+[0m      …[0m
+[0m      | ^^^^^^^^^^^^^^^^^^^^^[0m
+[0m> 293 |         </motion.aside>[0m
+[0m      | ^^^^^^^^^^^^^^^^^^^^^[0m
+[0m> 294 |     );[0m
+[0m      | ^^^^^^ The component is created during render here[0m
+[0m  295 |[0m
+[0m  296 |     const MobileSidebar = () => ([0m
+[0m  297 |         <Sheet open={mobileOpen} onOpenChange={setMobileOpen}>                                                                               [2mreact-hooks/static-components[22m[0m
+[0m  [2m352:14[22m  [31merror[39m  Error: Cannot create components during render[0m
+[0m[0m
+[0mComponents created during render will reset their state each time they are created. Declare components outside of render.[0m
+[0m[0m
+[0mC:\Users\Bhargava\Newest Folder\Own Development\ElevateAI\frontend\components\layout\AppSidebar.tsx:352:14[0m
+[0m  350 |         <>[0m
+[0m  351 |             <DesktopSidebar />[0m
+[0m> 352 |             <MobileSidebar />[0m
+[0m      |              ^^^^^^^^^^^^^ This component is created during render[0m
+[0m  353 |         </>[0m
+[0m  354 |     );[0m
+[0m  355 | }[0m
+[0m[0m
+[0mC:\Users\Bhargava\Newest Folder\Own Development\ElevateAI\frontend\components\layout\AppSidebar.tsx:296:27[0m
+[0m  294 |     );[0m
+[0m  295 |[0m
+[0m> 296 |     const MobileSidebar = () => ([0m
+[0m      |                           ^^^^^^^[0m
+[0m> 297 |         <Sheet open={mobileOpen} onOpenChange={setMobileOpen}>[0m
+[0m      | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^[0m
+[0m> 298 |             <SheetTrigger asChild>[0m
+[0m      …[0m
+[0m      | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^[0m
+[0m> 346 |         </Sheet>[0m
+[0m      | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^[0m
+[0m> 347 |     );[0m
+[0m      | ^^^^^^ The component is created during render here[0m
+[0m  348 |[0m
+[0m  349 |     return ([0m
+[0m  350 |         <>  [2mreact-hooks/static-components[22m[0m
+[0m[0m
+[0m[4mC:\Users\Bhargava\Newest Folder\Own Development\ElevateAI\frontend\components\layout\TopBar.tsx[24m[0m
+[0m   [2m3:17[22m  [33mwarning[39m  'useState' is defined but never used               [2m@typescript-eslint/no-unused-vars[22m[0m
+[0m  [2m10:10[22m  [33mwarning[39m  'Input' is defined but never used                  [2m@typescript-eslint/no-unused-vars[22m[0m
+[0m  [2m15:5[22m   [33mwarning[39m  'DropdownMenuLabel' is defined but never used      [2m@typescript-eslint/no-unused-vars[22m[0m
+[0m  [2m16:5[22m   [33mwarning[39m  'DropdownMenuSeparator' is defined but never used  [2m@typescript-eslint/no-unused-vars[22m[0m
+[0m  [2m21:5[22m   [33mwarning[39m  'Sheet' is defined but never used                  [2m@typescript-eslint/no-unused-vars[22m[0m
+[0m  [2m22:5[22m   [33mwarning[39m  'SheetContent' is defined but never used           [2m@typescript-eslint/no-unused-vars[22m[0m
+[0m  [2m23:5[22m   [33mwarning[39m  'SheetHeader' is defined but never used            [2m@typescript-eslint/no-unused-vars[22m[0m
+[0m  [2m24:5[22m   [33mwarning[39m  'SheetTitle' is defined but never used             [2m@typescript-eslint/no-unused-vars[22m[0m
+[0m  [2m25:5[22m   [33mwarning[39m  'SheetTrigger' is defined but never used           [2m@typescript-eslint/no-unused-vars[22m[0m
+[0m[0m
+[0m[31m[1m✖ 89 problems (33 errors, 56 warnings)[22m[39m[0m
+[0m[31m[1m[22m[39m[31m[1m  0 errors and 1 warning potentially fixable with the `--fix` option.[22m[39m[0m
+[0m[31m[1m[22m[39m[0m

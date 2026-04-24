@@ -64,7 +64,7 @@ const difficulties = [
     { value: "hard",   label: "Hard",   desc: "Complex edge cases"      },
 ];
 
-const questionCounts = [3, 5, 7, 10];
+const questionCounts = [1, 2, 3];
 
 const categoryTabs: { id: CategoryType; label: string; icon: React.ReactNode; desc: string }[] = [
     { id: "technical",   label: "Technical Skills", icon: <Code2 className="h-4 w-4" />,  desc: "Domain-specific deep dives — DSA, DevOps, System Design & more"       },
@@ -122,6 +122,20 @@ export default function InterviewCoachPage() {
     };
 
     const handleStart = () => {
+        if (categoryType === "technical" && selectedDomain === "dsa") {
+            router.push(
+                `/user/playground` +
+                `?source=interview` +
+                `&track=dsa` +
+                `&questionCount=${config.questionCount}` +
+                `&level=${config.level}` +
+                `&difficulty=${config.difficulty}` +
+                `&sessionMode=${sessionMode}`
+            );
+            setShowModal(false);
+            return;
+        }
+
         router.push(
             `/user/interview/session` +
             `?mode=${getInterviewMode()}` +
@@ -407,7 +421,7 @@ export default function InterviewCoachPage() {
                                         ["Mode",       sessionMode === "learning" ? "Practice (hints on)" : "Real (strict)"],
                                         ["Level",      levels.find(l => l.value === config.level)?.label ?? config.level],
                                         ["Difficulty", difficulties.find(d => d.value === config.difficulty)?.label ?? config.difficulty],
-                                        ["Questions",  `${config.questionCount} questions`],
+                                            ["Questions",  `${config.questionCount} coding question${config.questionCount > 1 ? "s" : ""}`],
                                     ].map(([k, v]) => (
                                         <div key={k} className="flex justify-between text-sm">
                                             <span className="text-muted-foreground">{k}</span>

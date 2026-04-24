@@ -30,6 +30,7 @@ export interface Education {
   institution: string;
   from: string;
   to: string;
+  grade?: string;
 }
 
 export interface Certification {

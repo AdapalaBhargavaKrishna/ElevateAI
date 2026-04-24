@@ -9,13 +9,13 @@ export interface ResumeAnalysis {
         location?:        string;
         summary?:         string;
         skills?:          string[];
-        experience?:      any[];
-        projects?:        any[];
-        education?:       any[];
-        certifications?:  any[];
+        experience?:      unknown[];
+        projects?:        unknown[];
+        education?:       unknown[];
+        certifications?:  unknown[];
         languages?:       string[];
-        achievements?:    any[];
-        coding_profiles?: any[];
+        achievements?:    unknown[];
+        coding_profiles?: unknown[];
     };
     skills_analysis: {
         technical_skills?:    string[];
@@ -29,7 +29,7 @@ export interface ResumeAnalysis {
     score: {
         overall_score?: number;
         grade?:         string;
-        breakdown?:     Record<string, any>;
+        breakdown?:     Record<string, unknown>;
         deductions?:    string[];
         strengths?:     string[];
         weaknesses?:    string[];
@@ -39,7 +39,7 @@ export interface ResumeAnalysis {
         ats_score?:       number;
         ats_grade?:       string;
         will_pass_ats?:   boolean;
-        breakdown?:       Record<string, any>;
+        breakdown?:       Record<string, unknown>;
         recommendations?: string[];
     };
 }
@@ -95,7 +95,7 @@ export const resumeApi = {
     },
 
     // Full detail for a single analysis
-    getDetail: async (analysisId: string): Promise<any> => {
+    getDetail: async (analysisId: string): Promise<unknown> => {
         const response = await api.get(`/resume/${analysisId}`);
         return response.data;
     },

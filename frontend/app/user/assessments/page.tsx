@@ -661,8 +661,15 @@ function AssessmentsInner() {
             const detail = await roadmapApi.getAssessmentById(assessmentId);
             setActiveAssessment(detail);
             setPhase('quiz');
-        } catch (err: any) {
-            setError(err?.response?.data?.message || 'Failed to load assessment.');
+        } catch (err: unknown) {
+            const message =
+                typeof err === 'object' &&
+                err !== null &&
+                'response' in err &&
+                typeof (err as { response?: { data?: { message?: string } } }).response?.data?.message === 'string'
+                    ? (err as { response?: { data?: { message?: string } } }).response?.data?.message ?? 'Failed to load assessment.'
+                    : 'Failed to load assessment.';
+            setError(message);
         } finally {
             setLoadingQuiz(false);
         }

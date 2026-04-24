@@ -55,10 +55,10 @@ export const coreFeatures = [
         category: "Professional Portfolio",
         icon: Share2,
         features: [
-            { icon: Share2, title: "Shareable Profile", desc: "Public AI-generated career page for recruiters." },
+            { icon: Share2, title: "Shareable Profile", desc: "Public AI-generated career page for your network." },
             { icon: Link2, title: "Custom Links", desc: "Personalized profile URL for easy sharing." },
             { icon: Palette, title: "Project Showcase", desc: "Integrated GitHub projects and achievements." },
-            { icon: BadgeCheck, title: "Optional Score Visibility", desc: "Choose to display interview scores to recruiters." },
+            { icon: BadgeCheck, title: "Optional Score Visibility", desc: "Choose to display interview scores publicly." },
         ]
     },
 ];

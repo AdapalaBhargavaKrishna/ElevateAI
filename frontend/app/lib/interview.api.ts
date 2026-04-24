@@ -93,6 +93,17 @@ export interface SessionHistory {
     completedAt: string | null;
 }
 
+export interface RunPythonRequest {
+    code: string;
+    stdin?: string;
+}
+
+export interface RunPythonResponse {
+    output: string;
+    error: string;
+    exitCode: number;
+}
+
 // Interview API calls
 export const interviewApi = {
     start: async (data: StartInterviewRequest): Promise<StartInterviewResponse> => {
@@ -115,8 +126,13 @@ export const interviewApi = {
         return response.data;
     },
 
-    getSessionDetail: async (sessionId: string): Promise<{ session: any }> => {
+    getSessionDetail: async (sessionId: string): Promise<{ session: unknown }> => {
         const response = await api.get(`/interview/session/${sessionId}`);
+        return response.data;
+    },
+
+    runPython: async (data: RunPythonRequest): Promise<RunPythonResponse> => {
+        const response = await api.post('/interview/run-python', data);
         return response.data;
     }
 };

@@ -6,6 +6,7 @@ import {
     getSessionSummary,
     getInterviewHistory,
     getSessionDetail,
+    runPythonCode,
 } from "../controllers/interview.controllers";
 import { requireAuth } from "../middleware/auth.middleware";
 
@@ -36,5 +37,9 @@ router.get("/history", getInterviewHistory);
 // Get full detail for a single session (summary page / review)
 // GET /interview/session/:sessionId
 router.get("/session/:sessionId", getSessionDetail);
+
+// Run Python code in playground
+// POST /interview/run-python
+router.post("/run-python", runPythonCode);
 
 export default router;

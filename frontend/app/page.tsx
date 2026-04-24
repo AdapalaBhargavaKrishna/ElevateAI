@@ -4,7 +4,7 @@ import { motion } from "framer-motion";
 import {
   Mic, FileText, Map, TrendingUp, Zap, Brain,
   ChevronRight, ArrowRight, Menu, X,
-  Users, Bot, Target, Clock, Building2,
+  Users, Bot, Target, Clock,
   MessageSquare, Bell, UserCog, Trophy, Activity, GitBranch,
   Share2, Link2, Palette,
 } from "lucide-react";
@@ -45,13 +45,11 @@ const milestones = [
 export default function LandingPage() {
   const router = useRouter();
   const { theme, setTheme } = useTheme();
-  const [mounted, setMounted] = useState(false);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [scrolled, setScrolled] = useState(false);
   const [activeCategory, setActiveCategory] = useState(0);
 
   useEffect(() => {
-    setMounted(true);
     const handleScroll = () => setScrolled(window.scrollY > 20);
     window.addEventListener('scroll', handleScroll);
     return () => window.removeEventListener('scroll', handleScroll);
@@ -60,13 +58,13 @@ export default function LandingPage() {
   const toggleTheme = () => setTheme(theme === 'dark' ? 'light' : 'dark');
 
   // Custom Card component (you can also import from shadcn if you want)
-  const Card = ({ children, className = '', ...props }: { children: React.ReactNode; className?: string;[key: string]: any }) => (
+  const Card = ({ children, className = '', ...props }: React.PropsWithChildren<React.HTMLAttributes<HTMLDivElement>>) => (
     <div className={`rounded-2xl border bg-card/50 backdrop-blur-sm text-card-foreground shadow-sm hover:shadow-md transition-all duration-300 ${className}`} {...props}>
       {children}
     </div>
   );
 
-  const CardContent = ({ children, className = '', ...props }: { children: React.ReactNode; className?: string;[key: string]: any }) => (
+  const CardContent = ({ children, className = '', ...props }: React.PropsWithChildren<React.HTMLAttributes<HTMLDivElement>>) => (
     <div className={`p-6 ${className}`} {...props}>
       {children}
     </div>
@@ -102,23 +100,13 @@ export default function LandingPage() {
               <Tooltip>
                 <TooltipTrigger asChild>
                   <Button variant="ghost" size="icon" onClick={toggleTheme} className="rounded-full">
-                    {mounted && (theme === "dark" ? <Sun className="h-4 w-4" /> : <Moon className="h-4 w-4" />)}
+                    {theme === "dark" ? <Sun className="h-4 w-4" /> : <Moon className="h-4 w-4" />}
                   </Button>
                 </TooltipTrigger>
                 <TooltipContent>
                   <p>Toggle theme</p>
                 </TooltipContent>
               </Tooltip>
-              
-              {/* Corporate / Recruiter Login Button - Purple Theme */}
-              <Button 
-                variant="outline" 
-                className="border-purple-500 text-purple-600 dark:text-purple-400 hover:bg-purple-50 dark:hover:bg-purple-950/30 hover:border-purple-600 dark:hover:border-purple-500"
-                onClick={() => router.push("/recruiters/login")}
-              >
-                <Building2 className="h-4 w-4 mr-2" />
-                For Recruiters
-              </Button>
               
               <Button variant="outline" onClick={() => router.push("/login")}>Log in</Button>
               <Button onClick={() => router.push("/signup")}>Get Started</Button>
@@ -128,7 +116,7 @@ export default function LandingPage() {
               <Tooltip>
                 <TooltipTrigger asChild>
                   <Button variant="ghost" size="icon" onClick={toggleTheme} className="rounded-full">
-                    {mounted && (theme === "dark" ? <Sun className="h-4 w-4" /> : <Moon className="h-4 w-4" />)}
+                    {theme === "dark" ? <Sun className="h-4 w-4" /> : <Moon className="h-4 w-4" />}
                   </Button>
                 </TooltipTrigger>
                 <TooltipContent>
@@ -156,17 +144,6 @@ export default function LandingPage() {
               ))}
               <div className="h-px bg-border/50 my-2" />
               
-              {/* Mobile Recruiters Button - Purple Theme */}
-              <Button 
-                variant="outline" 
-                size="lg" 
-                className="w-full justify-center border-purple-500 text-purple-600 dark:text-purple-400 hover:bg-purple-50 dark:hover:bg-purple-950/30"
-                onClick={() => router.push("/recruiters/login")}
-              >
-                <Building2 className="h-4 w-4 mr-2" />
-                For Recruiters
-              </Button>
-              
               <Button variant="outline" size="lg" className="w-full justify-center" onClick={() => router.push("/login")}>Log in</Button>
               <Button size="lg" className="w-full justify-center" onClick={() => router.push("/signup")}>Get Started</Button>
             </div>
@@ -189,7 +166,7 @@ export default function LandingPage() {
             </motion.h1>
             <motion.p initial="hidden" animate="visible" variants={fadeUp} custom={2}
               className="text-lg sm:text-xl text-muted-foreground max-w-2xl mx-auto mb-10 leading-relaxed">
-              We're building the future of career preparation. Join and be among the first to experience AI-powered interview coaching.
+              We&apos;re building the future of career preparation. Join and be among the first to experience AI-powered interview coaching.
             </motion.p>
             <motion.div initial="hidden" animate="visible" variants={fadeUp} custom={3} className="flex flex-wrap items-center justify-center gap-4">
               <Button size="lg" onClick={() => router.push("/signup")}>

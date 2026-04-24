@@ -5,7 +5,9 @@ exports.submitAnswer = submitAnswer;
 exports.getSessionSummary = getSessionSummary;
 exports.getInterviewHistory = getInterviewHistory;
 exports.getSessionDetail = getSessionDetail;
+exports.runPythonCode = runPythonCode;
 const prisma_1 = require("../utils/prisma");
+const child_process_1 = require("child_process");
 const fastapi_service_1 = require("../services/fastapi.service");
 function normalizeInterviewType(rawType) {
     const normalized = (rawType || "").trim().toLowerCase().replace(/[-\s]+/g, "_");
@@ -293,6 +295,79 @@ async function getSessionDetail(req, res) {
     }
     catch (err) {
         console.error("getSessionDetail error:", err);
+        return res.status(500).json({ message: "Something went wrong." });
+    }
+}
+// ─── POST /interview/run-python ──────────────────────────────────────────────
+// Executes Python snippets for playground usage with basic sandbox guards.
+async function runPythonCode(req, res) {
+    try {
+        const { code, stdin } = req.body;
+        if (!code || typeof code !== "string") {
+            return res.status(400).json({ message: "code is required." });
+        }
+        const blockedPatterns = [
+            /\bimport\s+os\b/i,
+            /\bimport\s+sys\b/i,
+            /\bimport\s+subprocess\b/i,
+            /\bimport\s+socket\b/i,
+            /\bfrom\s+os\s+import\b/i,
+            /\bfrom\s+subprocess\s+import\b/i,
+            /\bopen\s*\(/i,
+            /\b__import__\s*\(/i,
+        ];
+        if (blockedPatterns.some((pattern) => pattern.test(code))) {
+            return res.status(400).json({
+                message: "This snippet uses restricted Python operations in playground mode.",
+            });
+        }
+        const pythonCmd = process.env.PYTHON_EXECUTABLE || "python";
+        const child = (0, child_process_1.spawn)(pythonCmd, ["-c", code], {
+            stdio: ["pipe", "pipe", "pipe"],
+            windowsHide: true,
+        });
+        let stdout = "";
+        let stderr = "";
+        const MAX_OUTPUT = 20000;
+        let timedOut = false;
+        const timeout = setTimeout(() => {
+            timedOut = true;
+            child.kill();
+        }, 5000);
+        child.stdout.on("data", (chunk) => {
+            if (stdout.length < MAX_OUTPUT) {
+                stdout += chunk.toString("utf8");
+            }
+        });
+        child.stderr.on("data", (chunk) => {
+            if (stderr.length < MAX_OUTPUT) {
+                stderr += chunk.toString("utf8");
+            }
+        });
+        if (stdin && typeof stdin === "string") {
+            child.stdin.write(stdin);
+        }
+        child.stdin.end();
+        child.on("error", (err) => {
+            clearTimeout(timeout);
+            return res.status(500).json({ message: `Failed to run python: ${err.message}` });
+        });
+        child.on("close", (codeNum) => {
+            clearTimeout(timeout);
+            if (timedOut) {
+                return res.status(408).json({
+                    message: "Execution timed out after 5 seconds.",
+                });
+            }
+            return res.status(200).json({
+                output: stdout.trimEnd(),
+                error: stderr.trimEnd(),
+                exitCode: codeNum ?? 0,
+            });
+        });
+    }
+    catch (err) {
+        console.error("runPythonCode error:", err);
         return res.status(500).json({ message: "Something went wrong." });
     }
 }

@@ -38,7 +38,7 @@ import {
 
 function LoginPageContent() {
     const router = useRouter();
-    const [error, setError] = useState(null);
+    const [error, setError] = useState<string | null>(null);
     const [mounted, setMounted] = useState(false);
     const [showPassword, setShowPassword] = useState(false);
     const [email, setEmail] = useState("");
@@ -80,13 +80,19 @@ function LoginPageContent() {
             const { data } = await api.post('/auth/login', { email, password, });
             console.log(data)
             toast.success('Logged in successfully.');
-            if (data.isNewUser) {
+            if (data.user?.isNewUser) {
                 router.replace("/onboarding/user");
             } else {
                 router.replace("/user/dashboard");
             }
-        } catch (err: any) {
-            const message = err.response?.data?.message || "Something went wrong.";
+        } catch (err: unknown) {
+            const message =
+                typeof err === "object" &&
+                err !== null &&
+                "response" in err &&
+                typeof (err as { response?: { data?: { message?: string } } }).response?.data?.message === "string"
+                    ? (err as { response?: { data?: { message?: string } } }).response?.data?.message ?? "Something went wrong."
+                    : "Something went wrong.";
             setError(message);
             toast.error(message);
         } finally {
@@ -233,7 +239,7 @@ function LoginPageContent() {
                             </Button>
 
                             <p className="text-center text-sm text-muted-foreground mt-6">
-                                Don't have an account?{" "}
+                                Don&apos;t have an account?{" "}
                                 <Link href="/signup" className="text-primary hover:underline font-medium">
                                     Sign up
                                 </Link>

@@ -78,12 +78,7 @@ interface SettingSection {
     fields: SettingField[];
 }
 
-interface ToggleSetting {
-    label: string;
-    desc: string;
-    icon: React.ElementType;
-    checked: boolean;
-}
+
 
 const settingSections: SettingSection[] = [
     {
@@ -107,24 +102,14 @@ const settingSections: SettingSection[] = [
     },
 ];
 
-const toggleSettings: ToggleSetting[] = [
-    { label: "Public Portfolio", desc: "Allow recruiters to view your profile", icon: Globe, checked: true },
-];
 
 export default function SettingsPage() {
-    const [toggles, setToggles] = useState(toggleSettings);
     const [profileData, setProfileData] = useState({
         fullName: "Bhargava Krishna",
         email: "bk.adapala@email.com",
         careerGoal: "Student",
         phone: "+91 93902 44436",
     });
-
-    const handleToggleChange = (index: number) => {
-        setToggles(prev => prev.map((item, i) =>
-            i === index ? { ...item, checked: !item.checked } : item
-        ));
-    };
 
     const handleProfileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
         const { name, value } = e.target;
@@ -189,43 +174,6 @@ export default function SettingsPage() {
                         </div>
                     </motion.div>
                 ))}
-
-                <motion.div
-                    initial={{ opacity: 0, y: 12 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    transition={{ delay: 0.2 }}
-                    className="bg-card border border-border rounded-xl p-5"
-                >
-                    <h3 className="text-sm font-semibold text-foreground flex items-center gap-2 mb-4">
-                        <div className="h-6 w-6 rounded-lg bg-primary/10 flex items-center justify-center">
-                            <Palette className="h-3 w-3 text-primary" />
-                        </div>
-                        Preferences
-                    </h3>
-
-                    <div className="space-y-3">
-                        {toggles.map((setting, index) => (
-                            <div
-                                key={setting.label}
-                                className="flex items-center justify-between py-2 border-b border-border last:border-0"
-                            >
-                                <div className="flex items-center gap-3">
-                                    <div className="h-8 w-8 rounded-lg bg-primary/10 flex items-center justify-center">
-                                        <setting.icon className="h-4 w-4 text-primary" />
-                                    </div>
-                                    <div>
-                                        <p className="text-sm font-medium text-foreground">{setting.label}</p>
-                                        <p className="text-xs text-muted-foreground">{setting.desc}</p>
-                                    </div>
-                                </div>
-                                <Switch
-                                    checked={setting.checked}
-                                    onChange={() => handleToggleChange(index)}
-                                />
-                            </div>
-                        ))}
-                    </div>
-                </motion.div>
 
                 <motion.div
                     initial={{ opacity: 0, y: 12 }}

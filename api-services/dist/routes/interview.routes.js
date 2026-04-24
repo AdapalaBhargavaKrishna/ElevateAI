@@ -25,4 +25,7 @@ router.get("/history", interview_controllers_1.getInterviewHistory);
 // Get full detail for a single session (summary page / review)
 // GET /interview/session/:sessionId
 router.get("/session/:sessionId", interview_controllers_1.getSessionDetail);
+// Run Python code in playground
+// POST /interview/run-python
+router.post("/run-python", interview_controllers_1.runPythonCode);
 exports.default = router;

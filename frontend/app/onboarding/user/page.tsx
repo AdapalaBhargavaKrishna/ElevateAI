@@ -1,464 +1,220 @@
 'use client';
 
-import React, { useState } from 'react';
+import { useMemo, useState } from 'react';
 import Image from 'next/image';
-import { api } from '../../lib/axios';
-import { motion, AnimatePresence } from "framer-motion";
-import {
-    ArrowRight, ArrowLeft, Target, Briefcase, Code,
-    GraduationCap, CheckCircle2, Rocket, Sun, Moon, MapPin, User, Plus, X
-} from "lucide-react";
 import { useRouter } from 'next/navigation';
-import { useTheme } from 'next-themes';
+import { motion } from 'framer-motion';
+import { CheckCircle2, FileUp, Loader2, SkipForward, Sparkles } from 'lucide-react';
 import toast from 'react-hot-toast';
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Textarea } from "@/components/ui/textarea";
-import { Card, CardContent } from "@/components/ui/card";
-import { Progress } from "@/components/ui/progress";
 
-const careerGoals = [
-    "Frontend Developer", "Backend Developer", "Full-Stack Developer",
-    "Data Scientist", "ML Engineer", "DevOps Engineer",
-    "Mobile Developer", "Cloud Architect", "Product Manager",
-    "UI/UX Designer", "Cybersecurity Analyst", "Other",
-];
+import { api } from '@/app/lib/axios';
+import { resumeApi } from '@/app/lib/resume.api';
+import { Button } from '@/components/ui/button';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 
-const experienceLevels = [
-    { label: "Student / Fresher", value: "0-1", desc: "Currently studying or just graduated", icon: GraduationCap },
-    { label: "Junior (0-2 yrs)", value: "1-2", desc: "Early career, building foundations", icon: Code },
-    { label: "Mid-Level (2-5 yrs)", value: "2-4", desc: "Growing expertise, some leadership", icon: Briefcase },
-    { label: "Senior (5+ yrs)", value: "6-10", desc: "Deep expertise, mentoring others", icon: Target },
-];
+type GenericRecord = Record<string, unknown>;
 
-const topSkills = [
-    "JavaScript", "TypeScript", "Python", "Java", "C++", "Go", "Rust",
-    "React", "Angular", "Vue.js", "Next.js", "Node.js", "Django", "Spring",
-    "AWS", "Docker", "Kubernetes", "SQL", "MongoDB", "GraphQL",
-    "Machine Learning", "Data Analysis", "System Design", "DevOps",
-];
+function parseArray(value: unknown): unknown[] {
+  if (Array.isArray(value)) return value;
+  return [];
+}
 
-export default function OnboardingPage() {
-    const router = useRouter();
-    const { theme, setTheme } = useTheme();
-    const [step, setStep] = useState(0);
+function asRecord(value: unknown): GenericRecord {
+  if (typeof value === 'object' && value !== null) {
+    return value as GenericRecord;
+  }
+  return {};
+}
 
-    const [careerGoal, setCareerGoal] = useState("");
-    const [customGoal, setCustomGoal] = useState("");
+export default function OnboardingUserPage() {
+  const router = useRouter();
+  const [file, setFile] = useState<File | null>(null);
+  const [loading, setLoading] = useState(false);
 
-    const [currentRole, setCurrentRole] = useState("");
-    const [yearsOfExp, setYearsOfExp] = useState("");
+  const fileName = useMemo(() => file?.name || '', [file]);
 
-    const [selectedSkills, setSelectedSkills] = useState<string[]>([]);
-    const [customSkill, setCustomSkill] = useState("");
-    const [showSkillInput, setShowSkillInput] = useState(false);
+  const completeOnboardingOnly = async () => {
+    await api.post('/auth/onboarding/complete', {
+      careerGoal: '',
+      currentRole: '',
+      yearsOfExp: '',
+      skills: [],
+      location: '',
+      bio: '',
+    });
+  };
 
-    const [location, setLocation] = useState("");
-    const [bio, setBio] = useState("");
+  const handleSkip = async () => {
+    try {
+      setLoading(true);
+      await completeOnboardingOnly();
+      toast.success('Onboarding skipped. You can add details later in My Info.');
+      router.replace('/user/myinfo');
+    } catch {
+      toast.error('Unable to complete onboarding right now.');
+    } finally {
+      setLoading(false);
+    }
+  };
 
-    const totalSteps = 5;
-    const progress = ((step + 1) / totalSteps) * 100;
+  const handleUploadAndContinue = async () => {
+    if (!file) {
+      toast.error('Please select a PDF or DOCX resume first.');
+      return;
+    }
 
-    const toggleSkill = (s: string) => {
-        setSelectedSkills((prev) =>
-            prev.includes(s) ? prev.filter((x) => x !== s) : [...prev, s]
-        );
-    };
+    try {
+      setLoading(true);
+      const analysis = await resumeApi.analyzeFile(file);
+      const parsed = analysis.parsed_resume || {};
 
-    const addCustomSkill = () => {
-        if (customSkill.trim() && !selectedSkills.includes(customSkill.trim()) && !topSkills.includes(customSkill.trim())) {
-            setSelectedSkills([...selectedSkills, customSkill.trim()]);
-            setCustomSkill("");
-            setShowSkillInput(false);
-        }
-    };
+      const skills = parseArray(parsed.skills)
+        .map((s) => (typeof s === 'string' ? s.trim() : ''))
+        .filter(Boolean);
 
-    const removeSkill = (skillToRemove: string) => {
-        setSelectedSkills(selectedSkills.filter(skill => skill !== skillToRemove));
-    };
-
-    const canProceed = () => {
-        switch (step) {
-            case 0: return careerGoal !== "" && (careerGoal !== "Other" || customGoal.trim() !== "");
-            case 1: return currentRole.trim() !== "" && yearsOfExp !== "";
-            case 2: return selectedSkills.length >= 3;
-            case 3: return location.trim() !== "";
-            case 4: return true;
-            default: return true;
-        }
-    };
-
-    const handleOnboardingComplete = async () => {
-        const finalData = {
-            careerGoal: careerGoal === "Other" ? customGoal.trim() : careerGoal,
-            currentRole: currentRole.trim(),
-            yearsOfExp,
-            skills: selectedSkills,
-            location: location.trim(),
-            bio: bio.trim(),
+      const experiences = parseArray(parsed.experience).map((exp) => {
+        const item = asRecord(exp);
+        return {
+          company: String(item.company ?? ''),
+          role: String(item.role ?? item.title ?? ''),
+          from: String(item.from ?? item.start ?? ''),
+          to: String(item.to ?? item.end ?? ''),
+          location: String(item.location ?? ''),
+          description: String(item.description ?? ''),
+          current: Boolean(item.current),
         };
+      });
 
-        try {
-            await api.post('/auth/onboarding/complete', finalData);
-            toast.success('Onboarding completed successfully.');
-            router.push("/user/dashboard");
-        } catch (err) {
-            console.error("Onboarding error:", err);
-            toast.error('Failed to complete onboarding. Please try again.');
-        }
-    };
+      const education = parseArray(parsed.education).map((edu) => {
+        const item = asRecord(edu);
+        return {
+          institution: String(item.institution ?? item.school ?? ''),
+          degree: String(item.degree ?? ''),
+          field: String(item.field ?? item.major ?? ''),
+          from: String(item.from ?? item.start ?? ''),
+          to: String(item.to ?? item.end ?? ''),
+          grade: String(item.grade ?? ''),
+        };
+      });
 
-    const fadeVariants = {
-        enter: { opacity: 0, x: 30 },
-        center: { opacity: 1, x: 0 },
-        exit: { opacity: 0, x: -30 },
-    };
+      const projects = parseArray(parsed.projects).map((project) => {
+        const item = asRecord(project);
+        const stack = item.techStack;
+        return {
+          name: String(item.name ?? ''),
+          description: String(item.description ?? ''),
+          techStack: Array.isArray(stack) ? stack.join(', ') : String(stack ?? ''),
+          liveUrl: String(item.liveUrl ?? ''),
+          repoUrl: String(item.repoUrl ?? ''),
+        };
+      });
 
-    return (
-        <div className="min-h-screen bg-background flex items-center justify-center p-4 sm:p-6 relative">
-            <div className="absolute inset-0 overflow-hidden pointer-events-none">
-                <div className="absolute top-1/4 left-1/3 w-96 h-96 rounded-full bg-primary/5 blur-3xl" />
-                <div className="absolute bottom-1/3 right-1/4 w-80 h-80 rounded-full bg-blue-500/5 blur-3xl" />
-            </div>
+      const certifications = parseArray(parsed.certifications).map((cert) => {
+        const item = asRecord(cert);
+        return {
+          name: String(item.name ?? ''),
+          issuer: String(item.issuer ?? ''),
+          year: String(item.year ?? ''),
+          credentialUrl: String(item.credentialUrl ?? ''),
+        };
+      });
 
-            <div className="fixed top-4 right-4 z-50">
-                <Button
-                    variant="ghost"
-                    size="icon"
-                    onClick={() => setTheme(theme === "dark" ? "light" : "dark")}
-                    className="rounded-full"
-                >
-                    {theme === "dark" ? <Sun className="h-4 w-4" /> : <Moon className="h-4 w-4" />}
-                </Button>
-            </div>
+      await api.post('/user-info/save', {
+        phone: parsed.phone || '',
+        location: parsed.location || '',
+        bio: parsed.summary || '',
+        careerGoal: '',
+        currentRole: '',
+        yearsOfExp: '',
+        website: '',
+        github: '',
+        linkedin: '',
+        leetcode: '',
+        skills,
+        experiences,
+        education,
+        projects,
+        certifications,
+      });
 
-            <motion.div
-                initial={{ opacity: 0, y: 20 }}
-                animate={{ opacity: 1, y: 0 }}
-                className="w-full max-w-lg relative z-10"
-            >
-                <div className="flex items-center justify-center gap-2 mb-6">
-                    <Image
-                        src="/logo.png"
-                        alt="ElevateAI Logo"
-                        width={140}
-                        height={140}
-                        className="rounded-lg invert dark:invert-0"
-                    />
+      await completeOnboardingOnly();
+
+      toast.success('Resume imported. Your My Info is pre-filled.');
+      router.replace('/user/myinfo');
+    } catch {
+      toast.error('Resume import failed. You can skip and fill manually later.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  return (
+    <div className='min-h-screen bg-background px-4 py-10'>
+      <div className='max-w-3xl mx-auto space-y-6'>
+        <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className='text-center space-y-3'>
+          <Image
+            src='/logo.png'
+            alt='ElevateAI'
+            width={150}
+            height={44}
+            className='mx-auto invert dark:invert-0 object-contain'
+          />
+          <h1 className='text-3xl font-bold'>Set up your profile (optional)</h1>
+          <p className='text-muted-foreground'>
+            Upload your resume to auto-extract skills, education, and experience directly into My Info.
+          </p>
+        </motion.div>
+
+        <div className='grid grid-cols-1 md:grid-cols-2 gap-4'>
+          <Card className='border-border/70'>
+            <CardHeader>
+              <CardTitle className='text-base flex items-center gap-2'>
+                <FileUp className='h-4 w-4 text-primary' /> Resume Upload (Recommended)
+              </CardTitle>
+            </CardHeader>
+            <CardContent className='space-y-4'>
+              <label className='block border border-dashed border-border rounded-xl p-4 text-center cursor-pointer hover:border-primary/50 transition-colors'>
+                <input
+                  type='file'
+                  className='hidden'
+                  accept='.pdf,.doc,.docx,application/pdf,application/vnd.openxmlformats-officedocument.wordprocessingml.document'
+                  onChange={(e) => setFile(e.target.files?.[0] || null)}
+                  disabled={loading}
+                />
+                <p className='text-sm font-medium'>Choose PDF or DOCX</p>
+                <p className='text-xs text-muted-foreground mt-1'>Max 10MB</p>
+              </label>
+
+              {fileName && (
+                <div className='rounded-lg bg-muted p-3 flex items-center gap-2'>
+                  <CheckCircle2 className='h-4 w-4 text-primary' />
+                  <span className='text-sm truncate'>{fileName}</span>
                 </div>
+              )}
 
-                <div className="mb-6">
-                    <div className="flex items-center justify-between mb-2">
-                        <p className="text-xs text-muted-foreground">Step {step + 1} of {totalSteps}</p>
-                        <p className="text-xs font-medium text-primary">{Math.round(progress)}%</p>
-                    </div>
-                    <Progress value={progress} className="h-1.5" />
-                </div>
+              <Button className='w-full gap-2' onClick={handleUploadAndContinue} disabled={loading || !file}>
+                {loading ? <Loader2 className='h-4 w-4 animate-spin' /> : <Sparkles className='h-4 w-4' />} Upload And Continue
+              </Button>
+            </CardContent>
+          </Card>
 
-                <Card className="border-border/50 bg-card/80 backdrop-blur-xl shadow-xl">
-                    <CardContent className="p-6">
-                        <AnimatePresence mode="wait">
-
-                            {/* Step 0 — Career Goal */}
-                            {step === 0 && (
-                                <motion.div key="s0" variants={fadeVariants} initial="enter" animate="center" exit="exit" transition={{ duration: 0.25 }} className="space-y-5">
-                                    <div>
-                                        <h2 className="text-xl font-bold text-foreground mb-1">What's your dream role?</h2>
-                                        <p className="text-sm text-muted-foreground">This helps us tailor your career roadmap</p>
-                                    </div>
-                                    <div className="grid grid-cols-2 gap-2">
-                                        {careerGoals.map((g) => (
-                                            <button
-                                                key={g}
-                                                onClick={() => setCareerGoal(g)}
-                                                className={`text-left text-xs font-medium px-3 py-2.5 rounded-lg border transition-all ${careerGoal === g
-                                                    ? "border-primary bg-primary/10 text-primary"
-                                                    : "border-border bg-card hover:border-primary/30 text-foreground"
-                                                    }`}
-                                            >
-                                                {g}
-                                            </button>
-                                        ))}
-                                    </div>
-                                    {careerGoal === "Other" && (
-                                        <Input
-                                            placeholder="Type your career goal..."
-                                            value={customGoal}
-                                            onChange={(e) => setCustomGoal(e.target.value)}
-                                            className="bg-muted/30"
-                                            autoFocus
-                                        />
-                                    )}
-                                </motion.div>
-                            )}
-
-                            {/* Step 1 — Current Role + Years of Experience */}
-                            {step === 1 && (
-                                <motion.div key="s1" variants={fadeVariants} initial="enter" animate="center" exit="exit" transition={{ duration: 0.25 }} className="space-y-5">
-                                    <div>
-                                        <h2 className="text-xl font-bold text-foreground mb-1">Your current position?</h2>
-                                        <p className="text-sm text-muted-foreground">Tell us where you are right now</p>
-                                    </div>
-
-                                    <div className="space-y-2">
-                                        <label className="text-xs text-muted-foreground font-medium">Current Role / Title</label>
-                                        <div className="relative">
-                                            <User className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                                            <Input
-                                                placeholder="e.g. Software Engineer, Student, Intern..."
-                                                value={currentRole}
-                                                onChange={(e) => setCurrentRole(e.target.value)}
-                                                className="pl-9 bg-muted/30"
-                                            />
-                                        </div>
-                                    </div>
-
-                                    <div className="space-y-2">
-                                        <label className="text-xs text-muted-foreground font-medium">Years of Experience</label>
-                                        <div className="space-y-2">
-                                            {experienceLevels.map((lvl) => {
-                                                const Icon = lvl.icon;
-                                                return (
-                                                    <button
-                                                        key={lvl.value}
-                                                        onClick={() => setYearsOfExp(lvl.value)}
-                                                        className={`w-full flex items-center gap-3 text-left px-4 py-3 rounded-xl border transition-all ${yearsOfExp === lvl.value
-                                                            ? "border-primary bg-primary/10"
-                                                            : "border-border bg-card hover:border-primary/30"
-                                                            }`}
-                                                    >
-                                                        <div className={`h-9 w-9 rounded-lg flex items-center justify-center shrink-0 ${yearsOfExp === lvl.value ? "bg-primary text-primary-foreground" : "bg-muted text-muted-foreground"}`}>
-                                                            <Icon className="h-4 w-4" />
-                                                        </div>
-                                                        <div>
-                                                            <p className="text-sm font-medium text-foreground">{lvl.label}</p>
-                                                            <p className="text-[11px] text-muted-foreground">{lvl.desc}</p>
-                                                        </div>
-                                                        {yearsOfExp === lvl.value && <CheckCircle2 className="h-4 w-4 text-primary ml-auto shrink-0" />}
-                                                    </button>
-                                                );
-                                            })}
-                                        </div>
-                                    </div>
-                                </motion.div>
-                            )}
-
-                            {/* Step 2 — Skills */}
-                            {step === 2 && (
-                                <motion.div key="s2" variants={fadeVariants} initial="enter" animate="center" exit="exit" transition={{ duration: 0.25 }} className="space-y-5">
-                                    <div>
-                                        <h2 className="text-xl font-bold text-foreground mb-1">Select your skills</h2>
-                                        <p className="text-sm text-muted-foreground">Pick at least 3 skills you're proficient in</p>
-                                    </div>
-                                    
-                                    {/* Selected Skills Display */}
-                                    {selectedSkills.length > 0 && (
-                                        <div className="flex flex-wrap gap-2 p-3 rounded-lg bg-muted/20">
-                                            {selectedSkills.map((skill) => (
-                                                <span
-                                                    key={skill}
-                                                    className="inline-flex items-center gap-1 px-2 py-1 rounded-full bg-primary/10 text-primary text-xs font-medium"
-                                                >
-                                                    {skill}
-                                                    <button
-                                                        onClick={() => removeSkill(skill)}
-                                                        className="hover:text-destructive transition-colors"
-                                                        aria-label={`Remove ${skill}`}
-                                                    >
-                                                        <X className="h-3 w-3" />
-                                                    </button>
-                                                </span>
-                                            ))}
-                                        </div>
-                                    )}
-                                    
-                                    {/* Predefined Skills */}
-                                    <div className="flex flex-wrap gap-2 max-h-48 overflow-y-auto p-1">
-                                        {topSkills.map((s) => (
-                                            <button
-                                                key={s}
-                                                onClick={() => toggleSkill(s)}
-                                                className={`text-xs font-medium px-3 py-1.5 rounded-full border transition-all ${selectedSkills.includes(s)
-                                                    ? "border-primary bg-primary/10 text-primary"
-                                                    : "border-border bg-card hover:border-primary/30 text-foreground"
-                                                    }`}
-                                            >
-                                                {selectedSkills.includes(s) ? "✓ " : ""}{s}
-                                            </button>
-                                        ))}
-                                    </div>
-                                    
-                                    {/* Add Custom Skill Section */}
-                                    <div className="space-y-2">
-                                        {!showSkillInput ? (
-                                            <button
-                                                onClick={() => setShowSkillInput(true)}
-                                                className="w-full flex items-center justify-center gap-2 px-4 py-2 rounded-lg border border-dashed border-border hover:border-primary/50 hover:bg-muted/30 transition-all text-sm text-muted-foreground hover:text-foreground"
-                                            >
-                                                <Plus className="h-4 w-4" />
-                                                Add Custom Skill
-                                            </button>
-                                        ) : (
-                                            <div className="flex gap-2">
-                                                <Input
-                                                    placeholder="Type your skill (e.g., Figma, Photoshop)..."
-                                                    value={customSkill}
-                                                    onChange={(e) => setCustomSkill(e.target.value)}
-                                                    onKeyPress={(e) => {
-                                                        if (e.key === 'Enter') {
-                                                            addCustomSkill();
-                                                        }
-                                                    }}
-                                                    className="flex-1 bg-muted/30"
-                                                    autoFocus
-                                                />
-                                                <Button
-                                                    size="sm"
-                                                    onClick={addCustomSkill}
-                                                    disabled={!customSkill.trim()}
-                                                    className="bg-primary text-primary-foreground hover:bg-primary/90"
-                                                >
-                                                    Add
-                                                </Button>
-                                                <Button
-                                                    size="sm"
-                                                    variant="ghost"
-                                                    onClick={() => {
-                                                        setShowSkillInput(false);
-                                                        setCustomSkill("");
-                                                    }}
-                                                >
-                                                    Cancel
-                                                </Button>
-                                            </div>
-                                        )}
-                                    </div>
-                                    
-                                    <p className="text-[11px] text-muted-foreground">
-                                        {selectedSkills.length} selected {selectedSkills.length < 3 && `· Pick ${3 - selectedSkills.length} more`}
-                                    </p>
-                                </motion.div>
-                            )}
-
-                            {/* Step 3 — Location + Bio */}
-                            {step === 3 && (
-                                <motion.div key="s3" variants={fadeVariants} initial="enter" animate="center" exit="exit" transition={{ duration: 0.25 }} className="space-y-5">
-                                    <div>
-                                        <h2 className="text-xl font-bold text-foreground mb-1">Almost done!</h2>
-                                        <p className="text-sm text-muted-foreground">A few more details to complete your profile</p>
-                                    </div>
-
-                                    <div className="space-y-2">
-                                        <label className="text-xs text-muted-foreground font-medium">Where are you based? <span className="text-destructive">*</span></label>
-                                        <div className="relative">
-                                            <MapPin className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                                            <Input
-                                                placeholder="e.g. Hyderabad, India"
-                                                value={location}
-                                                onChange={(e) => setLocation(e.target.value)}
-                                                className="pl-9 bg-muted/30"
-                                            />
-                                        </div>
-                                    </div>
-
-                                    <div className="space-y-2">
-                                        <label className="text-xs text-muted-foreground font-medium">Short Bio <span className="text-muted-foreground/60">(optional)</span></label>
-                                        <Textarea
-                                            placeholder="Tell us a little about yourself, your interests, or what you're working towards..."
-                                            value={bio}
-                                            onChange={(e) => setBio(e.target.value)}
-                                            className="bg-muted/30"
-                                            rows={3}
-                                        />
-                                        <p className="text-[10px] text-muted-foreground text-right">{bio.length}/300</p>
-                                    </div>
-                                </motion.div>
-                            )}
-
-                            {/* Step 4 — Summary */}
-                            {step === 4 && (
-                                <motion.div key="s4" variants={fadeVariants} initial="enter" animate="center" exit="exit" transition={{ duration: 0.25 }} className="space-y-5">
-                                    <div>
-                                        <h2 className="text-xl font-bold text-foreground mb-1">You're all set! 🎉</h2>
-                                        <p className="text-sm text-muted-foreground">Here's a summary of your profile</p>
-                                    </div>
-
-                                    <div className="rounded-xl bg-muted/40 p-4 space-y-3">
-                                        <p className="text-xs font-semibold text-foreground flex items-center gap-1.5">
-                                            <Rocket className="h-3.5 w-3.5 text-primary" /> Profile Summary
-                                        </p>
-                                        <div className="space-y-2 text-[11px] text-muted-foreground">
-                                            <div className="flex items-start gap-2">
-                                                <span>🎯</span>
-                                                <span>Career Goal: <span className="text-foreground font-medium">{careerGoal === "Other" ? customGoal : careerGoal}</span></span>
-                                            </div>
-                                            <div className="flex items-start gap-2">
-                                                <span>💼</span>
-                                                <span>Current Role: <span className="text-foreground font-medium">{currentRole}</span></span>
-                                            </div>
-                                            <div className="flex items-start gap-2">
-                                                <span>📊</span>
-                                                <span>Experience: <span className="text-foreground font-medium">{experienceLevels.find((l) => l.value === yearsOfExp)?.label}</span></span>
-                                            </div>
-                                            <div className="flex items-start gap-2">
-                                                <span>🛠</span>
-                                                <span>Skills: <span className="text-foreground font-medium">{selectedSkills.slice(0, 5).join(", ")}{selectedSkills.length > 5 ? ` +${selectedSkills.length - 5} more` : ""}</span></span>
-                                            </div>
-                                            <div className="flex items-start gap-2">
-                                                <span>📍</span>
-                                                <span>Location: <span className="text-foreground font-medium">{location}</span></span>
-                                            </div>
-                                            {bio && (
-                                                <div className="flex items-start gap-2">
-                                                    <span>📝</span>
-                                                    <span>Bio: <span className="text-foreground font-medium">{bio.length > 80 ? bio.slice(0, 80) + "..." : bio}</span></span>
-                                                </div>
-                                            )}
-                                        </div>
-                                    </div>
-
-                                    <p className="text-xs text-muted-foreground text-center">
-                                        You can always update these details from <span className="text-primary font-medium">My Info</span>
-                                    </p>
-                                </motion.div>
-                            )}
-
-                        </AnimatePresence>
-
-                        <div className="flex items-center justify-between mt-6 pt-4 border-t border-border">
-                            <Button
-                                variant="ghost"
-                                size="sm"
-                                onClick={() => setStep(step - 1)}
-                                disabled={step === 0}
-                                className="text-xs"
-                            >
-                                <ArrowLeft className="h-3.5 w-3.5 mr-1" /> Back
-                            </Button>
-
-                            {step < totalSteps - 1 ? (
-                                <Button
-                                    size="sm"
-                                    onClick={() => setStep(step + 1)}
-                                    disabled={!canProceed()}
-                                    className="bg-primary text-primary-foreground hover:bg-primary/90 text-xs"
-                                >
-                                    Continue <ArrowRight className="h-3.5 w-3.5 ml-1" />
-                                </Button>
-                            ) : (
-                                <Button
-                                    size="sm"
-                                    onClick={handleOnboardingComplete}
-                                    disabled={!canProceed()}
-                                    className="bg-primary text-primary-foreground hover:bg-primary/90 text-xs"
-                                >
-                                    <Rocket className="h-3.5 w-3.5 mr-1" /> Complete Setup
-                                </Button>
-                            )}
-                        </div>
-                    </CardContent>
-                </Card>
-            </motion.div>
+          <Card className='border-border/70'>
+            <CardHeader>
+              <CardTitle className='text-base flex items-center gap-2'>
+                <SkipForward className='h-4 w-4 text-primary' /> Skip For Now
+              </CardTitle>
+            </CardHeader>
+            <CardContent className='space-y-4'>
+              <p className='text-sm text-muted-foreground'>
+                You can complete your details manually later in My Info. No questions are required during onboarding.
+              </p>
+              <Button variant='outline' className='w-full' onClick={handleSkip} disabled={loading}>
+                Continue Without Resume
+              </Button>
+            </CardContent>
+          </Card>
         </div>
-    );
+      </div>
+    </div>
+  );
 }

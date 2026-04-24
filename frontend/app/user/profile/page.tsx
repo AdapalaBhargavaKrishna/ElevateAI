@@ -145,7 +145,7 @@ export default function ProfilePage() {
                 <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
                     <div>
                         <h1 className="text-2xl sm:text-3xl font-bold text-foreground">My Profile</h1>
-                        <p className="text-sm text-muted-foreground mt-1">Your complete developer identity for recruiters and AI insights</p>
+                        <p className="text-sm text-muted-foreground mt-1">Your complete developer identity for portfolio and AI insights</p>
                     </div>
                     <div className="flex gap-2">
                         <Button variant="outline" size="sm" className="gap-1.5" onClick={handlePreview}>
@@ -290,7 +290,7 @@ export default function ProfilePage() {
                                     {!userInfo?.bio && (
                                         <div className="mt-4 rounded-lg border border-dashed border-border bg-muted/20 p-3">
                                             <p className="text-xs text-muted-foreground">
-                                                Add a short bio to help recruiters understand your strengths and interests.
+                                                Add a short bio to help collaborators understand your strengths and interests.
                                             </p>
                                         </div>
                                     )}

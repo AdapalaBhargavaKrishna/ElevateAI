@@ -110,9 +110,9 @@ export default function ResumeAnalyzerPage() {
     const willPass     = result?.ats?.will_pass_ats;
 
     const breakdown     = result?.score?.breakdown ?? {};
-    const atsBreakdown  = result?.ats?.breakdown ?? {};
-    const atsFoundKeywords = Array.from(new Set((atsBreakdown?.keywords?.found_keywords ?? []).map((k: string) => k.toLowerCase())));
-    const atsMissingKeywords = Array.from(new Set((atsBreakdown?.keywords?.missing_keywords ?? []).map((k: string) => k.toLowerCase())));
+    const atsBreakdown: any = result?.ats?.breakdown ?? {};
+    const atsFoundKeywords: string[] = Array.from(new Set((atsBreakdown?.keywords?.found_keywords ?? []).map((k: string) => k.toLowerCase())));
+    const atsMissingKeywords: string[] = Array.from(new Set((atsBreakdown?.keywords?.missing_keywords ?? []).map((k: string) => k.toLowerCase())));
 
     const deductions      = result?.score?.deductions ?? [];
     const recommendations = result?.ats?.recommendations ?? [];

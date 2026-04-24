@@ -60,10 +60,16 @@ async function aiGetSummary(userId, payload) {
         body: payload,
     });
 }
-async function aiAnalyzeResumeFile(userId, fileBuffer, filename, mimetype) {
+async function aiAnalyzeResumeFile(userId, fileBuffer, filename, mimetype, targetRole, jobDescription) {
     const formData = new FormData();
     const blob = new Blob([new Uint8Array(fileBuffer)], { type: mimetype });
     formData.append("file", blob, filename);
+    if (targetRole) {
+        formData.append("target_role", targetRole);
+    }
+    if (jobDescription) {
+        formData.append("job_description", jobDescription);
+    }
     const res = await fetch(`${AI_SERVICE_URL}/resume/analyze-file`, {
         method: "POST",
         headers: {
@@ -78,7 +84,7 @@ async function aiAnalyzeResumeFile(userId, fileBuffer, filename, mimetype) {
     }
     return res.json();
 }
-async function aiAnalyzeResumeText(userId, resumeText) {
+async function aiAnalyzeResumeText(userId, resumeText, targetRole, jobDescription) {
     const res = await fetch(`${AI_SERVICE_URL}/resume/analyze-text`, {
         method: "POST",
         headers: {
@@ -86,7 +92,11 @@ async function aiAnalyzeResumeText(userId, resumeText) {
             "X-User-Id": userId,
             "X-Internal-Key": INTERNAL_KEY,
         },
-        body: JSON.stringify({ resume_text: resumeText }),
+        body: JSON.stringify({
+            resume_text: resumeText,
+            target_role: targetRole,
+            job_description: jobDescription,
+        }),
     });
     if (!res.ok) {
         const error = await res.text();

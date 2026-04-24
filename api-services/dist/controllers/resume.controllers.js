@@ -69,11 +69,13 @@ async function analyzeResumeFile(req, res) {
     try {
         const userId = req.userId;
         const file = req.file;
+        const targetRole = typeof req.body?.targetRole === "string" ? req.body.targetRole.trim() : "";
+        const jobDescription = typeof req.body?.jobDescription === "string" ? req.body.jobDescription.trim() : "";
         if (!file) {
             return res.status(400).json({ message: "No file uploaded." });
         }
         // 1. Call Python AI service (same server, port 8000)
-        const aiResult = await (0, fastapi_service_1.aiAnalyzeResumeFile)(userId, file.buffer, file.originalname, file.mimetype);
+        const aiResult = await (0, fastapi_service_1.aiAnalyzeResumeFile)(userId, file.buffer, file.originalname, file.mimetype, targetRole || undefined, jobDescription || undefined);
         // 2. Save to Supabase via Prisma
         const saved = await saveResumeAnalysis(userId, aiResult, file.originalname);
         // 3. Return to frontend
@@ -94,11 +96,11 @@ async function analyzeResumeFile(req, res) {
 async function analyzeResumeText(req, res) {
     try {
         const userId = req.userId;
-        const { resumeText } = req.body;
+        const { resumeText, targetRole, jobDescription } = req.body;
         if (!resumeText) {
             return res.status(400).json({ message: "resumeText is required." });
         }
-        const aiResult = await (0, fastapi_service_1.aiAnalyzeResumeText)(userId, resumeText);
+        const aiResult = await (0, fastapi_service_1.aiAnalyzeResumeText)(userId, resumeText, typeof targetRole === "string" ? targetRole.trim() || undefined : undefined, typeof jobDescription === "string" ? jobDescription.trim() || undefined : undefined);
         const saved = await saveResumeAnalysis(userId, aiResult);
         return res.status(200).json({
             analysisId: saved.id,
