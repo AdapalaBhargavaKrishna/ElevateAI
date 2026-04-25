@@ -92,6 +92,10 @@ You are a resume parser. Extract and structure the following resume into JSON wi
 IMPORTANT RULES:
 - Do NOT mix projects into experience.
 - Do NOT mix coding profiles into skills.
+- For each project, always include a non-empty "title" using the heading/project name from resume text.
+- For each project, keep "technologies" as an array of strings.
+- If project has a link label like "GitHub" or "Live", still return the URL in "link" when visible.
+- Extract all profile/contact links listed in header/footer (GitHub, LinkedIn, LeetCode, portfolio) into coding_profiles.
 - If no work experience, set "experience" to null.
 - If no projects, set "projects" to null.
 - If no achievements, set "achievements" to null.

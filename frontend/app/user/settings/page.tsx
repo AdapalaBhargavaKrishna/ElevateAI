@@ -1,9 +1,12 @@
 'use client';
 
 import React, { useState } from 'react';
+import { useRouter } from 'next/navigation';
 import { motion } from "framer-motion";
-import { User, Bell, Shield, Palette, Globe, Moon, Sun, Mail, Key, CreditCard } from "lucide-react";
+import { AlertTriangle, User, Shield } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { api } from '@/app/lib/axios';
+import toast from 'react-hot-toast';
 
 const Input = ({ className = "", ...props }: React.InputHTMLAttributes<HTMLInputElement>) => {
     return (
@@ -104,12 +107,16 @@ const settingSections: SettingSection[] = [
 
 
 export default function SettingsPage() {
+    const router = useRouter();
     const [profileData, setProfileData] = useState({
         fullName: "Bhargava Krishna",
         email: "bk.adapala@email.com",
         careerGoal: "Student",
         phone: "+91 93902 44436",
     });
+    const [showDeleteWarning, setShowDeleteWarning] = useState(false);
+    const [deleteConfirmText, setDeleteConfirmText] = useState('');
+    const [isDeleting, setIsDeleting] = useState(false);
 
     const handleProfileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
         const { name, value } = e.target;
@@ -122,6 +129,26 @@ export default function SettingsPage() {
 
     const handleSaveSecurity = () => {
         console.log("Security settings saved");
+    };
+
+    const canDelete = deleteConfirmText.trim().toUpperCase() === 'DELETE';
+
+    const handleDeleteAccount = async () => {
+        if (!canDelete) {
+            toast.error('Type DELETE to confirm account deletion.');
+            return;
+        }
+
+        try {
+            setIsDeleting(true);
+            await api.delete('/auth/account');
+            toast.success('Your account has been deleted.');
+            router.replace('/login');
+        } catch {
+            toast.error('Could not delete account right now. Please try again.');
+        } finally {
+            setIsDeleting(false);
+        }
     };
 
     return (
@@ -182,15 +209,62 @@ export default function SettingsPage() {
                     className="bg-card border border-destructive/20 rounded-xl p-5"
                 >
                     <h3 className="text-sm font-semibold text-destructive flex items-center gap-2 mb-2">
+                        <AlertTriangle className="h-4 w-4" />
                         Danger Zone
                     </h3>
                     <p className="text-xs text-muted-foreground mb-4">
                         Once you delete your account, there is no going back. Please be certain.
                     </p>
 
-                    <Button variant="outline" size="sm" className="h-8 text-xs border-destructive/30 text-destructive hover:bg-destructive/10">
+                    <Button
+                        variant="outline"
+                        size="sm"
+                        className="h-8 text-xs border-destructive/30 text-destructive hover:bg-destructive/10"
+                        onClick={() => setShowDeleteWarning((prev) => !prev)}
+                        disabled={isDeleting}
+                    >
                         Delete Account
                     </Button>
+
+                    {showDeleteWarning && (
+                        <div className="mt-4 rounded-lg border border-destructive/30 bg-destructive/5 p-4 space-y-3">
+                            <p className="text-xs text-destructive font-medium">
+                                This will permanently remove your profile, interviews, resume analyses, roadmaps, and all related data.
+                            </p>
+                            <div className="space-y-1">
+                                <Label className="text-xs text-muted-foreground">Type DELETE to confirm</Label>
+                                <Input
+                                    value={deleteConfirmText}
+                                    onChange={(e) => setDeleteConfirmText(e.target.value)}
+                                    placeholder="DELETE"
+                                    className="bg-background"
+                                    disabled={isDeleting}
+                                />
+                            </div>
+                            <div className="flex gap-2">
+                                <Button
+                                    size="sm"
+                                    className="h-8 text-xs bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                                    onClick={handleDeleteAccount}
+                                    disabled={!canDelete || isDeleting}
+                                >
+                                    {isDeleting ? 'Deleting...' : 'Permanently Delete'}
+                                </Button>
+                                <Button
+                                    variant="outline"
+                                    size="sm"
+                                    className="h-8 text-xs"
+                                    onClick={() => {
+                                        setShowDeleteWarning(false);
+                                        setDeleteConfirmText('');
+                                    }}
+                                    disabled={isDeleting}
+                                >
+                                    Cancel
+                                </Button>
+                            </div>
+                        </div>
+                    )}
 
                 </motion.div>
 

@@ -129,6 +129,13 @@ export default function ProfilePage() {
         userInfo?.website,
     ].filter(Boolean).length;
 
+    const socialLinks = [
+        { icon: Github, label: "GitHub", href: userInfo?.github },
+        { icon: Linkedin, label: "LinkedIn", href: userInfo?.linkedin },
+        { icon: Code, label: "LeetCode", href: userInfo?.leetcode },
+        { icon: Globe, label: "Website", href: userInfo?.website },
+    ].filter((link) => Boolean(link.href));
+
     if (loading) {
         return (
             <div className="min-h-screen bg-background flex items-center justify-center">
@@ -308,35 +315,18 @@ export default function ProfilePage() {
                                     </div>
 
                                     {/* Links */}
-                                    <div className="flex flex-wrap gap-2 mt-4">
-                                        {userInfo?.github && (
-                                            <a href={userInfo.github} target="_blank" rel="noopener noreferrer">
-                                                <Button variant="outline" size="sm" className="h-8 px-3 gap-1.5 text-xs">
-                                                    <Github className="h-3.5 w-3.5" /> GitHub
+                                    <div className="flex flex-wrap gap-3 mt-4">
+                                        {socialLinks.map((social) => (
+                                            <a key={social.label} href={social.href} target="_blank" rel="noopener noreferrer">
+                                                <Button
+                                                    variant="outline"
+                                                    size="sm"
+                                                    className="h-10 px-4 rounded-full gap-2 text-sm border-border/50 bg-background/50 hover:bg-primary hover:text-primary-foreground hover:border-primary transition-all duration-300"
+                                                >
+                                                    <social.icon className="h-4 w-4" /> {social.label}
                                                 </Button>
                                             </a>
-                                        )}
-                                        {userInfo?.linkedin && (
-                                            <a href={userInfo.linkedin} target="_blank" rel="noopener noreferrer">
-                                                <Button variant="outline" size="sm" className="h-8 px-3 gap-1.5 text-xs">
-                                                    <Linkedin className="h-3.5 w-3.5" /> LinkedIn
-                                                </Button>
-                                            </a>
-                                        )}
-                                        {userInfo?.leetcode && (
-                                            <a href={userInfo.leetcode} target="_blank" rel="noopener noreferrer">
-                                                <Button variant="outline" size="sm" className="h-8 px-3 gap-1.5 text-xs">
-                                                    <Code className="h-3.5 w-3.5" /> LeetCode
-                                                </Button>
-                                            </a>
-                                        )}
-                                        {userInfo?.website && (
-                                            <a href={userInfo.website} target="_blank" rel="noopener noreferrer">
-                                                <Button variant="outline" size="sm" className="h-8 px-3 gap-1.5 text-xs">
-                                                    <Globe className="h-3.5 w-3.5" /> Website
-                                                </Button>
-                                            </a>
-                                        )}
+                                        ))}
                                     </div>
                                 </div>
                             </div>

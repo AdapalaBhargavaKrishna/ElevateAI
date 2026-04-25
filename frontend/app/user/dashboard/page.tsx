@@ -106,7 +106,7 @@ export default function DashboardPage() {
           >
             <Card className='relative overflow-hidden group bg-card/40 backdrop-blur-xl border-border/50 hover:shadow-lg hover:border-primary/30 transition-all duration-300'>
               <div className='absolute inset-0 bg-gradient-to-br from-primary/5 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500' />
-              <CardContent className='p-5 relative z-10'>
+              <CardContent className='relative z-10'>
                 <div className='flex items-center justify-between'>
                   <div className='h-12 w-12 rounded-xl bg-primary/10 flex items-center justify-center group-hover:scale-110 group-hover:bg-primary/20 transition-all duration-300'>
                     <item.icon className='h-6 w-6 text-primary' />
@@ -198,8 +198,8 @@ export default function DashboardPage() {
 
       <div className='grid grid-cols-1 sm:grid-cols-3 gap-4'>
         <button onClick={() => router.push('/user/interview')} className='text-left group'>
-          <Card className='h-full bg-card/40 backdrop-blur-md border-border/50 hover:border-primary/50 hover:shadow-md transition-all duration-300 group-hover:-translate-y-1'>
-            <CardContent className='p-5 flex flex-col h-full'>
+          <Card className='bg-card/40 backdrop-blur-md border-border/50 hover:border-primary/50 hover:shadow-md transition-all duration-300 group-hover:-translate-y-1'>
+            <CardContent className=' flex flex-col h-full'>
               <div className='h-10 w-10 rounded-lg bg-primary/10 flex items-center justify-center mb-4 group-hover:bg-primary group-hover:text-primary-foreground transition-colors'>
                 <Mic className='h-5 w-5 text-primary group-hover:text-primary-foreground transition-colors' />
               </div>
@@ -210,8 +210,8 @@ export default function DashboardPage() {
           </Card>
         </button>
         <button onClick={() => router.push('/user/resume')} className='text-left group'>
-          <Card className='h-full bg-card/40 backdrop-blur-md border-border/50 hover:border-primary/50 hover:shadow-md transition-all duration-300 group-hover:-translate-y-1'>
-            <CardContent className='p-5 flex flex-col h-full'>
+          <Card className='bg-card/40 backdrop-blur-md border-border/50 hover:border-primary/50 hover:shadow-md transition-all duration-300 group-hover:-translate-y-1'>
+            <CardContent className='flex flex-col h-full'>
               <div className='h-10 w-10 rounded-lg bg-primary/10 flex items-center justify-center mb-4 group-hover:bg-primary group-hover:text-primary-foreground transition-colors'>
                 <FileText className='h-5 w-5 text-primary group-hover:text-primary-foreground transition-colors' />
               </div>
@@ -222,8 +222,8 @@ export default function DashboardPage() {
           </Card>
         </button>
         <button onClick={() => router.push('/user/roadmap')} className='text-left group'>
-          <Card className='h-full bg-card/40 backdrop-blur-md border-border/50 hover:border-primary/50 hover:shadow-md transition-all duration-300 group-hover:-translate-y-1'>
-            <CardContent className='p-5 flex flex-col h-full'>
+          <Card className='bg-card/40 backdrop-blur-md border-border/50 hover:border-primary/50 hover:shadow-md transition-all duration-300 group-hover:-translate-y-1'>
+            <CardContent className='flex flex-col h-full'>
               <div className='h-10 w-10 rounded-lg bg-primary/10 flex items-center justify-center mb-4 group-hover:bg-primary group-hover:text-primary-foreground transition-colors'>
                 <BookOpen className='h-5 w-5 text-primary group-hover:text-primary-foreground transition-colors' />
               </div>

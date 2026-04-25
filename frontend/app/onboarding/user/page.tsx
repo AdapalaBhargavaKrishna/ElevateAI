@@ -4,7 +4,17 @@ import { useMemo, useState } from 'react';
 import Image from 'next/image';
 import { useRouter } from 'next/navigation';
 import { motion } from 'framer-motion';
-import { CheckCircle2, FileUp, Loader2, SkipForward, Sparkles } from 'lucide-react';
+import {
+  CheckCircle2,
+  FileUp,
+  Loader2,
+  SkipForward,
+  Sparkles,
+  ShieldCheck,
+  Rocket,
+  WandSparkles,
+  ArrowRight,
+} from 'lucide-react';
 import toast from 'react-hot-toast';
 
 import { api } from '@/app/lib/axios';
@@ -12,24 +22,10 @@ import { resumeApi } from '@/app/lib/resume.api';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 
-type GenericRecord = Record<string, unknown>;
-
-function parseArray(value: unknown): unknown[] {
-  if (Array.isArray(value)) return value;
-  return [];
-}
-
-function asRecord(value: unknown): GenericRecord {
-  if (typeof value === 'object' && value !== null) {
-    return value as GenericRecord;
-  }
-  return {};
-}
-
 export default function OnboardingUserPage() {
   const router = useRouter();
   const [file, setFile] = useState<File | null>(null);
-  const [loading, setLoading] = useState(false);
+  const [loadingAction, setLoadingAction] = useState<'upload' | 'skip' | null>(null);
 
   const fileName = useMemo(() => file?.name || '', [file]);
 
@@ -46,14 +42,14 @@ export default function OnboardingUserPage() {
 
   const handleSkip = async () => {
     try {
-      setLoading(true);
+      setLoadingAction('skip');
       await completeOnboardingOnly();
-      toast.success('Onboarding skipped. You can add details later in My Info.');
+      toast.success('Onboarding skipped. You can still import your resume in My Info.');
       router.replace('/user/myinfo');
     } catch {
       toast.error('Unable to complete onboarding right now.');
     } finally {
-      setLoading(false);
+      setLoadingAction(null);
     }
   };
 
@@ -64,94 +60,25 @@ export default function OnboardingUserPage() {
     }
 
     try {
-      setLoading(true);
-      const analysis = await resumeApi.analyzeFile(file);
-      const parsed = analysis.parsed_resume || {};
-
-      const skills = parseArray(parsed.skills)
-        .map((s) => (typeof s === 'string' ? s.trim() : ''))
-        .filter(Boolean);
-
-      const experiences = parseArray(parsed.experience).map((exp) => {
-        const item = asRecord(exp);
-        return {
-          company: String(item.company ?? ''),
-          role: String(item.role ?? item.title ?? ''),
-          from: String(item.from ?? item.start ?? ''),
-          to: String(item.to ?? item.end ?? ''),
-          location: String(item.location ?? ''),
-          description: String(item.description ?? ''),
-          current: Boolean(item.current),
-        };
-      });
-
-      const education = parseArray(parsed.education).map((edu) => {
-        const item = asRecord(edu);
-        return {
-          institution: String(item.institution ?? item.school ?? ''),
-          degree: String(item.degree ?? ''),
-          field: String(item.field ?? item.major ?? ''),
-          from: String(item.from ?? item.start ?? ''),
-          to: String(item.to ?? item.end ?? ''),
-          grade: String(item.grade ?? ''),
-        };
-      });
-
-      const projects = parseArray(parsed.projects).map((project) => {
-        const item = asRecord(project);
-        const stack = item.techStack;
-        return {
-          name: String(item.name ?? ''),
-          description: String(item.description ?? ''),
-          techStack: Array.isArray(stack) ? stack.join(', ') : String(stack ?? ''),
-          liveUrl: String(item.liveUrl ?? ''),
-          repoUrl: String(item.repoUrl ?? ''),
-        };
-      });
-
-      const certifications = parseArray(parsed.certifications).map((cert) => {
-        const item = asRecord(cert);
-        return {
-          name: String(item.name ?? ''),
-          issuer: String(item.issuer ?? ''),
-          year: String(item.year ?? ''),
-          credentialUrl: String(item.credentialUrl ?? ''),
-        };
-      });
-
-      await api.post('/user-info/save', {
-        phone: parsed.phone || '',
-        location: parsed.location || '',
-        bio: parsed.summary || '',
-        careerGoal: '',
-        currentRole: '',
-        yearsOfExp: '',
-        website: '',
-        github: '',
-        linkedin: '',
-        leetcode: '',
-        skills,
-        experiences,
-        education,
-        projects,
-        certifications,
-      });
-
+      setLoadingAction('upload');
+      await resumeApi.importToUserInfo(file);
       await completeOnboardingOnly();
 
-      toast.success('Resume imported. Your My Info is pre-filled.');
+      toast.success('Resume imported. Your My Info is now pre-filled.');
       router.replace('/user/myinfo');
     } catch {
       toast.error('Resume import failed. You can skip and fill manually later.');
     } finally {
-      setLoading(false);
+      setLoadingAction(null);
     }
   };
 
+  const isBusy = loadingAction !== null;
+
   return (
-    <div className='min-h-screen bg-background px-4 py-10'>
-      <div className='max-w-3xl mx-auto space-y-6'>
-        <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className='text-center space-y-3'>
+    <div className='relative min-h-screen overflow-hidden bg-[radial-gradient(circle_at_20%_20%,rgba(16,185,129,0.10),transparent_35%),radial-gradient(circle_at_80%_0%,rgba(59,130,246,0.10),transparent_30%),linear-gradient(to_bottom,#ffffff,#f8fafc)] dark:bg-[radial-gradient(circle_at_20%_20%,rgba(16,185,129,0.16),transparent_38%),radial-gradient(circle_at_80%_0%,rgba(59,130,246,0.16),transparent_34%),linear-gradient(to_bottom,#0b1220,#0a0f1a)] px-4 py-10'>
+      <div className='max-w-6xl mx-auto space-y-7'>
+        <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} className='text-center space-y-3'>
           <Image
             src='/logo.png'
             alt='ElevateAI'
@@ -159,60 +86,102 @@ export default function OnboardingUserPage() {
             height={44}
             className='mx-auto invert dark:invert-0 object-contain'
           />
-          <h1 className='text-3xl font-bold'>Set up your profile (optional)</h1>
-          <p className='text-muted-foreground'>
-            Upload your resume to auto-extract skills, education, and experience directly into My Info.
+          <h1 className='text-3xl md:text-4xl font-bold tracking-tight'>Build your profile in under a minute</h1>
+          <p className='text-muted-foreground max-w-2xl mx-auto'>
+            Import resume details instantly or skip for now. You can always upload later from My Info.
           </p>
         </motion.div>
 
-        <div className='grid grid-cols-1 md:grid-cols-2 gap-4'>
-          <Card className='border-border/70'>
+        <div className='grid grid-cols-1 lg:grid-cols-5 gap-5'>
+          <Card className='border-border/60 lg:col-span-2 bg-card/75 backdrop-blur-sm'>
             <CardHeader>
               <CardTitle className='text-base flex items-center gap-2'>
-                <FileUp className='h-4 w-4 text-primary' /> Resume Upload (Recommended)
+                <Rocket className='h-4 w-4 text-primary' /> Why import now?
               </CardTitle>
             </CardHeader>
             <CardContent className='space-y-4'>
-              <label className='block border border-dashed border-border rounded-xl p-4 text-center cursor-pointer hover:border-primary/50 transition-colors'>
+              <div className='grid grid-cols-1 gap-3'>
+                <div className='rounded-xl border border-border/60 p-3 bg-background/60'>
+                  <div className='flex items-center gap-2 text-sm font-medium'>
+                    <WandSparkles className='h-4 w-4 text-primary' /> Auto-fills major sections
+                  </div>
+                  <p className='text-xs text-muted-foreground mt-1'>Projects, skills, education, links, and certifications.</p>
+                </div>
+                <div className='rounded-xl border border-border/60 p-3 bg-background/60'>
+                  <div className='flex items-center gap-2 text-sm font-medium'>
+                    <ShieldCheck className='h-4 w-4 text-primary' /> You stay in control
+                  </div>
+                  <p className='text-xs text-muted-foreground mt-1'>Review and edit everything in My Info before interviews.</p>
+                </div>
+              </div>
+
+              <div className='rounded-xl border border-dashed border-border/70 p-4 bg-muted/40'>
+                <p className='text-xs text-muted-foreground uppercase tracking-wide'>What gets imported</p>
+                <div className='mt-2 flex flex-wrap gap-2'>
+                  {['Skills', 'Projects', 'Experience', 'Education', 'Certifications', 'Profile Links'].map((chip) => (
+                    <span key={chip} className='text-xs rounded-full border border-border px-2.5 py-1 bg-background/80'>
+                      {chip}
+                    </span>
+                  ))}
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+
+          <div className='lg:col-span-3 grid grid-cols-1 md:grid-cols-2 gap-4'>
+            <Card className='border-border/70 bg-card/80 backdrop-blur-sm'>
+              <CardHeader>
+                <CardTitle className='text-base flex items-center gap-2'>
+                  <FileUp className='h-4 w-4 text-primary' /> Resume Upload (Recommended)
+                </CardTitle>
+              </CardHeader>
+              <CardContent className='space-y-4'>
+                <label className='block border border-dashed border-border rounded-xl p-4 text-center cursor-pointer hover:border-primary/50 transition-colors'>
                 <input
                   type='file'
                   className='hidden'
                   accept='.pdf,.doc,.docx,application/pdf,application/vnd.openxmlformats-officedocument.wordprocessingml.document'
                   onChange={(e) => setFile(e.target.files?.[0] || null)}
-                  disabled={loading}
+                  disabled={isBusy}
                 />
                 <p className='text-sm font-medium'>Choose PDF or DOCX</p>
                 <p className='text-xs text-muted-foreground mt-1'>Max 10MB</p>
-              </label>
+                </label>
 
-              {fileName && (
-                <div className='rounded-lg bg-muted p-3 flex items-center gap-2'>
-                  <CheckCircle2 className='h-4 w-4 text-primary' />
-                  <span className='text-sm truncate'>{fileName}</span>
-                </div>
-              )}
+                {fileName && (
+                  <div className='rounded-lg bg-muted p-3 flex items-center gap-2'>
+                    <CheckCircle2 className='h-4 w-4 text-primary' />
+                    <span className='text-sm truncate'>{fileName}</span>
+                  </div>
+                )}
 
-              <Button className='w-full gap-2' onClick={handleUploadAndContinue} disabled={loading || !file}>
-                {loading ? <Loader2 className='h-4 w-4 animate-spin' /> : <Sparkles className='h-4 w-4' />} Upload And Continue
-              </Button>
-            </CardContent>
-          </Card>
+                <Button className='w-full gap-2' onClick={handleUploadAndContinue} disabled={isBusy || !file}>
+                  {loadingAction === 'upload' ? <Loader2 className='h-4 w-4 animate-spin' /> : <Sparkles className='h-4 w-4' />}
+                  Upload, Import, And Continue
+                </Button>
+              </CardContent>
+            </Card>
 
-          <Card className='border-border/70'>
-            <CardHeader>
-              <CardTitle className='text-base flex items-center gap-2'>
-                <SkipForward className='h-4 w-4 text-primary' /> Skip For Now
-              </CardTitle>
-            </CardHeader>
-            <CardContent className='space-y-4'>
-              <p className='text-sm text-muted-foreground'>
-                You can complete your details manually later in My Info. No questions are required during onboarding.
-              </p>
-              <Button variant='outline' className='w-full' onClick={handleSkip} disabled={loading}>
-                Continue Without Resume
-              </Button>
-            </CardContent>
-          </Card>
+            <Card className='border-border/70 bg-card/80 backdrop-blur-sm'>
+              <CardHeader>
+                <CardTitle className='text-base flex items-center gap-2'>
+                  <SkipForward className='h-4 w-4 text-primary' /> Skip For Now
+                </CardTitle>
+              </CardHeader>
+              <CardContent className='space-y-4'>
+                <p className='text-sm text-muted-foreground'>
+                  No mandatory questions here. Continue directly and fill details manually.
+                </p>
+                <Button variant='outline' className='w-full gap-2' onClick={handleSkip} disabled={isBusy}>
+                  {loadingAction === 'skip' ? <Loader2 className='h-4 w-4 animate-spin' /> : <ArrowRight className='h-4 w-4' />}
+                  Continue Without Resume
+                </Button>
+                <p className='text-xs text-muted-foreground'>
+                  You can still upload later in My Info using the <span className='font-medium'>Import Resume</span> action.
+                </p>
+              </CardContent>
+            </Card>
+          </div>
         </div>
       </div>
     </div>

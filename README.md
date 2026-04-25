@@ -1,5 +1,5 @@
 # Start AI Services
-Start-Process powershell -ArgumentList "cd ai-services; .\venv\Scripts\activate; uvicorn app.main:app --port 8000 --reload"
+Start-Process powershell -ArgumentList "cd ai-services; .\venv\Scripts\activate; python -m uvicorn app.main:app --port 8000 --reload"
 
 # Start API Services
 Start-Process powershell -ArgumentList "cd api-services; npm run dev"

@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
+import { useRouter } from 'next/navigation';
 import { motion, AnimatePresence } from "framer-motion";
 import {
     User, Briefcase, GraduationCap, Code, Award, FolderOpen, Globe,
@@ -116,6 +117,7 @@ const ProfileSkeleton = () => (
 );
 
 export default function MyInfoPage() {
+    const router = useRouter();
     const [loading, setLoading] = useState(true);
     const [saveStatus, setSaveStatus] = useState<"saved" | "unsaved" | "saving">("saved");
     const [lastSaved, setLastSaved] = useState<Date>(new Date());
@@ -324,6 +326,14 @@ export default function MyInfoPage() {
                         <p className="text-sm text-muted-foreground mt-1 font-medium">Your career profile powering AI insights</p>
                     </div>
                     <div className="flex items-center gap-2 self-end sm:self-auto">
+                        <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => router.push('/onboarding/user')}
+                            className="transition-all"
+                        >
+                            <Sparkles className="h-4 w-4 mr-1.5" />Import Resume
+                        </Button>
                         <Tooltip>
                             <TooltipTrigger asChild>
                                 <Button variant="outline" size="sm" onClick={handleUndo} disabled={saveStatus === "saved"} className="transition-all">

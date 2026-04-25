@@ -172,3 +172,21 @@ export const completeOnboarding = async (req: Request, res: Response) => {
 
     return res.status(200).json({ message: "Onboarding complete." });
 };
+
+export async function deleteAccount(req: Request, res: Response) {
+    try {
+        const userId = (req as any).userId as string;
+
+        await prisma.user.delete({
+            where: { id: userId },
+        });
+
+        res.clearCookie("access_token", COOKIE_OPTIONS);
+        res.clearCookie("refresh_token", COOKIE_OPTIONS);
+
+        return res.status(200).json({ message: "Account deleted successfully." });
+    } catch (err) {
+        console.error("Delete Account Error:", err);
+        return res.status(500).json({ message: "Something went wrong, Please try again" });
+    }
+}

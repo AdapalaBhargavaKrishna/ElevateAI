@@ -1,6 +1,6 @@
 import { Router } from "express";
 import passport from "../utils/passport";
-import { signup, login, logout, refresh, me, googleCallback, completeOnboarding } from "../controllers/auth.controllers";
+import { signup, login, logout, refresh, me, googleCallback, completeOnboarding, deleteAccount } from "../controllers/auth.controllers";
 import { requireAuth } from "../middleware/auth.middleware";
 
 const router = Router();
@@ -11,6 +11,7 @@ router.post("/logout", logout);
 router.post("/refresh", refresh);
 router.get("/me", requireAuth, me);
 router.post("/onboarding/complete", requireAuth, completeOnboarding)
+router.delete("/account", requireAuth, deleteAccount);
 
 // Google OAuth
 router.get("/google", passport.authenticate("google", {

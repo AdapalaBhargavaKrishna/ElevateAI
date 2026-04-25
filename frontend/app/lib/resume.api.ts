@@ -78,6 +78,19 @@ export const resumeApi = {
         return response.data;
     },
 
+    importToUserInfo: async (file: File): Promise<{
+        message: string;
+        parsed_resume: ResumeAnalysis['parsed_resume'];
+        importedProfile: Record<string, unknown>;
+    }> => {
+        const formData = new FormData();
+        formData.append("file", file);
+        const response = await api.post('/user-info/import-resume', formData, {
+            headers: { 'Content-Type': 'multipart/form-data' },
+        });
+        return response.data;
+    },
+
     // Paste resume as plain text
     analyzeText: async (resumeText: string, context?: ResumeAnalysisContext): Promise<ResumeAnalysis> => {
         const response = await api.post('/resume/analyze-text', {
