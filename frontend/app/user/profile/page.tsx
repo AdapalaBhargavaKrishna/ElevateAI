@@ -95,7 +95,7 @@ export default function ProfilePage() {
         }
 
         try {
-            await navigator.clipboard.writeText(`localhost:3000/profile/${me.id}`);
+            await navigator.clipboard.writeText(`https://elevateai-career.vercel.app/profile/${me.id}`);
         } catch (err) {
             console.error("Copy profile link failed:", err);
         }
