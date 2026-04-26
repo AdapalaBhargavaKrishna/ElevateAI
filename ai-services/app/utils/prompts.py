@@ -353,6 +353,10 @@ Rules:
    Arrays, Strings, Trees, Graphs, DP, Hashmaps, Sorting, Binary Search, Linked Lists, Stacks, Queues, Recursion
 5. Include at least 3 test cases per problem.
 6. boilerplate_js and boilerplate_python must include only function signature + placeholder comment.
+7. "input" in every test case MUST always be a JSON array of positional arguments in the exact order the function receives them.
+   Example: for twoSum(nums, target), use "input": [[1,2,3], 9].
+8. NEVER use a dict/object for "input". NEVER use named keys in "input".
+9. "difficulty" must be exactly one of: "easy", "medium", "hard" (lowercase only). Never use values like "Difficulty.easy".
 
 Return ONLY valid JSON. No markdown. No explanation.
 

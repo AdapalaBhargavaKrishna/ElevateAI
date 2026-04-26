@@ -111,7 +111,7 @@ export interface DSAQuestion {
     constraints: string[];
     boilerplate_js: string;
     boilerplate_python: string;
-    test_cases: Array<{ input: unknown[]; expected_output: unknown }>;
+    test_cases: Array<{ input: unknown; expected_output: unknown }>;
     hint_level_1: string;
     hint_level_2: string;
     category: string;

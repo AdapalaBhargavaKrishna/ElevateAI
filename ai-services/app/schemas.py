@@ -136,7 +136,7 @@ class DSAExample(BaseModel):
 
 
 class DSATestCase(BaseModel):
-    input: List[Any]
+    input: Any
     expected_output: Any
 
 

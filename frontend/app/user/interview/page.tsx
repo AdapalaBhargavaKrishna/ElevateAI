@@ -7,7 +7,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import {
     Mic, Play, History, Settings, Users, Brain, Target, ListChecks, X,
     Zap, GraduationCap, Code2, ChevronRight, Network, Heart, Cpu,
-    Database, Cloud, Shield, Smartphone, BarChart2, Boxes, GitBranch, Wrench
+    Database, Cloud, Shield, Smartphone, BarChart2, Boxes, GitBranch, Wrench, Loader2
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import Link from "next/link";
@@ -109,6 +109,7 @@ export default function InterviewCoachPage() {
     const [selectedBehavTopic, setSelectedBehavTopic] = useState("behavioral");
     const [sessionMode, setSessionMode] = useState("interview");
     const [config, setConfig] = useState({ level: "mid", difficulty: "medium", questionCount: 3 });
+    const [isStarting, setIsStarting] = useState(false);
 
     const isDsa = categoryType === "technical" && selectedDomain === "dsa";
     const activeQuestionCounts = isDsa ? dsaQuestionCounts : defaultQuestionCounts;
@@ -135,8 +136,10 @@ export default function InterviewCoachPage() {
     };
 
     const handleStart = async () => {
-        if (categoryType === "technical" && selectedDomain === "dsa") {
-            try {
+        if (isStarting) return;
+        setIsStarting(true);
+        try {
+            if (categoryType === "technical" && selectedDomain === "dsa") {
                 const response = await interviewApi.dsaStart({
                     role: getEffectiveRole(),
                     level: config.level,
@@ -145,27 +148,47 @@ export default function InterviewCoachPage() {
                     timerEnabled: false,
                     timePerQuestion: null,
                 });
-                router.push(`/user/interview/dsa-session?sessionId=${encodeURIComponent(response.sessionId)}`);
+                const accessToken =
+                    typeof crypto !== "undefined" && typeof crypto.randomUUID === "function"
+                        ? crypto.randomUUID()
+                        : Math.random().toString(36).slice(2);
+
+                sessionStorage.setItem(
+                    "elevate_dsa_playground_access",
+                    JSON.stringify({
+                        token: accessToken,
+                        createdAt: Date.now(),
+                        questionCount: response.questions?.length ?? config.questionCount,
+                        level: config.level,
+                        difficulty: config.difficulty,
+                        sessionMode: "interview",
+                        sessionId: response.sessionId,
+                        questions: response.questions,
+                    })
+                );
+
+                router.push(`/user/playground?source=interview&track=dsa&accessToken=${encodeURIComponent(accessToken)}`);
                 setShowModal(false);
                 return;
-            } catch (err: unknown) {
-                const maybeErr = err as { response?: { data?: { message?: string } } };
-                toast.error(maybeErr.response?.data?.message || "Failed to start DSA interview");
-                return;
             }
-        }
 
-        router.push(
-            `/user/interview/session` +
-            `?mode=${getInterviewMode()}` +
-            `&sessionMode=${sessionMode}` +
-            `&role=${encodeURIComponent(getEffectiveRole())}` +
-            `&level=${config.level}` +
-            `&difficulty=${config.difficulty}` +
-            `&questionCount=${config.questionCount}` +
-            `&categoryType=${categoryType}`
-        );
-        setShowModal(false);
+            router.push(
+                `/user/interview/session` +
+                `?mode=${getInterviewMode()}` +
+                `&sessionMode=${sessionMode}` +
+                `&role=${encodeURIComponent(getEffectiveRole())}` +
+                `&level=${config.level}` +
+                `&difficulty=${config.difficulty}` +
+                `&questionCount=${config.questionCount}` +
+                `&categoryType=${categoryType}`
+            );
+            setShowModal(false);
+        } catch (err: unknown) {
+            const maybeErr = err as { response?: { data?: { message?: string } } };
+            toast.error(maybeErr.response?.data?.message || "Failed to start interview");
+        } finally {
+            setIsStarting(false);
+        }
     };
 
     return (
@@ -381,6 +404,7 @@ export default function InterviewCoachPage() {
                                             <button
                                                 key={level.value}
                                                 onClick={() => setConfig({ ...config, level: level.value })}
+                                                disabled={isStarting}
                                                 className={`p-4 rounded-xl border text-center transition-all ${config.level === level.value ? "border-primary ring-1 ring-primary bg-primary/5" : "border-border hover:border-primary/40"}`}
                                             >
                                                 <p className={`text-sm font-semibold ${level.color}`}>{level.label}</p>
@@ -400,6 +424,7 @@ export default function InterviewCoachPage() {
                                             <button
                                                 key={diff.value}
                                                 onClick={() => setConfig({ ...config, difficulty: diff.value })}
+                                                disabled={isStarting}
                                                 className={`p-3 rounded-xl border text-center transition-all ${config.difficulty === diff.value ? "border-primary bg-primary/10 ring-1 ring-primary" : "border-border hover:border-primary/40"}`}
                                             >
                                                 <p className="font-semibold text-foreground text-sm">{diff.label}</p>
@@ -419,6 +444,7 @@ export default function InterviewCoachPage() {
                                             <button
                                                 key={count}
                                                 onClick={() => setConfig({ ...config, questionCount: count })}
+                                                disabled={isStarting}
                                                 className={`flex-1 py-3 rounded-xl border text-center transition-all ${config.questionCount === count ? "border-primary bg-primary/10 ring-1 ring-primary" : "border-border hover:border-primary/40"}`}
                                             >
                                                 <span className="text-xl font-bold text-foreground">{count}</span>
@@ -456,9 +482,17 @@ export default function InterviewCoachPage() {
                             </div>
 
                             <div className="sticky bottom-0 bg-card border-t border-border px-6 py-4 flex gap-3">
-                                <Button variant="outline" className="flex-1" onClick={() => setShowModal(false)}>Cancel</Button>
-                                <Button className="flex-1 gap-2" onClick={handleStart}>
-                                    {isDsa ? <Code2 className="h-4 w-4" /> : <Play className="h-4 w-4" />} {isDsa ? "Launch Coding Round" : "Start Interview"}
+                                <Button variant="outline" className="flex-1" onClick={() => setShowModal(false)} disabled={isStarting}>Cancel</Button>
+                                <Button className="flex-1 gap-2" onClick={handleStart} disabled={isStarting}>
+                                    {isStarting ? (
+                                        <>
+                                            <Loader2 className="h-4 w-4 animate-spin" /> Starting Interview...
+                                        </>
+                                    ) : (
+                                        <>
+                                            {isDsa ? <Code2 className="h-4 w-4" /> : <Play className="h-4 w-4" />} Start Interview
+                                        </>
+                                    )}
                                 </Button>
                             </div>
                         </motion.div>

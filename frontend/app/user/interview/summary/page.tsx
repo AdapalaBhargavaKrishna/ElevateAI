@@ -1,7 +1,7 @@
 // app/user/interview/summary/page.tsx
 'use client';
 
-import React, { Suspense, useState, useEffect } from 'react';
+import React, { Suspense, useState, useEffect, useCallback } from 'react';
 import { useSearchParams, useRouter } from 'next/navigation';
 import { interviewApi, SessionSummaryResponse } from '../../../lib/interview.api';
 import { motion } from "framer-motion";
@@ -25,25 +25,26 @@ function InterviewSummaryPageContent() {
     const [isLoading, setIsLoading]     = useState(true);
     const [error, setError]             = useState<string | null>(null);
 
-    useEffect(() => {
-        if (!sessionId) { router.push('/user/interview'); return; }
-        fetchSummaryData();
-    }, [sessionId]);
-
-    const fetchSummaryData = async () => {
+    const fetchSummaryData = useCallback(async () => {
         setIsLoading(true);
         setError(null);
         try {
             const data = await interviewApi.getSummary(sessionId!);
             setSummaryData(data);
-        } catch (err: any) {
-            const message = err.response?.data?.message || 'Failed to load interview summary';
+        } catch (err: unknown) {
+            const maybeErr = err as { response?: { data?: { message?: string } } };
+            const message = maybeErr.response?.data?.message || 'Failed to load interview summary';
             setError(message);
             toast.error(message);
         } finally {
             setIsLoading(false);
         }
-    };
+    }, [sessionId]);
+
+    useEffect(() => {
+        if (!sessionId) { router.push('/user/interview'); return; }
+        fetchSummaryData();
+    }, [fetchSummaryData, router, sessionId]);
 
     const getScoreColor = (score: number) => {
         if (score >= 8) return 'text-green-500';
@@ -69,6 +70,26 @@ function InterviewSummaryPageContent() {
         if (verdict.includes('No Hire'))
             return 'bg-red-500/10 text-red-600 dark:text-red-400 border-red-500/20';
         return 'bg-gray-500/10 text-gray-600 dark:text-gray-400 border-gray-500/20';
+    };
+
+    const parseQuestionPayload = (questionText: string) => {
+        try {
+            const parsed = JSON.parse(questionText) as { problem_title?: string; problem_description?: string };
+            if (parsed && typeof parsed.problem_title === 'string') {
+                return {
+                    heading: parsed.problem_title,
+                    body: typeof parsed.problem_description === 'string' ? parsed.problem_description : '',
+                };
+            }
+        } catch {
+            // Non-JSON question text for regular interview sessions.
+        }
+        return { heading: questionText, body: '' };
+    };
+
+    const toDisplayScore100 = (overallScore: number | undefined) => {
+        const rawPct = Math.round((overallScore ?? 0) * 20);
+        return Math.min(rawPct, 100);
     };
 
     if (isLoading) {
@@ -185,11 +206,12 @@ function InterviewSummaryPageContent() {
                     </h3>
                     <div className="space-y-3">
                         {summaryData.questions.map((q, i) => {
-                            const pct = Math.round((q.overallScore ?? 0) * 20);
+                            const parsedQuestion = parseQuestionPayload(q.questionText);
+                            const pct = toDisplayScore100(q.overallScore);
                             return (
                                 <div key={i}>
                                     <div className="flex justify-between text-sm mb-1">
-                                        <span className="text-muted-foreground line-clamp-1 flex-1 mr-4">Q{i + 1}: {q.questionText}</span>
+                                        <span className="text-muted-foreground line-clamp-1 flex-1 mr-4">Q{i + 1}: {parsedQuestion.heading}</span>
                                         <span className="text-foreground font-medium shrink-0">{pct}/100</span>
                                     </div>
                                     <div className="h-2 bg-muted rounded-full overflow-hidden">
@@ -280,6 +302,11 @@ function InterviewSummaryPageContent() {
                     <div className="divide-y divide-border max-h-[600px] overflow-y-auto">
                         {summaryData.questions.map((q, idx) => (
                             <div key={idx} className="p-5 space-y-4 hover:bg-muted/10 transition-colors">
+                                {(() => {
+                                    const parsedQuestion = parseQuestionPayload(q.questionText);
+                                    const displayScore = toDisplayScore100(q.overallScore);
+                                    return (
+                                        <>
                                 <div className="flex items-start gap-3">
                                     <div className="h-6 w-6 rounded-full bg-primary/10 flex items-center justify-center flex-shrink-0 mt-0.5">
                                         <span className="text-xs font-medium text-primary">{idx + 1}</span>
@@ -289,10 +316,13 @@ function InterviewSummaryPageContent() {
                                             <Badge variant="outline" className="text-xs">{q.category}</Badge>
                                             <div className="flex items-center gap-1">
                                                 <Star className="h-3 w-3 text-yellow-500" />
-                                                <span className="text-xs text-muted-foreground">{q.overallScore?.toFixed(1) || 'N/A'}/5</span>
+                                                <span className="text-xs text-muted-foreground">{displayScore}/100</span>
                                             </div>
                                         </div>
-                                        <p className="font-medium text-foreground">{q.questionText}</p>
+                                        <p className="font-medium text-foreground">{parsedQuestion.heading}</p>
+                                        {parsedQuestion.body && (
+                                            <p className="text-sm text-muted-foreground mt-2 whitespace-pre-wrap">{parsedQuestion.body}</p>
+                                        )}
                                     </div>
                                 </div>
                                 <div className="ml-9 space-y-3">
@@ -330,6 +360,9 @@ function InterviewSummaryPageContent() {
                                         </div>
                                     </div>
                                 </div>
+                                        </>
+                                    );
+                                })()}
                             </div>
                         ))}
                     </div>

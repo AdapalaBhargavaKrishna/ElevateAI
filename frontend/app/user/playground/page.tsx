@@ -65,6 +65,20 @@ type PlaygroundQuestion = {
   starterCode: Record<Language, string>;
 };
 
+type ApiDsaQuestion = {
+  problem_title: string;
+  problem_description: string;
+  examples: Array<{ input: string; output: string; explanation: string }>;
+  constraints: string[];
+  boilerplate_js: string;
+  boilerplate_python: string;
+  test_cases: Array<{ input: unknown; expected_output: unknown }>;
+  hint_level_1: string;
+  hint_level_2: string;
+  category: string;
+  difficulty: string;
+};
+
 type DsaAccess = {
   token: string;
   createdAt: number;
@@ -72,6 +86,8 @@ type DsaAccess = {
   level: string;
   difficulty: string;
   sessionMode: string;
+  sessionId: string;
+  questions: ApiDsaQuestion[];
 };
 
 type PlaygroundSummaryQuestion = {
@@ -96,75 +112,6 @@ type PlaygroundSummary = {
   totalTests: number;
   questions: PlaygroundSummaryQuestion[];
 };
-
-const BANK: PlaygroundQuestion[] = [
-  {
-    id: 'q1',
-    title: 'Two Sum',
-    difficulty: 'Easy',
-    description:
-      'Given an integer array nums and an integer target, return the indices of two numbers such that they add up to target.',
-    functionName: {
-      javascript: 'twoSum',
-      python: 'two_sum',
-    },
-    testCases: [
-      { label: 'Base case', args: [[2, 7, 11, 15], 9], expected: [0, 1] },
-      { label: 'Later pair', args: [[3, 2, 4], 6], expected: [1, 2] },
-      { label: 'Duplicate values', args: [[3, 3], 6], expected: [0, 1] },
-    ],
-    starterCode: {
-      javascript:
-        'function twoSum(nums, target) {\n  // Write your solution here\n  return [];\n}\n',
-      python:
-        'def two_sum(nums, target):\n    # Write your solution here\n    return []\n',
-    },
-  },
-  {
-    id: 'q2',
-    title: 'Valid Parentheses',
-    difficulty: 'Easy',
-    description:
-      'Given a string s containing just the characters ()[]{} determine if the input string is valid.',
-    functionName: {
-      javascript: 'isValid',
-      python: 'is_valid',
-    },
-    testCases: [
-      { label: 'Balanced', args: ['()[]{}'], expected: true },
-      { label: 'Mismatched', args: ['(]'], expected: false },
-      { label: 'Nested valid', args: ['{[()]}'], expected: true },
-    ],
-    starterCode: {
-      javascript:
-        'function isValid(s) {\n  // Write your solution here\n  return false;\n}\n',
-      python:
-        'def is_valid(s):\n    # Write your solution here\n    return False\n',
-    },
-  },
-  {
-    id: 'q3',
-    title: 'Binary Search',
-    difficulty: 'Medium',
-    description:
-      'Implement binary search in a sorted array. Return index of target if found, else return -1.',
-    functionName: {
-      javascript: 'binarySearch',
-      python: 'binary_search',
-    },
-    testCases: [
-      { label: 'Found', args: [[-1, 0, 3, 5, 9, 12], 9], expected: 4 },
-      { label: 'Not found', args: [[-1, 0, 3, 5, 9, 12], 2], expected: -1 },
-      { label: 'Single element', args: [[5], 5], expected: 0 },
-    ],
-    starterCode: {
-      javascript:
-        'function binarySearch(nums, target) {\n  // Write your solution here\n  return -1;\n}\n',
-      python:
-        'def binary_search(nums, target):\n    # Write your solution here\n    return -1\n',
-    },
-  },
-];
 
 const DIFFICULTY_COLORS: Record<string, string> = {
   Easy: 'bg-green-500/10 text-green-600 dark:text-green-400 border-green-500/20',
@@ -219,12 +166,48 @@ function summarizeToLines(result: EvalResult): Line[] {
   return lines;
 }
 
+function extractFunctionName(boilerplate: string, lang: 'javascript' | 'python'): string {
+  if (lang === 'javascript') {
+    const match = boilerplate.match(/function\s+([a-zA-Z_][a-zA-Z0-9_]*)\s*\(/);
+    return match?.[1] ?? 'solution';
+  } else {
+    const match = boilerplate.match(/def\s+([a-zA-Z_][a-zA-Z0-9_]*)\s*\(/);
+    return match?.[1] ?? 'solution';
+  }
+}
+
+function mapApiQuestions(apiQuestions: ApiDsaQuestion[]): PlaygroundQuestion[] {
+  return apiQuestions.map((q, i) => ({
+    id: `q${i + 1}`,
+    title: q.problem_title,
+    difficulty: (q.difficulty.charAt(0).toUpperCase() + q.difficulty.slice(1).toLowerCase().replace('difficulty.', '')) as
+      | 'Easy'
+      | 'Medium'
+      | 'Hard',
+    description: q.problem_description,
+    functionName: {
+      javascript: extractFunctionName(q.boilerplate_js, 'javascript'),
+      python: extractFunctionName(q.boilerplate_python, 'python'),
+    },
+    testCases: (Array.isArray(q.test_cases) ? q.test_cases : []).map((tc, j) => ({
+      label: `Test ${j + 1}`,
+      args: Array.isArray(tc.input) ? tc.input : Object.values((tc.input ?? {}) as object),
+      expected: tc.expected_output,
+    })),
+    starterCode: {
+      javascript: q.boilerplate_js,
+      python: q.boilerplate_python,
+    },
+  }));
+}
+
 function CodePlaygroundInner() {
   const router = useRouter();
   const searchParams = useSearchParams();
 
   const [accessConfig, setAccessConfig] = useState<DsaAccess | null>(null);
-  const [activeQuestionId, setActiveQuestionId] = useState(BANK[0].id);
+  const [questions, setQuestions] = useState<PlaygroundQuestion[]>([]);
+  const [activeQuestionId, setActiveQuestionId] = useState('q1');
   const [language, setLanguage] = useState<Language>('javascript');
   const [code, setCode] = useState('');
   const [output, setOutput] = useState<Line[]>([]);
@@ -232,13 +215,13 @@ function CodePlaygroundInner() {
   const [attemptCounts, setAttemptCounts] = useState<Record<string, number>>({});
   const [resultsByQuestion, setResultsByQuestion] = useState<Record<string, EvalResult>>({});
   const [durationSeconds, setDurationSeconds] = useState(0);
+  const [showFullscreenWarning, setShowFullscreenWarning] = useState(false);
 
   const tabViolationRef = useRef(false);
+  const roundFinishedRef = useRef(false);
 
   const isUnlocked = !!accessConfig;
   const questionCount = accessConfig?.questionCount ?? 1;
-
-  const questions = useMemo(() => BANK.slice(0, questionCount), [questionCount]);
 
   const activeQuestion = useMemo(
     () => questions.find((q) => q.id === activeQuestionId) ?? questions[0],
@@ -252,6 +235,7 @@ function CodePlaygroundInner() {
 
     if (source !== 'interview' || track !== 'dsa' || !accessToken) {
       setAccessConfig(null);
+      setQuestions([]);
       return;
     }
 
@@ -259,6 +243,7 @@ function CodePlaygroundInner() {
       const raw = sessionStorage.getItem(DSA_ACCESS_STORAGE_KEY);
       if (!raw) {
         setAccessConfig(null);
+        setQuestions([]);
         return;
       }
 
@@ -269,12 +254,15 @@ function CodePlaygroundInner() {
 
       if (parsed.token !== accessToken || ageMs < 0 || ageMs > maxAgeMs || !validCount) {
         setAccessConfig(null);
+        setQuestions([]);
         return;
       }
 
       setAccessConfig(parsed);
+      setQuestions(mapApiQuestions(parsed.questions ?? []));
     } catch {
       setAccessConfig(null);
+      setQuestions([]);
     }
   }, [searchParams]);
 
@@ -292,6 +280,9 @@ function CodePlaygroundInner() {
 
   useEffect(() => {
     if (!isUnlocked) return;
+    if (document.fullscreenElement === null) {
+      document.documentElement.requestFullscreen().catch(() => {});
+    }
     const timer = setInterval(() => {
       setDurationSeconds((prev) => prev + 1);
     }, 1000);
@@ -335,12 +326,24 @@ function CodePlaygroundInner() {
 
   const finishRound = useCallback(
     (terminatedByTabSwitch = false) => {
+      if (roundFinishedRef.current) return;
+      roundFinishedRef.current = true;
+      setShowFullscreenWarning(false);
+      if (document.fullscreenElement) {
+        document.exitFullscreen().catch(() => {});
+      }
       const summary = buildSummary(terminatedByTabSwitch);
       sessionStorage.setItem(PLAYGROUND_SUMMARY_STORAGE_KEY, JSON.stringify(summary));
       router.push('/user/playground/summary');
     },
     [buildSummary, router]
   );
+
+  useEffect(() => {
+    if (!isUnlocked) return;
+    roundFinishedRef.current = false;
+    setShowFullscreenWarning(false);
+  }, [isUnlocked]);
 
   useEffect(() => {
     if (!isUnlocked) return;
@@ -369,6 +372,24 @@ function CodePlaygroundInner() {
       window.removeEventListener('blur', onBlur);
     };
   }, [finishRound, isUnlocked]);
+
+  useEffect(() => {
+    if (!isUnlocked) return;
+
+    const onFullscreenChange = () => {
+      if (roundFinishedRef.current) return;
+      if (document.fullscreenElement === null) {
+        setShowFullscreenWarning(true);
+      } else {
+        setShowFullscreenWarning(false);
+      }
+    };
+
+    document.addEventListener('fullscreenchange', onFullscreenChange);
+    return () => {
+      document.removeEventListener('fullscreenchange', onFullscreenChange);
+    };
+  }, [isUnlocked]);
 
   const evaluateJavaScript = useCallback((question: PlaygroundQuestion, sourceCode: string): EvalResult => {
     const fnName = question.functionName.javascript;
@@ -772,6 +793,27 @@ function CodePlaygroundInner() {
           </CardContent>
         </Card>
       </div>
+
+      {isUnlocked && showFullscreenWarning && (
+        <div className='fixed inset-0 z-[100] bg-black/85 backdrop-blur-sm flex items-center justify-center p-4'>
+          <Card className='max-w-md w-full'>
+            <CardContent className='p-6 text-center space-y-4'>
+              <div className='mx-auto h-14 w-14 rounded-full bg-amber-500/10 flex items-center justify-center'>
+                <AlertTriangle className='h-7 w-7 text-amber-500' />
+              </div>
+              <h3 className='text-lg font-semibold'>Please stay in fullscreen during your interview</h3>
+              <Button
+                className='gap-2'
+                onClick={() => {
+                  document.documentElement.requestFullscreen().catch(() => {});
+                }}
+              >
+                Return to Fullscreen
+              </Button>
+            </CardContent>
+          </Card>
+        </div>
+      )}
     </div>
   );
 }
