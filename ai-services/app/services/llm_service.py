@@ -197,7 +197,7 @@ Return STRICT JSON in this format:
   "overall_summary": "...",
   "strengths": "...",
   "weaknesses": "...",
-  "final_score": 0-10,
+  "final_score": 0-100,
   "verdict": "Hire / No Hire / Strong Hire / Borderline"
 }}
 
@@ -205,6 +205,7 @@ IMPORTANT:
 - Return ONLY JSON
 - No explanations
 - No markdown
+- final_score must be 0-100 integer (not 0-10).
 """
 
     response = _generate_content_with_retry(prompt)

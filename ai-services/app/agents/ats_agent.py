@@ -32,7 +32,19 @@ class ATSAgent:
         "machine learning", "deep learning", "tensorflow", "pytorch", "pandas", "numpy", "etl", "pipeline",
         "html", "css", "responsive", "ui", "ux", "figma", "webpack",
         "git", "agile", "scrum", "communication", "teamwork", "problem solving", "leadership", "project management",
-        "testing", "unit testing", "integration testing", "system design", "authentication", "oauth"
+        "testing", "unit testing", "integration testing", "system design", "authentication", "oauth",
+        "spring", "django", "flask", "fastapi", "express", "next.js", "nextjs",
+        "tailwind", "bootstrap", "sass", "scss",
+        "firebase", "supabase", "prisma", "sequelize", "mongoose",
+        "jest", "cypress", "selenium", "pytest", "mocha",
+        "github actions", "gitlab ci", "circleci",
+        "kafka", "rabbitmq", "celery", "websocket",
+        "oauth2", "jwt", "ssl", "tls", "encryption",
+        "nlp", "computer vision", "data science",
+        "scikit-learn", "spark", "hadoop", "airflow", "dbt",
+        "c++", "c#", "go", "golang", "rust", "kotlin", "swift",
+        "mobile", "android", "ios", "react native", "flutter",
+        "serverless", "event-driven", "message queue",
     ]
 
     def __init__(self):
@@ -112,10 +124,14 @@ class ATSAgent:
 
         domain_kws = self.DOMAIN_KEYWORDS[matched_domain] + self.DOMAIN_KEYWORDS["general"]
         required_keywords = self._build_required_keywords(domain_kws, job_description)
+        print(f"[ATS DEBUG] required_keywords: {required_keywords}")
 
         found_keywords = [kw for kw in required_keywords if re.search(rf'\b{re.escape(kw)}\b', resume_text)]
         missing_keywords = [kw for kw in required_keywords if kw not in found_keywords]
         keyword_ratio = len(found_keywords) / len(required_keywords) if required_keywords else 0
+        print(f"[ATS DEBUG] found_keywords: {found_keywords}")
+        print(f"[ATS DEBUG] keyword_ratio: {keyword_ratio}")
+        print(f"[ATS DEBUG] match_ratio: {round(keyword_ratio * 100)}%")
         if keyword_ratio >= 0.7:    keyword_score = 25
         elif keyword_ratio >= 0.5:  keyword_score = 20
         elif keyword_ratio >= 0.35: keyword_score = 14
@@ -209,16 +225,23 @@ Each recommendation must be a specific actionable string.
 
     def _build_required_keywords(self, domain_keywords: List[str], job_description: Optional[str]) -> List[str]:
         base = self._ordered_unique(domain_keywords)
+        print(f"[ATS DEBUG] domain_keywords count: {len(base)}")
+        print(f"[ATS DEBUG] job_description provided: {bool(job_description and job_description.strip())}")
         if not job_description or not job_description.strip():
+            print(f"[ATS DEBUG] No JD - using {len(base)} domain keywords as required")
             return base
 
         jd = job_description.lower()
         jd_keywords = [kw for kw in self.KEYWORD_CATALOG if re.search(rf'\b{re.escape(kw)}\b', jd)]
+        print(f"[ATS DEBUG] JD keywords found in catalog: {jd_keywords}")
 
         # If JD has extractable keywords, prioritize JD relevance while retaining a small stable baseline.
         if jd_keywords:
             jd_unique = self._ordered_unique(jd_keywords)
             baseline = [kw for kw in base if kw in {"communication", "teamwork", "problem solving", "leadership"}]
-            return self._ordered_unique(jd_unique + baseline)
+            result = self._ordered_unique(jd_unique + baseline)
+            print(f"[ATS DEBUG] Using {len(result)} JD-based required keywords")
+            return result
 
+        print(f"[ATS DEBUG] JD provided but no catalog matches - falling back to {len(base)} domain keywords")
         return base
