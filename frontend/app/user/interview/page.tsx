@@ -21,16 +21,16 @@ interface Domain { id: string; label: string; desc: string; icon: React.ReactNod
 // ─── Data ─────────────────────────────────────────────────────────────────────
 
 const techDomains: Domain[] = [
-    { id: "dsa",           label: "DSA",            desc: "Data Structures & Algorithms",              icon: <Code2 className="h-4 w-4" />,      color: "blue"   },
-    { id: "system_design", label: "System Design",  desc: "Scalable architecture & trade-offs",        icon: <Network className="h-4 w-4" />,    color: "purple" },
-    { id: "devops",        label: "DevOps",          desc: "CI/CD, Docker, Kubernetes, cloud ops",      icon: <Cloud className="h-4 w-4" />,      color: "sky"    },
-    { id: "databases",     label: "Databases",       desc: "SQL, NoSQL, indexing, query optimisation",  icon: <Database className="h-4 w-4" />,   color: "amber"  },
-    { id: "security",      label: "Security",        desc: "Auth, encryption, OWASP, threat models",    icon: <Shield className="h-4 w-4" />,     color: "red"    },
-    { id: "mobile",        label: "Mobile Dev",      desc: "iOS, Android, React Native, Flutter",       icon: <Smartphone className="h-4 w-4" />, color: "green"  },
-    { id: "ml_ai",         label: "ML / AI",         desc: "Machine learning, deep learning, LLMs",     icon: <Brain className="h-4 w-4" />,      color: "violet" },
-    { id: "frontend",      label: "Frontend",        desc: "React, Next.js, CSS, performance, a11y",    icon: <Boxes className="h-4 w-4" />,      color: "pink"   },
-    { id: "backend",       label: "Backend",         desc: "APIs, microservices, concurrency, caching", icon: <GitBranch className="h-4 w-4" />,  color: "teal"   },
-    { id: "os_networking", label: "OS & Networks",   desc: "Processes, threads, TCP/IP, sockets",       icon: <Cpu className="h-4 w-4" />,        color: "orange" },
+    { id: "dsa", label: "DSA", desc: "Data Structures & Algorithms", icon: <Code2 className="h-4 w-4" />, color: "blue" },
+    { id: "system_design", label: "System Design", desc: "Scalable architecture & trade-offs", icon: <Network className="h-4 w-4" />, color: "purple" },
+    { id: "devops", label: "DevOps", desc: "CI/CD, Docker, Kubernetes, cloud ops", icon: <Cloud className="h-4 w-4" />, color: "sky" },
+    { id: "databases", label: "Databases", desc: "SQL, NoSQL, indexing, query optimisation", icon: <Database className="h-4 w-4" />, color: "amber" },
+    { id: "security", label: "Security", desc: "Auth, encryption, OWASP, threat models", icon: <Shield className="h-4 w-4" />, color: "red" },
+    { id: "mobile", label: "Mobile Dev", desc: "iOS, Android, React Native, Flutter", icon: <Smartphone className="h-4 w-4" />, color: "green" },
+    { id: "ml_ai", label: "ML / AI", desc: "Machine learning, deep learning, LLMs", icon: <Brain className="h-4 w-4" />, color: "violet" },
+    { id: "frontend", label: "Frontend", desc: "React, Next.js, CSS, performance, a11y", icon: <Boxes className="h-4 w-4" />, color: "pink" },
+    { id: "backend", label: "Backend", desc: "APIs, microservices, concurrency, caching", icon: <GitBranch className="h-4 w-4" />, color: "teal" },
+    { id: "os_networking", label: "OS & Networks", desc: "Processes, threads, TCP/IP, sockets", icon: <Cpu className="h-4 w-4" />, color: "orange" },
 ];
 
 const jobRoles = [
@@ -41,51 +41,52 @@ const jobRoles = [
 ];
 
 const behaviouralTopics: Domain[] = [
-    { id: "behavioral",  label: "Behavioural",  desc: "STAR method, teamwork, conflict resolution", icon: <Users className="h-4 w-4" />,     color: "green"  },
-    { id: "hr",          label: "HR Round",      desc: "Culture fit, career goals, salary talk",     icon: <Heart className="h-4 w-4" />,     color: "rose"   },
-    { id: "leadership",  label: "Leadership",    desc: "Decision-making, ownership, mentoring",      icon: <BarChart2 className="h-4 w-4" />, color: "amber"  },
-    { id: "situational", label: "Situational",   desc: "Hypothetical scenarios & judgement calls",   icon: <Wrench className="h-4 w-4" />,    color: "blue"   },
+    { id: "behavioral", label: "Behavioural", desc: "STAR method, teamwork, conflict resolution", icon: <Users className="h-4 w-4" />, color: "green" },
+    { id: "hr", label: "HR Round", desc: "Culture fit, career goals, salary talk", icon: <Heart className="h-4 w-4" />, color: "rose" },
+    { id: "leadership", label: "Leadership", desc: "Decision-making, ownership, mentoring", icon: <BarChart2 className="h-4 w-4" />, color: "amber" },
+    { id: "situational", label: "Situational", desc: "Hypothetical scenarios & judgement calls", icon: <Wrench className="h-4 w-4" />, color: "blue" },
 ];
 
 const sessionModes = [
-    { id: "interview", label: "Real Mode",     desc: "Strict — no hints, no guidance. Simulates an actual interview.", icon: <Zap className="h-5 w-5" /> },
-    { id: "learning",  label: "Practice Mode", desc: "Hints available, supportive feedback. Great for learning.",      icon: <GraduationCap className="h-5 w-5" /> },
+    { id: "interview", label: "Real Mode", desc: "Strict — no hints, no guidance. Simulates an actual interview.", icon: <Zap className="h-5 w-5" /> },
+    { id: "learning", label: "Practice Mode", desc: "Hints available, supportive feedback. Great for learning.", icon: <GraduationCap className="h-5 w-5" /> },
 ];
 
 const levels = [
-    { value: "junior", label: "Junior",    sub: "0–2 years", color: "text-green-600 dark:text-green-400"   },
-    { value: "mid",    label: "Mid-Level", sub: "2–5 years", color: "text-blue-600 dark:text-blue-400"     },
-    { value: "senior", label: "Senior",    sub: "5+ years",  color: "text-purple-600 dark:text-purple-400" },
+    { value: "junior", label: "Junior", sub: "0–2 years", color: "text-green-600 dark:text-green-400" },
+    { value: "mid", label: "Mid-Level", sub: "2–5 years", color: "text-blue-600 dark:text-blue-400" },
+    { value: "senior", label: "Senior", sub: "5+ years", color: "text-purple-600 dark:text-purple-400" },
 ];
 
 const difficulties = [
-    { value: "easy",   label: "Easy",   desc: "Fundamentals & concepts" },
+    { value: "easy", label: "Easy", desc: "Fundamentals & concepts" },
     { value: "medium", label: "Medium", desc: "Industry-standard depth" },
-    { value: "hard",   label: "Hard",   desc: "Complex edge cases"      },
+    { value: "hard", label: "Hard", desc: "Complex edge cases" },
 ];
 
-const questionCounts = [1, 2, 3];
+const dsaQuestionCounts = [1, 2, 3];
+const defaultQuestionCounts = [3, 5, 7, 10];
 
 const categoryTabs: { id: CategoryType; label: string; icon: React.ReactNode; desc: string }[] = [
-    { id: "technical",   label: "Technical Skills", icon: <Code2 className="h-4 w-4" />,  desc: "Domain-specific deep dives — DSA, DevOps, System Design & more"       },
-    { id: "job_role",    label: "Job Role Prep",    icon: <Users className="h-4 w-4" />,  desc: "Tailored mix of questions for your exact target role"                  },
-    { id: "behavioural", label: "Behavioural / HR", icon: <Heart className="h-4 w-4" />,  desc: "Soft skills, STAR method, HR rounds, leadership scenarios"              },
+    { id: "technical", label: "Technical Skills", icon: <Code2 className="h-4 w-4" />, desc: "Domain-specific deep dives — DSA, DevOps, System Design & more" },
+    { id: "job_role", label: "Job Role Prep", icon: <Users className="h-4 w-4" />, desc: "Tailored mix of questions for your exact target role" },
+    { id: "behavioural", label: "Behavioural / HR", icon: <Heart className="h-4 w-4" />, desc: "Soft skills, STAR method, HR rounds, leadership scenarios" },
 ];
 
 // ─── Colour helpers ───────────────────────────────────────────────────────────
 
 const colorMap: Record<string, { ring: string; bg: string; text: string }> = {
-    blue:   { ring: "ring-blue-500",   bg: "bg-blue-500/10",   text: "text-blue-600 dark:text-blue-400"    },
-    purple: { ring: "ring-purple-500", bg: "bg-purple-500/10", text: "text-purple-600 dark:text-purple-400"},
-    sky:    { ring: "ring-sky-500",    bg: "bg-sky-500/10",    text: "text-sky-600 dark:text-sky-400"      },
-    amber:  { ring: "ring-amber-500",  bg: "bg-amber-500/10",  text: "text-amber-600 dark:text-amber-400"  },
-    red:    { ring: "ring-red-500",    bg: "bg-red-500/10",    text: "text-red-600 dark:text-red-400"      },
-    green:  { ring: "ring-green-500",  bg: "bg-green-500/10",  text: "text-green-600 dark:text-green-400"  },
-    violet: { ring: "ring-violet-500", bg: "bg-violet-500/10", text: "text-violet-600 dark:text-violet-400"},
-    pink:   { ring: "ring-pink-500",   bg: "bg-pink-500/10",   text: "text-pink-600 dark:text-pink-400"    },
-    teal:   { ring: "ring-teal-500",   bg: "bg-teal-500/10",   text: "text-teal-600 dark:text-teal-400"    },
-    orange: { ring: "ring-orange-500", bg: "bg-orange-500/10", text: "text-orange-600 dark:text-orange-400"},
-    rose:   { ring: "ring-rose-500",   bg: "bg-rose-500/10",   text: "text-rose-600 dark:text-rose-400"    },
+    blue: { ring: "ring-blue-500", bg: "bg-blue-500/10", text: "text-blue-600 dark:text-blue-400" },
+    purple: { ring: "ring-purple-500", bg: "bg-purple-500/10", text: "text-purple-600 dark:text-purple-400" },
+    sky: { ring: "ring-sky-500", bg: "bg-sky-500/10", text: "text-sky-600 dark:text-sky-400" },
+    amber: { ring: "ring-amber-500", bg: "bg-amber-500/10", text: "text-amber-600 dark:text-amber-400" },
+    red: { ring: "ring-red-500", bg: "bg-red-500/10", text: "text-red-600 dark:text-red-400" },
+    green: { ring: "ring-green-500", bg: "bg-green-500/10", text: "text-green-600 dark:text-green-400" },
+    violet: { ring: "ring-violet-500", bg: "bg-violet-500/10", text: "text-violet-600 dark:text-violet-400" },
+    pink: { ring: "ring-pink-500", bg: "bg-pink-500/10", text: "text-pink-600 dark:text-pink-400" },
+    teal: { ring: "ring-teal-500", bg: "bg-teal-500/10", text: "text-teal-600 dark:text-teal-400" },
+    orange: { ring: "ring-orange-500", bg: "bg-orange-500/10", text: "text-orange-600 dark:text-orange-400" },
+    rose: { ring: "ring-rose-500", bg: "bg-rose-500/10", text: "text-rose-600 dark:text-rose-400" },
 };
 
 const domainClasses = (color: string, selected: boolean) => {
@@ -99,34 +100,64 @@ const domainClasses = (color: string, selected: boolean) => {
 
 export default function InterviewCoachPage() {
     const router = useRouter();
-    const [showModal, setShowModal]     = useState(false);
+    const [showModal, setShowModal] = useState(false);
     const [categoryType, setCategoryType] = useState<CategoryType>("technical");
-    const [selectedDomain, setSelectedDomain]     = useState("dsa");
-    const [selectedJobRole, setSelectedJobRole]   = useState("Backend Developer");
+    const [selectedDomain, setSelectedDomain] = useState("dsa");
+    const [selectedJobRole, setSelectedJobRole] = useState("Backend Developer");
     const [selectedBehavTopic, setSelectedBehavTopic] = useState("behavioral");
     const [sessionMode, setSessionMode] = useState("interview");
-    const [config, setConfig] = useState({ level: "mid", difficulty: "medium", questionCount: 7 });
+    const [config, setConfig] = useState({ level: "mid", difficulty: "medium", questionCount: 3 });
+
+    const isDsa = categoryType === "technical" && selectedDomain === "dsa";
+    const activeQuestionCounts = isDsa ? dsaQuestionCounts : defaultQuestionCounts;
+
+    // Auto-adjust questionCount when switching between DSA and non-DSA
+    React.useEffect(() => {
+        if (!activeQuestionCounts.includes(config.questionCount)) {
+            setConfig(prev => ({ ...prev, questionCount: activeQuestionCounts[0] }));
+        }
+    }, [isDsa, activeQuestionCounts, config.questionCount]);
 
     const getInterviewMode = () => {
-        if (categoryType === "technical")   return selectedDomain;
-        if (categoryType === "job_role")    return "technical";
+        if (categoryType === "technical") return selectedDomain;
+        if (categoryType === "job_role") return "technical";
         return selectedBehavTopic;
     };
 
     const getEffectiveRole = () => categoryType === "job_role" ? selectedJobRole : "Software Engineer";
 
     const getSelectionLabel = () => {
-        if (categoryType === "technical")   return techDomains.find(d => d.id === selectedDomain)?.label ?? selectedDomain;
-        if (categoryType === "job_role")    return selectedJobRole;
+        if (categoryType === "technical") return techDomains.find(d => d.id === selectedDomain)?.label ?? selectedDomain;
+        if (categoryType === "job_role") return selectedJobRole;
         return behaviouralTopics.find(t => t.id === selectedBehavTopic)?.label ?? selectedBehavTopic;
     };
 
     const handleStart = () => {
         if (categoryType === "technical" && selectedDomain === "dsa") {
+            const accessToken =
+                typeof window !== "undefined" && window.crypto?.randomUUID
+                    ? window.crypto.randomUUID()
+                    : `${Date.now()}-${Math.random().toString(36).slice(2)}`;
+
+            if (typeof window !== "undefined") {
+                sessionStorage.setItem(
+                    "elevate_dsa_playground_access",
+                    JSON.stringify({
+                        token: accessToken,
+                        createdAt: Date.now(),
+                        questionCount: config.questionCount,
+                        level: config.level,
+                        difficulty: config.difficulty,
+                        sessionMode,
+                    })
+                );
+            }
+
             router.push(
                 `/user/playground` +
                 `?source=interview` +
                 `&track=dsa` +
+                `&accessToken=${encodeURIComponent(accessToken)}` +
                 `&questionCount=${config.questionCount}` +
                 `&level=${config.level}` +
                 `&difficulty=${config.difficulty}` +
@@ -177,11 +208,10 @@ export default function InterviewCoachPage() {
                                 animate={{ opacity: 1, y: 0 }}
                                 transition={{ delay: i * 0.06 }}
                                 onClick={() => setCategoryType(tab.id)}
-                                className={`p-4 rounded-xl border text-left transition-all hover:shadow-md ${
-                                    categoryType === tab.id
+                                className={`p-4 rounded-xl border text-left transition-all hover:shadow-md ${categoryType === tab.id
                                         ? "ring-2 ring-primary bg-primary/10 border-transparent shadow-lg"
                                         : "border-border hover:border-primary/30 bg-card"
-                                }`}
+                                    }`}
                             >
                                 <div className={`inline-flex p-2 rounded-lg mb-3 ${categoryType === tab.id ? "bg-primary/20 text-primary" : "bg-muted text-muted-foreground"}`}>
                                     {tab.icon}
@@ -232,11 +262,10 @@ export default function InterviewCoachPage() {
                                         animate={{ opacity: 1, scale: 1 }}
                                         transition={{ delay: i * 0.04 }}
                                         onClick={() => setSelectedJobRole(role)}
-                                        className={`p-3 rounded-xl border text-sm text-left transition-all ${
-                                            selectedJobRole === role
+                                        className={`p-3 rounded-xl border text-sm text-left transition-all ${selectedJobRole === role
                                                 ? "ring-2 ring-primary bg-primary/10 border-transparent font-medium text-primary shadow-md"
                                                 : "border-border hover:border-primary/40 bg-card text-muted-foreground"
-                                        }`}
+                                            }`}
                                     >
                                         {role}
                                     </motion.button>
@@ -283,11 +312,10 @@ export default function InterviewCoachPage() {
                             <button
                                 key={m.id}
                                 onClick={() => setSessionMode(m.id)}
-                                className={`flex items-start gap-4 p-4 rounded-xl border text-left transition-all ${
-                                    sessionMode === m.id
+                                className={`flex items-start gap-4 p-4 rounded-xl border text-left transition-all ${sessionMode === m.id
                                         ? "ring-2 ring-primary border-transparent bg-primary/5 shadow-md"
                                         : "border-border hover:border-primary/30 bg-card"
-                                }`}
+                                    }`}
                             >
                                 <div className={`p-2 rounded-lg shrink-0 ${sessionMode === m.id ? "bg-primary/20 text-primary" : "bg-muted text-muted-foreground"}`}>
                                     {m.icon}
@@ -396,32 +424,40 @@ export default function InterviewCoachPage() {
                                 {/* Question Count */}
                                 <div className="space-y-3">
                                     <label className="text-sm font-medium text-foreground flex items-center gap-2">
-                                        <ListChecks className="h-4 w-4 text-muted-foreground" /> Number of Questions
+                                        <ListChecks className="h-4 w-4 text-muted-foreground" /> Number of {isDsa ? "Coding" : ""} Questions
                                     </label>
                                     <div className="flex gap-3">
-                                        {questionCounts.map((count) => (
+                                        {activeQuestionCounts.map((count) => (
                                             <button
                                                 key={count}
                                                 onClick={() => setConfig({ ...config, questionCount: count })}
                                                 className={`flex-1 py-3 rounded-xl border text-center transition-all ${config.questionCount === count ? "border-primary bg-primary/10 ring-1 ring-primary" : "border-border hover:border-primary/40"}`}
                                             >
                                                 <span className="text-xl font-bold text-foreground">{count}</span>
-                                                <span className="text-xs text-muted-foreground block mt-0.5">questions</span>
+                                                <span className="text-xs text-muted-foreground block mt-0.5">{isDsa ? "coding" : "questions"}</span>
                                             </button>
                                         ))}
                                     </div>
+                                    {isDsa && (
+                                        <div className="flex items-center gap-2 rounded-lg bg-blue-500/10 border border-blue-500/20 px-3 py-2">
+                                            <Code2 className="h-4 w-4 text-blue-500 shrink-0" />
+                                            <p className="text-xs text-blue-600 dark:text-blue-400">
+                                                You&apos;ll be redirected to <span className="font-semibold">Code Playground</span> with boilerplate code and test cases to solve.
+                                            </p>
+                                        </div>
+                                    )}
                                 </div>
 
                                 {/* Summary */}
                                 <div className="bg-muted/40 rounded-xl p-4 border border-border space-y-2">
                                     <p className="text-sm font-semibold text-foreground mb-3">Interview Summary</p>
                                     {[
-                                        ["Category",   categoryTabs.find(t => t.id === categoryType)?.label ?? categoryType],
-                                        ["Focus",      getSelectionLabel()],
-                                        ["Mode",       sessionMode === "learning" ? "Practice (hints on)" : "Real (strict)"],
-                                        ["Level",      levels.find(l => l.value === config.level)?.label ?? config.level],
+                                        ["Category", categoryTabs.find(t => t.id === categoryType)?.label ?? categoryType],
+                                        ["Focus", getSelectionLabel()],
+                                        ["Mode", sessionMode === "learning" ? "Practice (hints on)" : "Real (strict)"],
+                                        ["Level", levels.find(l => l.value === config.level)?.label ?? config.level],
                                         ["Difficulty", difficulties.find(d => d.value === config.difficulty)?.label ?? config.difficulty],
-                                            ["Questions",  `${config.questionCount} coding question${config.questionCount > 1 ? "s" : ""}`],
+                                        ["Questions", `${config.questionCount} ${isDsa ? "coding" : ""} question${config.questionCount > 1 ? "s" : ""}`],
                                     ].map(([k, v]) => (
                                         <div key={k} className="flex justify-between text-sm">
                                             <span className="text-muted-foreground">{k}</span>
@@ -434,7 +470,7 @@ export default function InterviewCoachPage() {
                             <div className="sticky bottom-0 bg-card border-t border-border px-6 py-4 flex gap-3">
                                 <Button variant="outline" className="flex-1" onClick={() => setShowModal(false)}>Cancel</Button>
                                 <Button className="flex-1 gap-2" onClick={handleStart}>
-                                    <Play className="h-4 w-4" /> Start Interview
+                                    {isDsa ? <Code2 className="h-4 w-4" /> : <Play className="h-4 w-4" />} {isDsa ? "Launch Coding Round" : "Start Interview"}
                                 </Button>
                             </div>
                         </motion.div>

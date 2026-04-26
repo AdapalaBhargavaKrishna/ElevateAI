@@ -40,10 +40,35 @@ interface Evaluation {
     improvementSuggestions: string;
 }
 
+interface SpeechResultEvent {
+    resultIndex: number;
+    results: ArrayLike<{
+        0: { transcript: string };
+        isFinal: boolean;
+    }>;
+}
+
+interface SpeechErrorEvent {
+    error: string;
+}
+
+interface BrowserSpeechRecognition {
+    continuous: boolean;
+    interimResults: boolean;
+    lang: string;
+    onresult: ((event: SpeechResultEvent) => void) | null;
+    onerror: ((event: SpeechErrorEvent) => void) | null;
+    onend: (() => void) | null;
+    start: () => void;
+    stop: () => void;
+}
+
+type SpeechRecognitionConstructor = new () => BrowserSpeechRecognition;
+
 declare global {
     interface Window {
-        SpeechRecognition: any;
-        webkitSpeechRecognition: any;
+        SpeechRecognition?: SpeechRecognitionConstructor;
+        webkitSpeechRecognition?: SpeechRecognitionConstructor;
     }
 }
 
@@ -158,7 +183,8 @@ function InterviewSessionPageContent() {
 
     const videoRef        = useRef<HTMLVideoElement>(null);
     const mediaStreamRef  = useRef<MediaStream | null>(null);
-    const recognitionRef  = useRef<any>(null);
+    const recognitionRef  = useRef<BrowserSpeechRecognition | null>(null);
+    const tabViolationRef = useRef(false);
 
     // ── Timer ──────────────────────────────────────────────────────────────────
 
@@ -226,7 +252,7 @@ function InterviewSessionPageContent() {
 
         let finalTranscript = answer;
 
-        recognition.onresult = (event: any) => {
+        recognition.onresult = (event: SpeechResultEvent) => {
             let interim = '';
             for (let i = event.resultIndex; i < event.results.length; i++) {
                 const t = event.results[i][0].transcript;
@@ -239,7 +265,7 @@ function InterviewSessionPageContent() {
             setAnswer(finalTranscript + (interim ? ' ' + interim : ''));
         };
 
-        recognition.onerror = (event: any) => {
+        recognition.onerror = (event: SpeechErrorEvent) => {
             if (event.error !== 'aborted') {
                 const message = `Microphone error: ${event.error}. Try again.`;
                 setError(message);
@@ -286,8 +312,9 @@ function InterviewSessionPageContent() {
             setSessionId(response.sessionId);
             setCurrentQuestion(response.firstQuestion);
             setCurrentQuestionIndex(0);
-        } catch (err: any) {
-            const message = err.response?.data?.message || 'Failed to start interview. Please try again.';
+        } catch (err: unknown) {
+            const maybeErr = err as { response?: { data?: { message?: string } } };
+            const message = maybeErr.response?.data?.message || 'Failed to start interview. Please try again.';
             setError(message);
             toast.error(message);
         } finally {
@@ -321,8 +348,9 @@ function InterviewSessionPageContent() {
             } else {
                 toast.success('Answer submitted successfully.');
             }
-        } catch (err: any) {
-            const message = err.response?.data?.message || 'Failed to submit answer. Please try again.';
+        } catch (err: unknown) {
+            const maybeErr = err as { response?: { data?: { message?: string } } };
+            const message = maybeErr.response?.data?.message || 'Failed to submit answer. Please try again.';
             setError(message);
             toast.error(message);
         } finally {
@@ -348,6 +376,46 @@ function InterviewSessionPageContent() {
             router.push(`/user/interview/summary?session_id=${sessionId}`);
         }
     };
+
+    const terminateForTabSwitch = useCallback(() => {
+        if (!sessionId || tabViolationRef.current) return;
+        tabViolationRef.current = true;
+
+        if (isListening) {
+            stopListening();
+        }
+
+        toast.error('Tab switch detected. Interview session ended.');
+
+        if (questionsAnswered > 0) {
+            router.replace(`/user/interview/summary?session_id=${sessionId}`);
+        } else {
+            router.replace('/user/interview');
+        }
+    }, [isListening, questionsAnswered, router, sessionId, stopListening]);
+
+    useEffect(() => {
+        if (!sessionId) return;
+
+        const onVisibilityChange = () => {
+            if (document.hidden) {
+                terminateForTabSwitch();
+            }
+        };
+
+        const onBlur = () => {
+            if (document.hidden) return;
+            terminateForTabSwitch();
+        };
+
+        document.addEventListener('visibilitychange', onVisibilityChange);
+        window.addEventListener('blur', onBlur);
+
+        return () => {
+            document.removeEventListener('visibilitychange', onVisibilityChange);
+            window.removeEventListener('blur', onBlur);
+        };
+    }, [sessionId, terminateForTabSwitch]);
 
     // ── Colours ────────────────────────────────────────────────────────────────
 
