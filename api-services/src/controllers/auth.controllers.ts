@@ -46,7 +46,9 @@ export async function signup(req: Request, res: Response) {
         res.cookie("refresh_token", refreshToken, { ...COOKIE_OPTIONS, maxAge: 7 * 24 * 60 * 60 * 1000 });
 
         return res.status(201).json({
-            user: { id: user.id, email: user.email, fullName: user.fullName },
+            user: { id: user.id, email: user.email, fullName: user.fullName, isNewUser: user.isNewUser },
+            access_token: accessToken,
+            refresh_token: refreshToken,
         });
 
     } catch (err) {
@@ -87,6 +89,8 @@ export async function login(req: Request, res: Response) {
 
         return res.status(200).json({
             user: { id: user.id, email: user.email, fullName: user.fullName, isNewUser: user.isNewUser },
+            access_token: accessToken,
+            refresh_token: refreshToken,
         });
 
     } catch (err) {

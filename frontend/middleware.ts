@@ -2,14 +2,10 @@ import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
 
 export function middleware(request: NextRequest) {
-    const cookieToken = request.cookies.get('access_token')?.value;
-    const headerToken = request.headers.get('authorization')?.split(' ')[1];
-    const token = cookieToken || headerToken;
-
-    if (!token) {
-        return NextResponse.redirect(new URL("/login", request.url));
-    }
-
+    // Tokens are stored in localStorage (not cookies) because frontend and backend 
+    // are on different domains. We cannot check localStorage in middleware (server-side),
+    // so we allow all /user/* routes through here and let each page's client-side 
+    // auth check handle redirection if needed.
     return NextResponse.next();
 }
 

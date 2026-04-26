@@ -39,6 +39,8 @@ function LoginPageContent() {
         setError(null);
         try {
             const { data } = await api.post('/auth/login', { email, password });
+            localStorage.setItem('access_token', data.access_token);
+            localStorage.setItem('refresh_token', data.refresh_token);
             toast.success('Logged in successfully.');
             if (data.user?.isNewUser) router.replace("/onboarding/user");
             else router.replace("/user/dashboard");

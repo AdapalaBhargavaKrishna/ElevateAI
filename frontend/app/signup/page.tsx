@@ -32,7 +32,9 @@ export default function SignupPage() {
         setIsLoading(true);
         setError(null);
         try {
-            await api.post('/auth/signup', { email, password, fullName: name });
+            const { data } = await api.post('/auth/signup', { email, password, fullName: name });
+            localStorage.setItem('access_token', data.access_token);
+            localStorage.setItem('refresh_token', data.refresh_token);
             toast.success("Account created successfully.");
             router.push("/onboarding/user");
         } catch (error: unknown) {
