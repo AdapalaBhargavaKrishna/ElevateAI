@@ -70,3 +70,35 @@ def generate_summary(
     summary = llm_service.generate_summary(combined_text)
 
     return summary
+
+
+def generate_dsa_questions(role: str, level: str, difficulty: str, question_count: int):
+    topic = f"{role} {level}"
+    questions = llm_service.generate_dsa_questions(
+        count=question_count,
+        difficulty=difficulty,
+        topic=topic
+    )
+    return {"questions": questions}
+
+
+def evaluate_dsa_answer(
+    problem_description: str,
+    user_code: str,
+    language: str,
+    test_results
+):
+    return llm_service.evaluate_dsa_solution(
+        problem_description=problem_description,
+        user_code=user_code,
+        language=language,
+        test_results=test_results
+    )
+
+
+def generate_dsa_summary(questions: list, codes: list, evaluations: list):
+    return llm_service.generate_dsa_summary(
+        questions=questions,
+        codes=codes,
+        evaluations=evaluations
+    )

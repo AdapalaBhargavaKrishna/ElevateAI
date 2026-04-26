@@ -11,6 +11,8 @@ import {
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import Link from "next/link";
+import { interviewApi } from "@/app/lib/interview.api";
+import toast from "react-hot-toast";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -132,39 +134,25 @@ export default function InterviewCoachPage() {
         return behaviouralTopics.find(t => t.id === selectedBehavTopic)?.label ?? selectedBehavTopic;
     };
 
-    const handleStart = () => {
+    const handleStart = async () => {
         if (categoryType === "technical" && selectedDomain === "dsa") {
-            const accessToken =
-                typeof window !== "undefined" && window.crypto?.randomUUID
-                    ? window.crypto.randomUUID()
-                    : `${Date.now()}-${Math.random().toString(36).slice(2)}`;
-
-            if (typeof window !== "undefined") {
-                sessionStorage.setItem(
-                    "elevate_dsa_playground_access",
-                    JSON.stringify({
-                        token: accessToken,
-                        createdAt: Date.now(),
-                        questionCount: config.questionCount,
-                        level: config.level,
-                        difficulty: config.difficulty,
-                        sessionMode,
-                    })
-                );
+            try {
+                const response = await interviewApi.dsaStart({
+                    role: getEffectiveRole(),
+                    level: config.level,
+                    difficulty: config.difficulty,
+                    questionCount: config.questionCount,
+                    timerEnabled: false,
+                    timePerQuestion: null,
+                });
+                router.push(`/user/interview/dsa-session?sessionId=${encodeURIComponent(response.sessionId)}`);
+                setShowModal(false);
+                return;
+            } catch (err: unknown) {
+                const maybeErr = err as { response?: { data?: { message?: string } } };
+                toast.error(maybeErr.response?.data?.message || "Failed to start DSA interview");
+                return;
             }
-
-            router.push(
-                `/user/playground` +
-                `?source=interview` +
-                `&track=dsa` +
-                `&accessToken=${encodeURIComponent(accessToken)}` +
-                `&questionCount=${config.questionCount}` +
-                `&level=${config.level}` +
-                `&difficulty=${config.difficulty}` +
-                `&sessionMode=${sessionMode}`
-            );
-            setShowModal(false);
-            return;
         }
 
         router.push(

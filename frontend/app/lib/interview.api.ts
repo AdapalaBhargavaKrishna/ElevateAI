@@ -104,6 +104,56 @@ export interface RunPythonResponse {
     exitCode: number;
 }
 
+export interface DSAQuestion {
+    problem_title: string;
+    problem_description: string;
+    examples: Array<{ input: string; output: string; explanation: string }>;
+    constraints: string[];
+    boilerplate_js: string;
+    boilerplate_python: string;
+    test_cases: Array<{ input: unknown[]; expected_output: unknown }>;
+    hint_level_1: string;
+    hint_level_2: string;
+    category: string;
+    difficulty: string;
+}
+
+export interface DSAStartRequest {
+    role: string;
+    level: string;
+    difficulty: string;
+    questionCount: number;
+    timerEnabled?: boolean;
+    timePerQuestion?: number | null;
+}
+
+export interface DSAStartResponse {
+    sessionId: string;
+    questions: DSAQuestion[];
+    totalQuestions: number;
+}
+
+export interface DSAEvaluateRequest {
+    sessionId: string;
+    questionIndex: number;
+    userCode: string;
+    language: string;
+    testResults: unknown;
+}
+
+export interface DSAEvaluateResponse {
+    correctness_score: number;
+    time_complexity: string;
+    space_complexity: string;
+    code_quality_score: number;
+    overall_score: number;
+    strengths: string[];
+    weaknesses: string[];
+    improvement_suggestions: string[];
+    optimal_approach_hint: string;
+    isLastQuestion: boolean;
+}
+
 // Interview API calls
 export const interviewApi = {
     start: async (data: StartInterviewRequest): Promise<StartInterviewResponse> => {
@@ -134,5 +184,20 @@ export const interviewApi = {
     runPython: async (data: RunPythonRequest): Promise<RunPythonResponse> => {
         const response = await api.post('/interview/run-python', data);
         return response.data;
-    }
+    },
+
+    dsaStart: async (data: DSAStartRequest): Promise<DSAStartResponse> => {
+        const response = await api.post('/interview/dsa-start', data);
+        return response.data;
+    },
+
+    dsaEvaluate: async (data: DSAEvaluateRequest): Promise<DSAEvaluateResponse> => {
+        const response = await api.post('/interview/dsa-evaluate', data);
+        return response.data;
+    },
+
+    dsaSummary: async (sessionId: string): Promise<SessionSummaryResponse> => {
+        const response = await api.post('/interview/dsa-summary', { sessionId });
+        return response.data;
+    },
 };

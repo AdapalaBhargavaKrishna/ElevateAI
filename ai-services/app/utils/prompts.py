@@ -336,3 +336,92 @@ Response format:
     }}
   ]
 }}"""
+
+
+def get_dsa_question_prompt(count: int, difficulty: str, topic: str) -> str:
+    return f"""You are an expert DSA interviewer and coding problem setter.
+
+Generate exactly {count} real coding interview problems for:
+- Difficulty: {difficulty}
+- Topic focus: {topic}
+
+Rules:
+1. Return practical interview-quality DSA problems only.
+2. Do not include any solved code.
+3. Keep each problem complete and self-contained.
+4. category must be exactly one of:
+   Arrays, Strings, Trees, Graphs, DP, Hashmaps, Sorting, Binary Search, Linked Lists, Stacks, Queues, Recursion
+5. Include at least 3 test cases per problem.
+6. boilerplate_js and boilerplate_python must include only function signature + placeholder comment.
+
+Return ONLY valid JSON. No markdown. No explanation.
+
+Response format:
+{{
+  "questions": [
+    {{
+      "problem_title": "string",
+      "problem_description": "string",
+      "examples": [
+        {{
+          "input": "string",
+          "output": "string",
+          "explanation": "string"
+        }}
+      ],
+      "constraints": ["string"],
+      "boilerplate_js": "function fnName(arg1, arg2) {{\\n  // your code here\\n}}",
+      "boilerplate_python": "def fn_name(arg1, arg2):\\n    # your code here",
+      "test_cases": [
+        {{
+          "input": [1, 2],
+          "expected_output": 3
+        }}
+      ],
+      "hint_level_1": "string",
+      "hint_level_2": "string",
+      "category": "Arrays",
+      "difficulty": "{difficulty}"
+    }}
+  ]
+}}"""
+
+
+def get_dsa_evaluation_prompt(
+    problem_description: str,
+    user_code: str,
+    language: str,
+    test_results: str,
+) -> str:
+    return f"""You are an expert coding interviewer evaluating a submitted DSA solution.
+
+Problem description:
+{problem_description}
+
+Language:
+{language}
+
+User code:
+{user_code}
+
+Observed test results:
+{test_results}
+
+Evaluate and return ONLY valid JSON with:
+{{
+  "correctness_score": 0,
+  "time_complexity": "O(n)",
+  "space_complexity": "O(n)",
+  "code_quality_score": 0,
+  "overall_score": 0,
+  "strengths": ["string"],
+  "weaknesses": ["string"],
+  "improvement_suggestions": ["string"],
+  "optimal_approach_hint": "string"
+}}
+
+Scoring rules:
+- correctness_score, code_quality_score, overall_score must be integers in range 0-100.
+- Base correctness on provided tests and algorithmic validity.
+- Keep feedback concise and actionable.
+"""

@@ -110,6 +110,58 @@ export interface SessionSummaryResponse {
     verdict: string;
 }
 
+export interface DSAQuestionOut {
+    problem_title: string;
+    problem_description: string;
+    examples: Array<{ input: string; output: string; explanation: string }>;
+    constraints: string[];
+    boilerplate_js: string;
+    boilerplate_python: string;
+    test_cases: Array<{ input: unknown[]; expected_output: unknown }>;
+    hint_level_1: string;
+    hint_level_2: string;
+    category: string;
+    difficulty: string;
+}
+
+export interface DSAStartRequest {
+    role: string;
+    level: string;
+    difficulty: string;
+    question_count: number;
+}
+
+export interface DSAStartResponse {
+    questions: DSAQuestionOut[];
+}
+
+export interface DSAEvaluateRequest {
+    problem_description: string;
+    user_code: string;
+    language: string;
+    test_results: unknown;
+    role: string;
+    level: string;
+}
+
+export interface DSAEvaluateResponse {
+    correctness_score: number;
+    time_complexity: string;
+    space_complexity: string;
+    code_quality_score: number;
+    overall_score: number;
+    strengths: string[];
+    weaknesses: string[];
+    improvement_suggestions: string[];
+    optimal_approach_hint: string;
+}
+
+export interface DSASummaryRequest {
+    questions: string[];
+    codes: string[];
+    evaluations: unknown[];
+}
+
 // ─── Interview service functions ──────────────────────────────────────────────
 
 export async function aiStartInterview(
@@ -141,6 +193,39 @@ export async function aiGetSummary(
     return postToAI<SessionSummaryResponse>({
         userId,
         path: "/interview/summary",
+        body: payload as unknown as Record<string, unknown>,
+    });
+}
+
+export async function aiStartDSAInterview(
+    userId: string,
+    payload: DSAStartRequest
+): Promise<DSAStartResponse> {
+    return postToAI<DSAStartResponse>({
+        userId,
+        path: "/interview/dsa-start",
+        body: payload as unknown as Record<string, unknown>,
+    });
+}
+
+export async function aiEvaluateDSAInterview(
+    userId: string,
+    payload: DSAEvaluateRequest
+): Promise<DSAEvaluateResponse> {
+    return postToAI<DSAEvaluateResponse>({
+        userId,
+        path: "/interview/dsa-evaluate",
+        body: payload as unknown as Record<string, unknown>,
+    });
+}
+
+export async function aiGetDSASummary(
+    userId: string,
+    payload: DSASummaryRequest
+): Promise<SessionSummaryResponse> {
+    return postToAI<SessionSummaryResponse>({
+        userId,
+        path: "/interview/dsa-summary",
         body: payload as unknown as Record<string, unknown>,
     });
 }

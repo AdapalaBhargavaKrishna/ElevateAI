@@ -7,6 +7,9 @@ import {
     getInterviewHistory,
     getSessionDetail,
     runPythonCode,
+    startDsaInterview,
+    evaluateDsaInterview,
+    getDsaSessionSummary,
 } from "../controllers/interview.controllers";
 import { requireAuth } from "../middleware/auth.middleware";
 
@@ -41,5 +44,8 @@ router.get("/session/:sessionId", getSessionDetail);
 // Run Python code in playground
 // POST /interview/run-python
 router.post("/run-python", runPythonCode);
+router.post("/dsa-start", startDsaInterview);
+router.post("/dsa-evaluate", evaluateDsaInterview);
+router.post("/dsa-summary", getDsaSessionSummary);
 
 export default router;

@@ -122,6 +122,69 @@ class SessionSummaryResponse(BaseModel):
     verdict: str
 
 
+class DSAStartRequest(BaseModel):
+    role: str = Field(..., min_length=1, max_length=255)
+    level: ExperienceLevel
+    difficulty: Difficulty
+    question_count: int = Field(..., ge=1, le=3)
+
+
+class DSAExample(BaseModel):
+    input: str
+    output: str
+    explanation: str
+
+
+class DSATestCase(BaseModel):
+    input: List[Any]
+    expected_output: Any
+
+
+class DSAQuestion(BaseModel):
+    problem_title: str
+    problem_description: str
+    examples: List[DSAExample]
+    constraints: List[str]
+    boilerplate_js: str
+    boilerplate_python: str
+    test_cases: List[DSATestCase]
+    hint_level_1: str
+    hint_level_2: str
+    category: str
+    difficulty: str
+
+
+class DSAStartResponse(BaseModel):
+    questions: List[DSAQuestion]
+
+
+class DSAEvaluationRequest(BaseModel):
+    problem_description: str
+    user_code: str
+    language: str
+    test_results: Any
+    role: str
+    level: str
+
+
+class DSAEvaluationResponse(BaseModel):
+    correctness_score: int
+    time_complexity: str
+    space_complexity: str
+    code_quality_score: int
+    overall_score: int
+    strengths: List[str]
+    weaknesses: List[str]
+    improvement_suggestions: List[str]
+    optimal_approach_hint: str
+
+
+class DSASummaryRequest(BaseModel):
+    questions: List[str]
+    codes: List[str]
+    evaluations: List[Dict[str, Any]]
+
+
 # =========================
 # 🗺️ ROADMAP
 # =========================

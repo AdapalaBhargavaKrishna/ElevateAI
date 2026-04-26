@@ -185,6 +185,8 @@ function InterviewSessionPageContent() {
     const mediaStreamRef  = useRef<MediaStream | null>(null);
     const recognitionRef  = useRef<BrowserSpeechRecognition | null>(null);
     const tabViolationRef = useRef(false);
+    const [tabSwitchCount, setTabSwitchCount] = useState(0);
+    const [showFullscreenWarn, setShowFullscreenWarn] = useState(false);
 
     // ── Timer ──────────────────────────────────────────────────────────────────
 
@@ -385,7 +387,7 @@ function InterviewSessionPageContent() {
             stopListening();
         }
 
-        toast.error('Tab switch detected. Interview session ended.');
+        toast.error('Tab switch limit reached. Interview session ended.');
 
         if (questionsAnswered > 0) {
             router.replace(`/user/interview/summary?session_id=${sessionId}`);
@@ -397,23 +399,47 @@ function InterviewSessionPageContent() {
     useEffect(() => {
         if (!sessionId) return;
 
-        const onVisibilityChange = () => {
-            if (document.hidden) {
-                terminateForTabSwitch();
+        const enterFullscreen = async () => {
+            try {
+                if (!document.fullscreenElement) {
+                    await document.documentElement.requestFullscreen();
+                }
+            } catch {
+                // no-op
             }
         };
 
-        const onBlur = () => {
-            if (document.hidden) return;
-            terminateForTabSwitch();
+        const onVisibilityChange = () => {
+            if (document.hidden) {
+                setTabSwitchCount((prev) => {
+                    const next = prev + 1;
+                    toast.error(`⚠️ Tab switch detected! (${next}/3). After 3 switches your session will be auto-submitted.`);
+                    if (next >= 3) {
+                        terminateForTabSwitch();
+                    }
+                    return next;
+                });
+            }
         };
 
+        const onFullscreenChange = () => {
+            if (!document.fullscreenElement) {
+                setShowFullscreenWarn(true);
+                return;
+            }
+            setShowFullscreenWarn(false);
+        };
+
+        enterFullscreen();
         document.addEventListener('visibilitychange', onVisibilityChange);
-        window.addEventListener('blur', onBlur);
+        document.addEventListener('fullscreenchange', onFullscreenChange);
 
         return () => {
             document.removeEventListener('visibilitychange', onVisibilityChange);
-            window.removeEventListener('blur', onBlur);
+            document.removeEventListener('fullscreenchange', onFullscreenChange);
+            if (document.fullscreenElement) {
+                document.exitFullscreen().catch(() => undefined);
+            }
         };
     }, [sessionId, terminateForTabSwitch]);
 
@@ -457,6 +483,19 @@ function InterviewSessionPageContent() {
 
     return (
         <div className="min-h-screen bg-background">
+            {showFullscreenWarn && (
+                <div className="fixed inset-0 z-50 bg-black/50 flex items-center justify-center">
+                    <div className="bg-card border border-border rounded-xl p-6 max-w-md w-full">
+                        <p className="text-sm text-foreground mb-4">Please stay in fullscreen during the interview</p>
+                        <Button
+                            onClick={() => document.documentElement.requestFullscreen().catch(() => undefined)}
+                            className="w-full"
+                        >
+                            Re-enter Fullscreen
+                        </Button>
+                    </div>
+                </div>
+            )}
             <div className="container mx-auto px-4 py-5 ">
 
                 {/* Top bar */}

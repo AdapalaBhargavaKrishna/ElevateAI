@@ -12,6 +12,8 @@ from app.utils.prompts import (
     get_roadmap_prompt,
     get_assessment_prompt,
     get_assessments_batch_prompt,
+    get_dsa_question_prompt,
+    get_dsa_evaluation_prompt,
 )
 
 # ✅ Configure Gemini with the new SDK
@@ -389,3 +391,67 @@ def generate_assessments_batch(
 
     validated.sort(key=lambda x: x["phase_number"])
     return {"assessments": validated}
+
+
+def generate_dsa_questions(count: int, difficulty: str, topic: str) -> List[Dict[str, Any]]:
+    prompt = get_dsa_question_prompt(count=count, difficulty=difficulty, topic=topic)
+    response = _generate_content_with_retry(prompt)
+    data = _parse_json_safe(response.text)
+    questions = data.get("questions", [])
+    if not isinstance(questions, list) or len(questions) == 0:
+        raise HTTPException(
+            status_code=status.HTTP_502_BAD_GATEWAY,
+            detail="AI returned no DSA questions"
+        )
+    return questions[:count]
+
+
+def evaluate_dsa_solution(
+    problem_description: str,
+    user_code: str,
+    language: str,
+    test_results: Any
+) -> Dict[str, Any]:
+    prompt = get_dsa_evaluation_prompt(
+        problem_description=problem_description,
+        user_code=user_code,
+        language=language,
+        test_results=json.dumps(test_results)
+    )
+    response = _generate_content_with_retry(prompt)
+    data = _parse_json_safe(response.text)
+    return data
+
+
+def generate_dsa_summary(questions: list, codes: list, evaluations: list) -> Dict[str, Any]:
+    payload = []
+    for idx, question in enumerate(questions):
+        payload.append(
+            {
+                "question": question,
+                "code": codes[idx] if idx < len(codes) else "",
+                "evaluation": evaluations[idx] if idx < len(evaluations) else {},
+            }
+        )
+
+    prompt = f"""You are an expert DSA interviewer.
+Analyze all submitted coding problems and evaluations below and return final interview summary.
+
+Submissions:
+{json.dumps(payload)}
+
+Return ONLY valid JSON with:
+{{
+  "overall_summary": "string",
+  "strengths": "string",
+  "weaknesses": "string",
+  "final_score": 0,
+  "verdict": "Strong Hire|Hire|Borderline|No Hire"
+}}
+
+Rules:
+- final_score must be 0-100 integer.
+- Be concise and evidence-based.
+"""
+    response = _generate_content_with_retry(prompt)
+    return _parse_json_safe(response.text)

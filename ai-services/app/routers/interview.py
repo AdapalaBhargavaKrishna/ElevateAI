@@ -81,3 +81,56 @@ def get_summary(
 @router.get("/ping")
 def ping():
     return {"message": "Interview AI running"}
+
+
+@router.post("/dsa-start", response_model=schemas.DSAStartResponse)
+def dsa_start(
+    request: schemas.DSAStartRequest,
+    x_user_id: str = Header(..., alias="X-User-Id"),
+    x_internal_key: str = Header(..., alias="X-Internal-Key")
+):
+    if x_internal_key != settings.INTERNAL_API_KEY:
+        raise HTTPException(status_code=403, detail="Forbidden")
+
+    result = interview_service.generate_dsa_questions(
+        role=request.role,
+        level=request.level,
+        difficulty=request.difficulty,
+        question_count=request.question_count
+    )
+    return schemas.DSAStartResponse(questions=result["questions"])
+
+
+@router.post("/dsa-evaluate", response_model=schemas.DSAEvaluationResponse)
+def dsa_evaluate(
+    request: schemas.DSAEvaluationRequest,
+    x_user_id: str = Header(..., alias="X-User-Id"),
+    x_internal_key: str = Header(..., alias="X-Internal-Key")
+):
+    if x_internal_key != settings.INTERNAL_API_KEY:
+        raise HTTPException(status_code=403, detail="Forbidden")
+
+    evaluation = interview_service.evaluate_dsa_answer(
+        problem_description=request.problem_description,
+        user_code=request.user_code,
+        language=request.language,
+        test_results=request.test_results
+    )
+    return schemas.DSAEvaluationResponse(**evaluation)
+
+
+@router.post("/dsa-summary", response_model=schemas.SessionSummaryResponse)
+def dsa_summary(
+    request: schemas.DSASummaryRequest,
+    x_user_id: str = Header(..., alias="X-User-Id"),
+    x_internal_key: str = Header(..., alias="X-Internal-Key")
+):
+    if x_internal_key != settings.INTERNAL_API_KEY:
+        raise HTTPException(status_code=403, detail="Forbidden")
+
+    summary = interview_service.generate_dsa_summary(
+        questions=request.questions,
+        codes=request.codes,
+        evaluations=request.evaluations
+    )
+    return schemas.SessionSummaryResponse(**summary)
