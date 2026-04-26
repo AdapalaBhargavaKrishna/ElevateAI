@@ -231,6 +231,28 @@ export async function submitAnswer(req: Request, res: Response) {
     }
 }
 
+export async function terminateSession(req: Request, res: Response) {
+    try {
+        const userId = (req as any).userId as string;
+        const { sessionId, reason } = req.body;
+
+        if (!sessionId) {
+            return res.status(400).json({ message: "sessionId is required." });
+        }
+
+        await prisma.interviewSession.updateMany({
+            where: { id: sessionId, userId },
+            data: { status: "terminated_proctoring" },
+        });
+
+        console.log(`[Interview] Session terminated. sessionId=${sessionId}, reason=${reason ?? "unspecified"}`);
+        return res.status(200).json({ message: "Session terminated." });
+    } catch (err) {
+        console.error("Terminate session error:", err);
+        return res.status(500).json({ message: "Something went wrong." });
+    }
+}
+
 // ─── POST /interview/summary ──────────────────────────────────────────────────
 // Fetches all answered Q&A pairs for a session, calls Python AI for overall
 // summary, persists final score + verdict, and returns the summary.
@@ -664,7 +686,7 @@ export async function getDsaSessionSummary(req: Request, res: Response) {
             overallSummary: aiSummary.overall_summary,
             strengths: aiSummary.strengths,
             weaknesses: aiSummary.weaknesses,
-            finalScore: aiSummary.final_score / 10,
+            finalScore: aiSummary.final_score,
             verdict: aiSummary.verdict,
             completedAt: new Date(),
             questions: answered.map((q) => {

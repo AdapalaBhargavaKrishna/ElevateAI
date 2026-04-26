@@ -15,7 +15,18 @@ const app = express()
 const PORT = process.env.PORT || 5000
 
 app.use(cors({
-    origin: process.env.FRONTEND_URL || "http://localhost:3000",
+    origin: (origin, callback) => {
+        const allowed = (process.env.FRONTEND_URL || "http://localhost:3000")
+            .split(",")
+            .map(o => o.trim())
+            .filter(Boolean);
+        if (!origin || allowed.includes(origin)) {
+            callback(null, true);
+        } else {
+            console.error(`[CORS] Blocked origin: ${origin}`);
+            callback(new Error(`CORS: origin ${origin} not allowed`));
+        }
+    },
     credentials: true,
 }));
 

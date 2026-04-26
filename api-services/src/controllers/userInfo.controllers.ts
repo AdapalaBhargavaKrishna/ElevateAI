@@ -444,16 +444,21 @@ export async function importUserInfoFromResume(req: Request, res: Response) {
         const userId = (req as any).userId as string;
         const file = req.file;
 
+        console.log(`[ImportResume] User: ${userId}, File: ${file?.originalname}, Size: ${file?.size}`);
+
         if (!file) {
+            console.error("[ImportResume] No file in request");
             return res.status(400).json({ message: "No file uploaded." });
         }
 
+        console.log("[ImportResume] Calling AI service...");
         const analysis = await aiAnalyzeResumeFile(
             userId,
             file.buffer,
             file.originalname,
             file.mimetype,
         );
+        console.log("[ImportResume] AI service response received:", JSON.stringify(analysis).slice(0, 200));
 
         const mappedProfile = mapResumeToProfile(analysis.parsed_resume);
 
@@ -534,6 +539,10 @@ export async function importUserInfoFromResume(req: Request, res: Response) {
         });
     } catch (err) {
         console.error("Import UserInfo From Resume Error:", err);
+        if (err instanceof Error) {
+            console.error("Error message:", err.message);
+            console.error("Error stack:", err.stack);
+        }
         return res.status(500).json({ message: "Something went wrong." });
     }
 }

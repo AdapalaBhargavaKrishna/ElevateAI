@@ -1,13 +1,13 @@
 // app/user/interview/page.tsx
 'use client';
 
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { motion, AnimatePresence } from "framer-motion";
 import {
     Mic, Play, History, Settings, Users, Brain, Target, ListChecks, X,
     Zap, GraduationCap, Code2, ChevronRight, Network, Heart, Cpu,
-    Database, Cloud, Shield, Smartphone, BarChart2, Boxes, GitBranch, Wrench, Loader2
+    Database, Cloud, Shield, Smartphone, BarChart2, Boxes, GitBranch, Wrench, Loader2, Maximize2, Minimize2
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import Link from "next/link";
@@ -110,6 +110,7 @@ export default function InterviewCoachPage() {
     const [sessionMode, setSessionMode] = useState("interview");
     const [config, setConfig] = useState({ level: "mid", difficulty: "medium", questionCount: 3 });
     const [isStarting, setIsStarting] = useState(false);
+    const [isFullscreen, setIsFullscreen] = useState(false);
 
     const isDsa = categoryType === "technical" && selectedDomain === "dsa";
     const activeQuestionCounts = isDsa ? dsaQuestionCounts : defaultQuestionCounts;
@@ -120,6 +121,24 @@ export default function InterviewCoachPage() {
             setConfig(prev => ({ ...prev, questionCount: activeQuestionCounts[0] }));
         }
     }, [isDsa, activeQuestionCounts, config.questionCount]);
+
+    useEffect(() => {
+        const onChange = () => setIsFullscreen(!!document.fullscreenElement);
+        document.addEventListener('fullscreenchange', onChange);
+        return () => document.removeEventListener('fullscreenchange', onChange);
+    }, []);
+
+    const toggleFullscreen = async () => {
+        try {
+            if (!document.fullscreenElement) {
+                await document.documentElement.requestFullscreen();
+            } else {
+                await document.exitFullscreen();
+            }
+        } catch {
+            // no-op
+        }
+    };
 
     const getInterviewMode = () => {
         if (categoryType === "technical") return selectedDomain;
@@ -201,11 +220,18 @@ export default function InterviewCoachPage() {
                         <h1 className="text-2xl font-bold text-foreground">AI Interview Coach</h1>
                         <p className="text-sm text-muted-foreground mt-1">Practice with our AI-powered mock interviewer</p>
                     </div>
-                    <Link href="/user/interview/history">
-                        <Button variant="outline" size="sm" className="gap-2">
-                            <History className="h-4 w-4" /> View History
+                    <div className="flex items-center gap-2">
+                        <Button variant="outline" size="sm" onClick={toggleFullscreen} className="gap-2">
+                            {isFullscreen
+                                ? <><Minimize2 className="h-4 w-4" /> Exit Fullscreen</>
+                                : <><Maximize2 className="h-4 w-4" /> Enter Fullscreen</>}
                         </Button>
-                    </Link>
+                        <Link href="/user/interview/history">
+                            <Button variant="outline" size="sm" className="gap-2">
+                                <History className="h-4 w-4" /> View History
+                            </Button>
+                        </Link>
+                    </div>
                 </div>
 
                 {/* Category Tabs */}

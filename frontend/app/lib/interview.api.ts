@@ -166,6 +166,11 @@ export const interviewApi = {
         return response.data;
     },
 
+    terminateSession: async (sessionId: string, reason?: string): Promise<{ message: string }> => {
+        const response = await api.post('/interview/terminate', { sessionId, reason });
+        return response.data;
+    },
+
     getSummary: async (sessionId: string): Promise<SessionSummaryResponse> => {
         const response = await api.post('/interview/summary', { sessionId });
         return response.data;

@@ -57,24 +57,25 @@ export default function InterviewHistoryPage() {
 
     const getScoreDisplay = (score: number | null) => {
         if (score === null) return 'N/A';
-        return (score * 10).toFixed(0);
+        return Math.round(score).toString();
     };
 
     const getVerdictFromScore = (score: number | null, status: string): string => {
-        if (status === 'in_progress') return 'Abandoned';
+        if (status === 'terminated_proctoring') return 'Left in Middle';
+        if (status === 'in_progress') return 'Left in Middle';
         if (status === 'awaiting_summary') return 'Incomplete';
         if (score === null) return 'Unscored';
-        if (score >= 8) return 'Excellent';
-        if (score >= 7) return 'Good';
-        if (score >= 6) return 'Borderline';
-        return 'Needs Improvement';
+        if (score >= 80) return 'Excellent';
+        if (score >= 70) return 'Good';
+        if (score >= 60) return 'Borderline';
+        return 'Needs Work';
     };
 
     const getScoreColor = (score: number | null) => {
         if (score === null) return 'text-muted-foreground';
-        if (score >= 8) return 'text-green-500';
-        if (score >= 7) return 'text-blue-500';
-        if (score >= 6) return 'text-yellow-500';
+        if (score >= 80) return 'text-green-500';
+        if (score >= 70) return 'text-blue-500';
+        if (score >= 60) return 'text-yellow-500';
         return 'text-red-500';
     };
 
@@ -83,9 +84,9 @@ export default function InterviewHistoryPage() {
             'Excellent': "bg-green-500/10 text-green-600 dark:text-green-400 border-green-500/20",
             'Good': "bg-blue-500/10 text-blue-600 dark:text-blue-400 border-blue-500/20",
             'Borderline': "bg-yellow-500/10 text-yellow-600 dark:text-yellow-400 border-yellow-500/20",
-            'Needs Improvement': "bg-red-500/10 text-red-600 dark:text-red-400 border-red-500/20",
-            'Abandoned': "bg-orange-500/10 text-orange-600 dark:text-orange-400 border-orange-500/20",
-            'Incomplete': "bg-yellow-500/10 text-yellow-600 dark:text-yellow-400 border-yellow-500/20",
+            'Needs Work': "bg-red-500/10 text-red-600 dark:text-red-400 border-red-500/20",
+            'Left in Middle': "bg-orange-500/10 text-orange-600 dark:text-orange-400 border-orange-500/20",
+            'Incomplete': "bg-purple-500/10 text-purple-600 dark:text-purple-400 border-purple-500/20",
             'Unscored': "bg-gray-500/10 text-gray-600 dark:text-gray-400 border-gray-500/20",
         };
         return styles[verdict] || styles['Unscored'];
@@ -120,7 +121,7 @@ export default function InterviewHistoryPage() {
     const completedSessions = sessions.filter(s => s.status === 'completed');
     const totalInterviews = sessions.length;
     const averageScore = completedSessions.length > 0 
-        ? (completedSessions.reduce((sum, s) => sum + (s.totalScore || 0), 0) / completedSessions.length).toFixed(1)
+        ? Math.round(completedSessions.reduce((sum, s) => sum + (s.totalScore || 0), 0) / completedSessions.length).toString()
         : '0';
     const bestScore = completedSessions.length > 0
         ? Math.max(...completedSessions.map(s => s.totalScore || 0))

@@ -231,6 +231,7 @@ function CodePlaygroundInner() {
   const [code, setCode] = useState('');
   const [output, setOutput] = useState<Line[]>([]);
   const [isRunning, setIsRunning] = useState(false);
+  const [isAIEvaluating, setIsAIEvaluating] = useState(false);
   const [attemptCounts, setAttemptCounts] = useState<Record<string, number>>({});
   const [resultsByQuestion, setResultsByQuestion] = useState<Record<string, EvalResult>>({});
   const [durationSeconds, setDurationSeconds] = useState(0);
@@ -672,6 +673,8 @@ function CodePlaygroundInner() {
         },
       }));
 
+      setIsRunning(false);
+      setIsAIEvaluating(true);
       await evaluateQuestionWithAI(activeQuestion, result, code);
 
       if (result.passed === result.total) {
@@ -685,6 +688,7 @@ function CodePlaygroundInner() {
       toast.error(message);
     } finally {
       setIsRunning(false);
+      setIsAIEvaluating(false);
     }
   }, [activeQuestion, code, evaluateJavaScript, evaluatePython, evaluateQuestionWithAI, isRunning, isUnlocked, language]);
 
@@ -809,6 +813,11 @@ function CodePlaygroundInner() {
             <Button onClick={runCode} disabled={isRunning || !isUnlocked} className='gap-2'>
               <Play className='h-4 w-4' /> {isRunning ? 'Running...' : 'Run Test Cases'}
             </Button>
+            {isAIEvaluating && (
+              <p className='text-xs text-muted-foreground flex items-center gap-1'>
+                <Loader2 className='h-3 w-3 animate-spin' /> AI evaluation in progress...
+              </p>
+            )}
             {isUnlocked && (
               <Button variant='outline' onClick={() => finishRound(false)} className='gap-2' disabled={isFinishing}>
                 {isFinishing ? 'Generating Summary...' : 'Finish Round'}

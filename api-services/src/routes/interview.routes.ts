@@ -10,6 +10,7 @@ import {
     startDsaInterview,
     evaluateDsaInterview,
     getDsaSessionSummary,
+    terminateSession,
 } from "../controllers/interview.controllers";
 import { requireAuth } from "../middleware/auth.middleware";
 
@@ -27,6 +28,7 @@ router.post("/start", startInterview);
 // POST /interview/answer
 // Body: { sessionId, questionIndex, answer }
 router.post("/answer", submitAnswer);
+router.post("/terminate", terminateSession);
 
 // Get the final AI summary for a completed session
 // POST /interview/summary

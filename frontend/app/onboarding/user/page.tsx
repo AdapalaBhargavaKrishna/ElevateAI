@@ -66,7 +66,11 @@ export default function OnboardingUserPage() {
 
       toast.success('Resume imported. Your My Info is now pre-filled.');
       router.replace('/user/myinfo');
-    } catch {
+    } catch (err: unknown) {
+      console.error("[Onboarding] Resume import failed:", err);
+      const axiosErr = err as { response?: { data?: { message?: string }; status?: number } };
+      console.error("[Onboarding] Status:", axiosErr?.response?.status);
+      console.error("[Onboarding] Response:", axiosErr?.response?.data);
       toast.error('Resume import failed. You can skip and fill manually later.');
     } finally {
       setLoadingAction(null);

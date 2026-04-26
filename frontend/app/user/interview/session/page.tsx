@@ -187,6 +187,7 @@ function InterviewSessionPageContent() {
     const tabViolationRef = useRef(false);
     const [tabSwitchCount, setTabSwitchCount] = useState(0);
     const [showFullscreenWarn, setShowFullscreenWarn] = useState(false);
+    const speechSupported = typeof window !== "undefined" && !!(window.SpeechRecognition || window.webkitSpeechRecognition);
 
     // ── Timer ──────────────────────────────────────────────────────────────────
 
@@ -205,9 +206,16 @@ function InterviewSessionPageContent() {
 
     const startCamera = useCallback(async () => {
         try {
+            if (mediaStreamRef.current) {
+                mediaStreamRef.current.getTracks().forEach(t => t.stop());
+                mediaStreamRef.current = null;
+            }
             const stream = await navigator.mediaDevices.getUserMedia({ video: true });
             mediaStreamRef.current = stream;
-            if (videoRef.current) videoRef.current.srcObject = stream;
+            if (videoRef.current) {
+                videoRef.current.srcObject = stream;
+                videoRef.current.play().catch(() => undefined);
+            }
             setCameraEnabled(true);
         } catch {
             setCameraEnabled(false);
@@ -229,8 +237,13 @@ function InterviewSessionPageContent() {
 
     // Toggle camera layout (show/hide camera panel)
     const toggleCameraLayout = () => {
-        setCameraVisible(v => !v);
-        if (!cameraVisible && !cameraEnabled) startCamera();
+        const willBeVisible = !cameraVisible;
+        setCameraVisible(willBeVisible);
+        if (willBeVisible) {
+            startCamera();
+        } else {
+            stopCamera();
+        }
     };
 
     useEffect(() => {
@@ -243,7 +256,6 @@ function InterviewSessionPageContent() {
     const startListening = useCallback(() => {
         const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
         if (!SR) {
-            setError('Speech recognition is not supported in this browser. Please use Chrome.');
             toast.error('Speech recognition is not supported in this browser. Please use Chrome.');
             return;
         }
@@ -268,11 +280,32 @@ function InterviewSessionPageContent() {
         };
 
         recognition.onerror = (event: SpeechErrorEvent) => {
-            if (event.error !== 'aborted') {
-                const message = `Microphone error: ${event.error}. Try again.`;
-                setError(message);
-                toast.error(message);
+            if (event.error === "aborted") {
+                setIsListening(false);
+                return;
             }
+
+            let userMessage = "";
+            switch (event.error) {
+                case "network":
+                    userMessage = "Speech recognition requires a stable internet connection and HTTPS. Please type your answer instead.";
+                    break;
+                case "not-allowed":
+                case "permission-denied":
+                    userMessage = "Microphone permission denied. Please allow microphone access and try again.";
+                    break;
+                case "no-speech":
+                    userMessage = "No speech detected. Try speaking closer to the microphone.";
+                    break;
+                case "audio-capture":
+                    userMessage = "Microphone not found. Please check your microphone and try again.";
+                    break;
+                default:
+                    userMessage = `Speech recognition error: ${event.error}. Please type your answer instead.`;
+            }
+
+            console.error("[SpeechRecognition] Error:", event.error);
+            toast.error(userMessage);
             setIsListening(false);
         };
         recognition.onend = () => setIsListening(false);
@@ -345,6 +378,20 @@ function InterviewSessionPageContent() {
             setQuestionsAnswered(response.questionsAnswered);
             if (response.nextQuestion)  setNextQuestionData(response.nextQuestion);
             if (response.isLastQuestion) setIsLastQuestion(true);
+
+            if (sessionMode === "interview" && !response.isLastQuestion && response.nextQuestion) {
+                setTimeout(() => {
+                    setCurrentQuestion(response.nextQuestion!);
+                    setCurrentQuestionIndex(i => i + 1);
+                    setAnswer("");
+                    setShowHint("none");
+                    setCurrentEvaluation(null);
+                    setNextQuestionData(null);
+                    setError(null);
+                }, 800);
+                return;
+            }
+
             if (response.isLastQuestion) {
                 toast.success('Interview complete. View your summary.');
             } else {
@@ -387,6 +434,9 @@ function InterviewSessionPageContent() {
             stopListening();
         }
 
+        interviewApi.terminateSession(sessionId, "tab_switch").catch((err) => {
+            console.error("Failed to terminate session:", err);
+        });
         toast.error('Tab switch limit reached. Interview session ended.');
 
         if (questionsAnswered > 0) {
@@ -409,19 +459,11 @@ function InterviewSessionPageContent() {
             }
         };
 
-        const onVisibilityChange = () => {
-            if (document.hidden) {
-                setTabSwitchCount((prev) => {
-                    const next = prev + 1;
-                    toast.error(`⚠️ Tab switch detected! (${next}/3). After 3 switches your session will be auto-submitted.`);
-                    if (next >= 3) {
-                        terminateForTabSwitch();
-                    }
-                    return next;
-                });
-            }
-        };
+        enterFullscreen();
+    }, [sessionId]);
 
+    useEffect(() => {
+        if (!sessionId) return;
         const onFullscreenChange = () => {
             if (!document.fullscreenElement) {
                 setShowFullscreenWarn(true);
@@ -429,19 +471,41 @@ function InterviewSessionPageContent() {
             }
             setShowFullscreenWarn(false);
         };
-
-        enterFullscreen();
-        document.addEventListener('visibilitychange', onVisibilityChange);
         document.addEventListener('fullscreenchange', onFullscreenChange);
+        return () => {
+            document.removeEventListener('fullscreenchange', onFullscreenChange);
+        };
+    }, [sessionId]);
+
+    const terminateRef = useRef(terminateForTabSwitch);
+    useEffect(() => {
+        terminateRef.current = terminateForTabSwitch;
+    }, [terminateForTabSwitch]);
+
+    useEffect(() => {
+        if (!sessionId) return;
+
+        const onVisibilityChange = () => {
+            if (document.hidden) {
+                setTabSwitchCount((prev) => {
+                    const next = prev + 1;
+                    toast.error(`⚠️ Tab switch detected! (${next}/3). After 3 switches your session will be auto-submitted.`);
+                    if (next >= 3) {
+                        terminateRef.current();
+                    }
+                    return next;
+                });
+            }
+        };
+        document.addEventListener('visibilitychange', onVisibilityChange);
 
         return () => {
             document.removeEventListener('visibilitychange', onVisibilityChange);
-            document.removeEventListener('fullscreenchange', onFullscreenChange);
             if (document.fullscreenElement) {
                 document.exitFullscreen().catch(() => undefined);
             }
         };
-    }, [sessionId, terminateForTabSwitch]);
+    }, [sessionId]);
 
     // ── Colours ────────────────────────────────────────────────────────────────
 
@@ -457,7 +521,6 @@ function InterviewSessionPageContent() {
         senior: 'bg-purple-500/10 text-purple-600 dark:text-purple-400',
     }[level] ?? 'bg-muted text-muted-foreground';
 
-    const isRealMode    = sessionMode === 'interview';
     const isPractice    = sessionMode === 'learning';
     const scorePct      = Math.round((currentEvaluation?.overallScore ?? 0) * 20);
 
@@ -568,8 +631,8 @@ function InterviewSessionPageContent() {
                                             variant={isListening ? "destructive" : "ghost"}
                                             className="h-8 w-8"
                                             onClick={toggleListening}
-                                            disabled={!!currentEvaluation}
-                                            title={isListening ? "Stop listening" : "Start speech-to-text"}
+                                            disabled={!!currentEvaluation || !speechSupported}
+                                            title={!speechSupported ? "Speech recognition not available in this browser (use Chrome)" : isListening ? "Stop listening" : "Start speech-to-text"}
                                         >
                                             {isListening ? <MicOff className="h-4 w-4" /> : <Mic className="h-4 w-4" />}
                                         </Button>
@@ -633,7 +696,8 @@ function InterviewSessionPageContent() {
                                                 variant={isListening ? "destructive" : "ghost"}
                                                 className="h-8 w-8"
                                                 onClick={toggleListening}
-                                                disabled={!!currentEvaluation}
+                                                disabled={!!currentEvaluation || !speechSupported}
+                                                title={!speechSupported ? "Speech recognition not available in this browser (use Chrome)" : isListening ? "Stop listening" : "Start speech-to-text"}
                                             >
                                                 {isListening ? <MicOff className="h-4 w-4" /> : <Mic className="h-4 w-4" />}
                                             </Button>
@@ -732,6 +796,7 @@ function InterviewSessionPageContent() {
                                                     <Button
                                                         variant={isListening ? "destructive" : "outline"}
                                                         onClick={toggleListening}
+                                                        disabled={!speechSupported}
                                                         className="gap-2 shrink-0"
                                                     >
                                                         {isListening
@@ -808,17 +873,6 @@ function InterviewSessionPageContent() {
                                                                     <p className="text-muted-foreground">{currentEvaluation.improvementSuggestions}</p>
                                                                 </div>
                                                             )}
-                                                        </div>
-                                                    </div>
-                                                )}
-
-                                                {/* Real mode: no score shown, just a neutral acknowledgement */}
-                                                {isRealMode && (
-                                                    <div className="flex items-center gap-3 p-4 bg-muted/30 rounded-xl border border-border">
-                                                        <CheckCircle2 className="h-5 w-5 text-primary shrink-0" />
-                                                        <div>
-                                                            <p className="font-medium text-foreground text-sm">Answer recorded</p>
-                                                            <p className="text-xs text-muted-foreground mt-0.5">Your score and feedback will appear in the summary at the end.</p>
                                                         </div>
                                                     </div>
                                                 )}
