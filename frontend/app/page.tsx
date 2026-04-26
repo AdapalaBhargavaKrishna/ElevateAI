@@ -392,6 +392,13 @@ export default function LandingPage() {
           <div className="max-w-7xl mx-auto mt-12 pt-6 border-t border-border/50 text-center text-xs text-muted-foreground">
             © {new Date().getFullYear()} ElevateAI. All rights reserved.
           </div>
+          <a href="https://elevateai-t40q.onrender.com/health" target="_blank" rel="noopener noreferrer" className="text-sm text-muted-foreground hover:text-foreground transition">
+            ai servies
+          </a>
+          <a href="https://elevateai-apis.onrender.com/health" target="_blank" rel="noopener noreferrer" className="text-sm text-muted-foreground hover:text-foreground transition">
+            api servies
+          </a>
+          
         </footer>
       </div>
     </TooltipProvider>
