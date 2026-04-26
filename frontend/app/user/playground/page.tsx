@@ -14,6 +14,7 @@ import {
   ListChecks,
   Lock,
   Maximize2,
+  Loader2,
   Play,
   RotateCcw,
   Terminal,
