@@ -121,6 +121,16 @@ type PlaygroundSummary = {
   questions: PlaygroundSummaryQuestion[];
 };
 
+async function withRetry<T>(fn: () => Promise<T>, retries = 2, delayMs = 1500): Promise<T> {
+  try {
+    return await fn();
+  } catch (err) {
+    if (retries <= 0) throw err;
+    await new Promise((resolve) => setTimeout(resolve, delayMs));
+    return withRetry(fn, retries - 1, delayMs * 1.5);
+  }
+}
+
 const DIFFICULTY_COLORS: Record<string, string> = {
   Easy: 'bg-green-500/10 text-green-600 dark:text-green-400 border-green-500/20',
   Medium: 'bg-amber-500/10 text-amber-600 dark:text-amber-400 border-amber-500/20',
@@ -229,6 +239,7 @@ function CodePlaygroundInner() {
   const [evaluationsByQuestion, setEvaluationsByQuestion] = useState<Record<string, DSAEvaluateResponse>>({});
   const [submittedByQuestion, setSubmittedByQuestion] = useState<Record<string, { code: string; language: Language }>>({});
   const [isFinishing, setIsFinishing] = useState(false);
+  const [finishingStatus, setFinishingStatus] = useState('');
 
   const tabViolationRef = useRef(false);
   const roundFinishedRef = useRef(false);
@@ -336,6 +347,7 @@ function CodePlaygroundInner() {
       if (!accessConfig) return;
       roundFinishedRef.current = true;
       setIsFinishing(true);
+      setFinishingStatus('Evaluating your code...');
       setShowFullscreenWarning(false);
       setShowEnterFullscreen(false);
       if (document.fullscreenElement) {
@@ -352,7 +364,13 @@ function CodePlaygroundInner() {
           if (!result) return;
           if (!latestEvaluations[q.id]) {
             const submitted = submittedByQuestion[q.id];
-            const evalResp = await evaluateQuestionWithAI(q, result, submitted?.code ?? code);
+            const evalResp = await withRetry(async () => {
+              const response = await evaluateQuestionWithAI(q, result, submitted?.code ?? code);
+              if (!response) {
+                throw new Error('Evaluation unavailable');
+              }
+              return response;
+            }, 2, 1500);
             if (evalResp) latestEvaluations[q.id] = evalResp;
           }
         })
@@ -377,7 +395,8 @@ function CodePlaygroundInner() {
       });
 
       try {
-        const aiSummary = await interviewApi.dsaSummary(accessConfig.sessionId);
+        setFinishingStatus('Generating AI summary...');
+        const aiSummary = await withRetry(() => interviewApi.dsaSummary(accessConfig.sessionId), 2, 1500);
         const summaryData: PlaygroundSummary = {
           overallSummary: aiSummary.overallSummary ?? null,
           strengths: aiSummary.strengths ?? null,
@@ -416,7 +435,7 @@ function CodePlaygroundInner() {
         };
         sessionStorage.setItem(PLAYGROUND_SUMMARY_STORAGE_KEY, JSON.stringify(fallback));
       } finally {
-        setIsFinishing(false);
+        setFinishingStatus('Preparing results...');
       }
 
       router.push('/user/playground/summary');
@@ -442,6 +461,7 @@ function CodePlaygroundInner() {
     setShowFullscreenWarning(false);
     setShowEnterFullscreen(true);
     setIsFinishing(false);
+    setFinishingStatus('');
     setEvaluationsByQuestion({});
     setSubmittedByQuestion({});
   }, [isUnlocked]);
@@ -794,6 +814,7 @@ function CodePlaygroundInner() {
                 {isFinishing ? 'Generating Summary...' : 'Finish Round'}
               </Button>
             )}
+            {isFinishing && <span className='text-xs text-muted-foreground'>{finishingStatus}</span>}
             <span className='text-xs text-muted-foreground'>
               {language === 'javascript' ? 'JavaScript runs in browser sandbox' : 'Python runs via backend compiler API'}
             </span>

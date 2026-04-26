@@ -68,7 +68,19 @@ export async function startInterview(req: Request, res: Response) {
             timer_enabled: timerEnabled ?? false,
             time_per_question: timePerQuestion ?? null,
             mode: mode ?? "interview",
-        });
+        }, 90000);
+
+        const generatedQuestions = aiResponse.questions?.length
+            ? aiResponse.questions
+            : aiResponse.first_question
+                ? [aiResponse.first_question]
+                : [];
+
+        if (!generatedQuestions.length) {
+            return res.status(500).json({
+                message: "Interview generation failed: AI response did not include a first question.",
+            });
+        }
 
         // 2. Persist session in DB
         const session = await prisma.interviewSession.create({
@@ -85,10 +97,6 @@ export async function startInterview(req: Request, res: Response) {
                 status: "in_progress",
             },
         });
-
-        const generatedQuestions = aiResponse.questions?.length
-            ? aiResponse.questions
-            : [aiResponse.first_question];
 
         await prisma.interviewQuestion.createMany({
             data: generatedQuestions.map((question, index) => ({
@@ -510,22 +518,41 @@ export async function evaluateDsaInterview(req: Request, res: Response) {
         if (!currentQuestion) return res.status(404).json({ message: "Question not found." });
 
         const parsedQuestion = safeParseDsaQuestion(currentQuestion.questionText);
-        const evaluation = await aiEvaluateDSAInterview(userId, {
-            problem_description: parsedQuestion?.problem_description ?? currentQuestion.questionText,
-            user_code: userCode,
-            language,
-            test_results: testResults ?? [],
-            role: session.role,
-            level: session.level,
-        });
-
         const nextQuestionRecord = session.questions.find((q) => q.questionIndex === questionIndex + 1);
         const isLastQuestion = !nextQuestionRecord || questionIndex + 1 >= session.questionCount;
 
+        // Save user code first so summary can still proceed if AI evaluation fails.
         await prisma.interviewQuestion.update({
             where: { id: currentQuestion.id },
             data: {
                 userAnswer: userCode,
+                answeredAt: new Date(),
+            },
+        });
+
+        let evaluation;
+        try {
+            evaluation = await aiEvaluateDSAInterview(userId, {
+                problem_description: parsedQuestion?.problem_description ?? currentQuestion.questionText,
+                user_code: userCode,
+                language,
+                test_results: testResults ?? [],
+                role: session.role,
+                level: session.level,
+            });
+        } catch (err) {
+            if (isLastQuestion) {
+                await prisma.interviewSession.update({
+                    where: { id: sessionId },
+                    data: { status: "awaiting_summary" },
+                });
+            }
+            throw err;
+        }
+
+        await prisma.interviewQuestion.update({
+            where: { id: currentQuestion.id },
+            data: {
                 technicalScore: evaluation.correctness_score,
                 depthScore: evaluation.code_quality_score,
                 clarityScore: evaluation.overall_score,
@@ -535,7 +562,6 @@ export async function evaluateDsaInterview(req: Request, res: Response) {
                 strengths: (evaluation.strengths || []).join("\n"),
                 weaknesses: (evaluation.weaknesses || []).join("\n"),
                 improvementSuggestions: (evaluation.improvement_suggestions || []).join("\n"),
-                answeredAt: new Date(),
             },
         });
 
@@ -571,8 +597,34 @@ export async function getDsaSessionSummary(req: Request, res: Response) {
         });
         if (!session) return res.status(404).json({ message: "Session not found." });
 
-        const answered = session.questions.filter((q) => q.userAnswer);
-        if (answered.length === 0) return res.status(400).json({ message: "No answered questions found." });
+        const answered = session.questions.filter((q) => q.userAnswer || q.answeredAt);
+        if (answered.length === 0) {
+            await prisma.interviewSession.update({
+                where: { id: sessionId },
+                data: {
+                    totalScore: 0,
+                    status: "completed",
+                    completedAt: new Date(),
+                },
+            });
+
+            return res.status(200).json({
+                sessionId: session.id,
+                role: session.role,
+                level: session.level,
+                interviewType: session.interviewType,
+                difficulty: session.difficulty,
+                totalQuestions: session.questionCount,
+                questionsAnswered: 0,
+                overallSummary: "No answers were submitted for this DSA session.",
+                strengths: "",
+                weaknesses: "",
+                finalScore: 0,
+                verdict: "Unscored",
+                completedAt: new Date(),
+                questions: [],
+            });
+        }
 
         const questionsPayload = answered.map((q) => {
             const parsed = safeParseDsaQuestion(q.questionText);

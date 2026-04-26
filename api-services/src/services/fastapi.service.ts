@@ -10,6 +10,11 @@ interface FastAPIRequestOptions {
     body: Record<string, unknown>;
 }
 
+const DEFAULT_AI_TIMEOUT_MS = 60000;
+const DSA_AI_TIMEOUT_MS = 120000;
+const START_INTERVIEW_TIMEOUT_MS = 90000;
+const AI_RETRY_DELAYS_MS = [1200, 2400];
+
 export class AIServiceHttpError extends Error {
     status: number;
     detail: string;
@@ -22,23 +27,65 @@ export class AIServiceHttpError extends Error {
     }
 }
 
-async function postToAI<T>({ userId, path, body }: FastAPIRequestOptions): Promise<T> {
-    const res = await fetch(`${AI_SERVICE_URL}${path}`, {
-        method: "POST",
-        headers: {
-            "Content-Type": "application/json",
-            "X-User-Id": userId,
-            "X-Internal-Key": INTERNAL_KEY,
-        },
-        body: JSON.stringify(body),
-    });
+async function postToAI<T>(
+    { userId, path, body }: FastAPIRequestOptions,
+    timeoutMs = DEFAULT_AI_TIMEOUT_MS
+): Promise<T> {
+    const attemptRequest = async (): Promise<T> => {
+        const controller = new AbortController();
+        const timer = setTimeout(() => controller.abort(), timeoutMs);
+        try {
+            const res = await fetch(`${AI_SERVICE_URL}${path}`, {
+                method: "POST",
+                headers: {
+                    "Content-Type": "application/json",
+                    "X-User-Id": userId,
+                    "X-Internal-Key": INTERNAL_KEY,
+                },
+                body: JSON.stringify(body),
+                signal: controller.signal,
+            });
 
-    if (!res.ok) {
-        const error = await res.text();
-        throw new AIServiceHttpError(res.status, error);
+            if (!res.ok) {
+                const error = await res.text();
+                throw new AIServiceHttpError(res.status, error);
+            }
+
+            return res.json() as Promise<T>;
+        } catch (err: any) {
+            if (err?.name === "AbortError") {
+                throw new AIServiceHttpError(504, "AI service timed out");
+            }
+            throw err;
+        } finally {
+            clearTimeout(timer);
+        }
+    };
+
+    let lastError: unknown = null;
+    for (let attempt = 0; attempt <= AI_RETRY_DELAYS_MS.length; attempt += 1) {
+        try {
+            return await attemptRequest();
+        } catch (err) {
+            lastError = err;
+            const shouldRetry =
+                attempt < AI_RETRY_DELAYS_MS.length &&
+                (
+                    (err instanceof AIServiceHttpError && [503, 504].includes(err.status)) ||
+                    (err instanceof TypeError)
+                );
+
+            if (!shouldRetry) {
+                throw err;
+            }
+
+            await new Promise((resolve) => setTimeout(resolve, AI_RETRY_DELAYS_MS[attempt]));
+        }
     }
 
-    return res.json() as Promise<T>;
+    throw lastError instanceof Error
+        ? lastError
+        : new Error("AI request failed after retries.");
 }
 
 // ─── Interview Types ──────────────────────────────────────────────────────────
@@ -166,13 +213,14 @@ export interface DSASummaryRequest {
 
 export async function aiStartInterview(
     userId: string,
-    payload: StartInterviewRequest
+    payload: StartInterviewRequest,
+    timeoutMs = START_INTERVIEW_TIMEOUT_MS
 ): Promise<StartInterviewResponse> {
     return postToAI<StartInterviewResponse>({
         userId,
         path: "/interview/start",
         body: payload as unknown as Record<string, unknown>,
-    });
+    }, timeoutMs);
 }
 
 export async function aiSubmitAnswer(
@@ -205,7 +253,7 @@ export async function aiStartDSAInterview(
         userId,
         path: "/interview/dsa-start",
         body: payload as unknown as Record<string, unknown>,
-    });
+    }, DSA_AI_TIMEOUT_MS);
 }
 
 export async function aiEvaluateDSAInterview(
@@ -216,7 +264,7 @@ export async function aiEvaluateDSAInterview(
         userId,
         path: "/interview/dsa-evaluate",
         body: payload as unknown as Record<string, unknown>,
-    });
+    }, DSA_AI_TIMEOUT_MS);
 }
 
 export async function aiGetDSASummary(
@@ -227,7 +275,7 @@ export async function aiGetDSASummary(
         userId,
         path: "/interview/dsa-summary",
         body: payload as unknown as Record<string, unknown>,
-    });
+    }, DSA_AI_TIMEOUT_MS);
 }
 
 // ─── Resume Types ─────────────────────────────────────────────────────────────
