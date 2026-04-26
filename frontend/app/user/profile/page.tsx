@@ -85,10 +85,6 @@ export default function ProfilePage() {
         fetchData();
     }, []);
 
-    const initials = me?.fullName
-        ? me.fullName.split(" ").map(n => n[0]).join("").toUpperCase()
-        : "?";
-
     const goToMyInfo = () => router.push('/user/myinfo');
 
     const handlePreview = () => router.push('/preview');
@@ -235,8 +231,12 @@ export default function ProfilePage() {
                         <CardContent className="p-6 sm:p-8">
                             <div className="flex flex-col sm:flex-row items-start gap-6">
                                 {/* Avatar */}
-                                <div className="h-20 w-20 sm:h-24 sm:w-24 rounded-2xl bg-primary/10 flex items-center justify-center border-2 border-primary/20 shrink-0">
-                                    <span className="text-2xl sm:text-3xl font-semibold text-primary">{initials}</span>
+                                <div className="h-20 w-20 sm:h-24 sm:w-24 rounded-full border border-border bg-muted/10 overflow-hidden shrink-0">
+                                    <img
+                                        src={`https://api.dicebear.com/9.x/identicon/svg?seed=${encodeURIComponent(me?.fullName || "User")}`}
+                                        alt={me?.fullName || "User"}
+                                        className="h-full w-full object-cover"
+                                    />
                                 </div>
 
                                 {/* Info */}
