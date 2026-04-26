@@ -142,13 +142,11 @@ export async function googleCallback(req: Request, res: Response) {
     const accessToken = generateAccessToken(user.id);
     const refreshToken = generateRefreshToken(user.id);
 
-    res.cookie("access_token", accessToken, { ...COOKIE_OPTIONS, maxAge: 15 * 60 * 1000 });
-    res.cookie("refresh_token", refreshToken, { ...COOKIE_OPTIONS, maxAge: 7 * 24 * 60 * 60 * 1000 });
+    const redirectPath = user.isNewUser ? "/onboarding/user" : "/user/dashboard";
 
-    if (user.isNewUser) {
-        return res.redirect(`${process.env.FRONTEND_URL}/onboarding/user`);
-    }
-    return res.redirect(`${process.env.FRONTEND_URL}/user/dashboard`);
+    return res.redirect(
+        `${process.env.FRONTEND_URL}/auth/callback?access_token=${accessToken}&refresh_token=${refreshToken}&redirect=${redirectPath}`
+    );
 }
 
 export const completeOnboarding = async (req: Request, res: Response) => {
