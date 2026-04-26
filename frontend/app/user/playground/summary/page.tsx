@@ -28,18 +28,34 @@ type PlaygroundSummaryQuestion = {
   passed: number;
   total: number;
   score: number;
+  evaluation: {
+    correctness_score: number;
+    time_complexity: string;
+    space_complexity: string;
+    code_quality_score: number;
+    overall_score: number;
+    strengths: string[];
+    weaknesses: string[];
+    improvement_suggestions: string[];
+    optimal_approach_hint: string;
+  } | null;
 };
 
 type PlaygroundSummary = {
+  overallSummary: string | null;
+  strengths: string | null;
+  weaknesses: string | null;
+  finalScore: number | null;
+  verdict: string | null;
   generatedAt: string;
   terminatedByTabSwitch: boolean;
   level: string;
   difficulty: string;
   sessionMode: string;
   durationSeconds: number;
-  overallScore: number;
-  totalPassed: number;
-  totalTests: number;
+  overallScore?: number;
+  totalPassed?: number;
+  totalTests?: number;
   questions: PlaygroundSummaryQuestion[];
 };
 
@@ -70,13 +86,37 @@ function PlaygroundSummaryInner() {
     }
   }, [router, summary]);
 
+  const totalPassed = useMemo(() => {
+    if (!summary) return 0;
+    if (typeof summary.totalPassed === 'number') return summary.totalPassed;
+    return summary.questions.reduce((sum, q) => sum + q.passed, 0);
+  }, [summary]);
+
+  const totalTests = useMemo(() => {
+    if (!summary) return 0;
+    if (typeof summary.totalTests === 'number') return summary.totalTests;
+    return summary.questions.reduce((sum, q) => sum + q.total, 0);
+  }, [summary]);
+
+  const localOverallScore = useMemo(() => {
+    if (!summary) return 0;
+    if (typeof summary.overallScore === 'number') return summary.overallScore;
+    return totalTests ? Math.round((totalPassed / totalTests) * 100) : 0;
+  }, [summary, totalPassed, totalTests]);
+
+  const displayScore = useMemo(() => {
+    if (!summary) return 0;
+    return summary.finalScore ?? localOverallScore;
+  }, [summary, localOverallScore]);
+
   const verdict = useMemo(() => {
     if (!summary) return 'Pending';
-    if (summary.overallScore >= 85) return 'Excellent';
-    if (summary.overallScore >= 70) return 'Strong';
-    if (summary.overallScore >= 50) return 'Needs Improvement';
+    if (summary.verdict) return summary.verdict;
+    if (displayScore >= 85) return 'Excellent';
+    if (displayScore >= 70) return 'Strong';
+    if (displayScore >= 50) return 'Needs Improvement';
     return 'Practice Required';
-  }, [summary]);
+  }, [displayScore, summary]);
 
   if (!summary) {
     return (
@@ -116,15 +156,15 @@ function PlaygroundSummaryInner() {
               <div className='grid grid-cols-1 sm:grid-cols-4 gap-4'>
                 <div>
                   <p className='text-xs text-muted-foreground'>Overall Score</p>
-                  <p className='text-3xl font-bold text-foreground'>{summary.overallScore}%</p>
-                  <Badge variant='outline' className={`mt-2 ${scoreBadgeClass(summary.overallScore)}`}>
+                  <p className='text-3xl font-bold text-foreground'>{displayScore}%</p>
+                  <Badge variant='outline' className={`mt-2 ${scoreBadgeClass(displayScore)}`}>
                     {verdict}
                   </Badge>
                 </div>
 
                 <div>
                   <p className='text-xs text-muted-foreground'>Tests Passed</p>
-                  <p className='text-2xl font-bold text-foreground'>{summary.totalPassed}/{summary.totalTests}</p>
+                  <p className='text-2xl font-bold text-foreground'>{totalPassed}/{totalTests}</p>
                 </div>
 
                 <div>
@@ -169,6 +209,59 @@ function PlaygroundSummaryInner() {
                     <p className='text-xs text-muted-foreground mt-1'>{q.passed}/{q.total} tests passed</p>
                   </div>
                 </div>
+                {q.evaluation && (
+                  <details className='mt-3 group rounded-md border border-border/70 bg-muted/30 p-3'>
+                    <summary className='cursor-pointer text-xs font-semibold text-foreground'>
+                      AI Evaluation Details
+                    </summary>
+                    <div className='mt-3 space-y-3 text-xs text-muted-foreground'>
+                      <div className='grid grid-cols-1 sm:grid-cols-2 gap-3'>
+                        <p>
+                          Time Complexity: <span className='text-foreground font-medium'>{q.evaluation.time_complexity}</span>
+                        </p>
+                        <p>
+                          Space Complexity: <span className='text-foreground font-medium'>{q.evaluation.space_complexity}</span>
+                        </p>
+                        <p>
+                          Correctness: <span className='text-foreground font-medium'>{q.evaluation.correctness_score}</span>
+                        </p>
+                        <p>
+                          Code Quality: <span className='text-foreground font-medium'>{q.evaluation.code_quality_score}</span>
+                        </p>
+                      </div>
+                      {q.evaluation.strengths.length > 0 && (
+                        <div>
+                          <p className='text-foreground font-semibold'>Strengths</p>
+                          <ul className='list-disc list-inside space-y-1 mt-1'>
+                            {q.evaluation.strengths.map((item) => (
+                              <li key={item}>{item}</li>
+                            ))}
+                          </ul>
+                        </div>
+                      )}
+                      {q.evaluation.weaknesses.length > 0 && (
+                        <div>
+                          <p className='text-foreground font-semibold'>Weaknesses</p>
+                          <ul className='list-disc list-inside space-y-1 mt-1'>
+                            {q.evaluation.weaknesses.map((item) => (
+                              <li key={item}>{item}</li>
+                            ))}
+                          </ul>
+                        </div>
+                      )}
+                      {q.evaluation.improvement_suggestions.length > 0 && (
+                        <div>
+                          <p className='text-foreground font-semibold'>Improvement Suggestions</p>
+                          <ul className='list-disc list-inside space-y-1 mt-1'>
+                            {q.evaluation.improvement_suggestions.map((item) => (
+                              <li key={item}>{item}</li>
+                            ))}
+                          </ul>
+                        </div>
+                      )}
+                    </div>
+                  </details>
+                )}
               </div>
             ))}
           </CardContent>
@@ -177,20 +270,40 @@ function PlaygroundSummaryInner() {
         <Card>
           <CardHeader>
             <CardTitle className='text-base flex items-center gap-2'>
-              <Award className='h-4 w-4 text-primary' /> Performance Notes
+              <Award className='h-4 w-4 text-primary' /> AI Analysis
             </CardTitle>
           </CardHeader>
           <CardContent className='space-y-2 text-sm text-muted-foreground'>
-            <p>
-              {summary.overallScore >= 80
-                ? 'Strong coding interview performance. You handled most test cases correctly.'
-                : summary.overallScore >= 60
-                  ? 'Good baseline performance. Focus on edge cases and cleaner implementation for higher score.'
-                  : 'You need more practice on fundamentals and edge-case handling. Retry in practice mode and iterate.'}
-            </p>
-            <p>
-              Keep improving by re-running failed problems, then retrying the DSA round from Interview Coach.
-            </p>
+            {summary.overallSummary || summary.strengths || summary.weaknesses ? (
+              <>
+                {summary.overallSummary && <p>{summary.overallSummary}</p>}
+                {summary.strengths && (
+                  <div>
+                    <p className='font-semibold text-foreground'>Strengths</p>
+                    <p>{summary.strengths}</p>
+                  </div>
+                )}
+                {summary.weaknesses && (
+                  <div>
+                    <p className='font-semibold text-foreground'>Areas to Improve</p>
+                    <p>{summary.weaknesses}</p>
+                  </div>
+                )}
+              </>
+            ) : (
+              <>
+                <p>
+                  {displayScore >= 80
+                    ? 'Strong coding interview performance. You handled most test cases correctly.'
+                    : displayScore >= 60
+                      ? 'Good baseline performance. Focus on edge cases and cleaner implementation for higher score.'
+                      : 'You need more practice on fundamentals and edge-case handling. Retry in practice mode and iterate.'}
+                </p>
+                <p>
+                  Keep improving by re-running failed problems, then retrying the DSA round from Interview Coach.
+                </p>
+              </>
+            )}
           </CardContent>
         </Card>
 

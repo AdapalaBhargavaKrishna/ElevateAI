@@ -60,8 +60,10 @@ export default function InterviewHistoryPage() {
         return (score * 10).toFixed(0);
     };
 
-    const getVerdictFromScore = (score: number | null): string => {
-        if (score === null) return 'In Progress';
+    const getVerdictFromScore = (score: number | null, status: string): string => {
+        if (status === 'in_progress') return 'Abandoned';
+        if (status === 'awaiting_summary') return 'Incomplete';
+        if (score === null) return 'Unscored';
         if (score >= 8) return 'Excellent';
         if (score >= 7) return 'Good';
         if (score >= 6) return 'Borderline';
@@ -82,9 +84,11 @@ export default function InterviewHistoryPage() {
             'Good': "bg-blue-500/10 text-blue-600 dark:text-blue-400 border-blue-500/20",
             'Borderline': "bg-yellow-500/10 text-yellow-600 dark:text-yellow-400 border-yellow-500/20",
             'Needs Improvement': "bg-red-500/10 text-red-600 dark:text-red-400 border-red-500/20",
-            'In Progress': "bg-gray-500/10 text-gray-600 dark:text-gray-400 border-gray-500/20",
+            'Abandoned': "bg-orange-500/10 text-orange-600 dark:text-orange-400 border-orange-500/20",
+            'Incomplete': "bg-yellow-500/10 text-yellow-600 dark:text-yellow-400 border-yellow-500/20",
+            'Unscored': "bg-gray-500/10 text-gray-600 dark:text-gray-400 border-gray-500/20",
         };
-        return styles[verdict] || styles['In Progress'];
+        return styles[verdict] || styles['Unscored'];
     };
 
     const getTypeBadge = (type: string) => {
@@ -241,16 +245,19 @@ export default function InterviewHistoryPage() {
                                     </thead>
                                     <tbody>
                                         {sessions.map((session, i) => {
-                                            const verdict = getVerdictFromScore(session.totalScore);
+                                            const verdict = getVerdictFromScore(session.totalScore, session.status);
+                                            const canOpenSummary = session.status === 'completed';
                                             return (
                                                 <motion.tr
                                                     key={session.id}
                                                     initial={{ opacity: 0, y: 10 }}
                                                     animate={{ opacity: 1, y: 0 }}
                                                     transition={{ delay: i * 0.05 }}
-                                                    className="border-b border-border last:border-0 hover:bg-muted/30 transition-colors cursor-pointer group"
+                                                    className={`border-b border-border last:border-0 transition-colors ${
+                                                        canOpenSummary ? 'hover:bg-muted/30 cursor-pointer group' : ''
+                                                    }`}
                                                     onClick={() => {
-                                                        if (session.status === 'completed') {
+                                                        if (canOpenSummary) {
                                                             router.push(`/user/interview/summary?session_id=${session.id}`);
                                                         }
                                                     }}

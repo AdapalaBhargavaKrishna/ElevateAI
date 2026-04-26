@@ -13,18 +13,20 @@ import {
   Code2,
   ListChecks,
   Lock,
+  Maximize2,
   Play,
   RotateCcw,
   Terminal,
 } from 'lucide-react';
 import toast from 'react-hot-toast';
 
-import { interviewApi } from '@/app/lib/interview.api';
+import { interviewApi, type DSAEvaluateResponse } from '@/app/lib/interview.api';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { useSidebar } from '@/context/SidebarContext';
 
 type Language = 'javascript' | 'python';
 type LineType = 'info' | 'error' | 'success' | 'warn';
@@ -98,9 +100,15 @@ type PlaygroundSummaryQuestion = {
   passed: number;
   total: number;
   score: number;
+  evaluation: DSAEvaluateResponse | null;
 };
 
 type PlaygroundSummary = {
+  overallSummary: string | null;
+  strengths: string | null;
+  weaknesses: string | null;
+  finalScore: number | null;
+  verdict: string | null;
   generatedAt: string;
   terminatedByTabSwitch: boolean;
   level: string;
@@ -204,6 +212,7 @@ function mapApiQuestions(apiQuestions: ApiDsaQuestion[]): PlaygroundQuestion[] {
 function CodePlaygroundInner() {
   const router = useRouter();
   const searchParams = useSearchParams();
+  const { setCollapsed } = useSidebar();
 
   const [accessConfig, setAccessConfig] = useState<DsaAccess | null>(null);
   const [questions, setQuestions] = useState<PlaygroundQuestion[]>([]);
@@ -216,6 +225,10 @@ function CodePlaygroundInner() {
   const [resultsByQuestion, setResultsByQuestion] = useState<Record<string, EvalResult>>({});
   const [durationSeconds, setDurationSeconds] = useState(0);
   const [showFullscreenWarning, setShowFullscreenWarning] = useState(false);
+  const [showEnterFullscreen, setShowEnterFullscreen] = useState(false);
+  const [evaluationsByQuestion, setEvaluationsByQuestion] = useState<Record<string, DSAEvaluateResponse>>({});
+  const [submittedByQuestion, setSubmittedByQuestion] = useState<Record<string, { code: string; language: Language }>>({});
+  const [isFinishing, setIsFinishing] = useState(false);
 
   const tabViolationRef = useRef(false);
   const roundFinishedRef = useRef(false);
@@ -280,20 +293,78 @@ function CodePlaygroundInner() {
 
   useEffect(() => {
     if (!isUnlocked) return;
-    if (document.fullscreenElement === null) {
-      document.documentElement.requestFullscreen().catch(() => {});
-    }
+    setShowEnterFullscreen(true);
+    setCollapsed(true);
     const timer = setInterval(() => {
       setDurationSeconds((prev) => prev + 1);
     }, 1000);
-    return () => clearInterval(timer);
-  }, [isUnlocked]);
+    return () => {
+      clearInterval(timer);
+      setCollapsed(false);
+    };
+  }, [isUnlocked, setCollapsed]);
 
-  const buildSummary = useCallback(
-    (terminatedByTabSwitch: boolean): PlaygroundSummary => {
-      const questionSummaries: PlaygroundSummaryQuestion[] = questions.map((q) => {
+  const evaluateQuestionWithAI = useCallback(
+    async (question: PlaygroundQuestion, result: EvalResult, sourceCode: string): Promise<DSAEvaluateResponse | null> => {
+      if (!accessConfig?.sessionId) return null;
+      const questionIndex = questions.findIndex((q) => q.id === question.id);
+      if (questionIndex < 0) return null;
+
+      try {
+        const evaluation = await interviewApi.dsaEvaluate({
+          sessionId: accessConfig.sessionId,
+          questionIndex,
+          userCode: sourceCode,
+          language: result.language,
+          testResults: result,
+        });
+        setEvaluationsByQuestion((prev) => ({
+          ...prev,
+          [question.id]: evaluation,
+        }));
+        return evaluation;
+      } catch {
+        return null;
+      }
+    },
+    [accessConfig?.sessionId, questions]
+  );
+
+  const finishRound = useCallback(
+    async (terminatedByTabSwitch = false) => {
+      if (roundFinishedRef.current) return;
+      if (!accessConfig) return;
+      roundFinishedRef.current = true;
+      setIsFinishing(true);
+      setShowFullscreenWarning(false);
+      setShowEnterFullscreen(false);
+      if (document.fullscreenElement) {
+        await document.exitFullscreen().catch(() => {});
+      }
+      setCollapsed(false);
+
+      const questionSummaries: PlaygroundSummaryQuestion[] = [];
+      const latestEvaluations = { ...evaluationsByQuestion };
+
+      await Promise.all(
+        questions.map(async (q) => {
+          const result = resultsByQuestion[q.id];
+          if (!result) return;
+          if (!latestEvaluations[q.id]) {
+            const submitted = submittedByQuestion[q.id];
+            const evalResp = await evaluateQuestionWithAI(q, result, submitted?.code ?? code);
+            if (evalResp) latestEvaluations[q.id] = evalResp;
+          }
+        })
+      );
+
+      const totalPassed = questions.reduce((sum, q) => sum + (resultsByQuestion[q.id]?.passed ?? 0), 0);
+      const totalTests = questions.reduce((sum, q) => sum + (resultsByQuestion[q.id]?.total ?? q.testCases.length), 0);
+      const overallScore = totalTests ? Math.round((totalPassed / totalTests) * 100) : 0;
+
+      questions.forEach((q) => {
         const result = resultsByQuestion[q.id];
-        return {
+        questionSummaries.push({
           id: q.id,
           title: q.title,
           difficulty: q.difficulty,
@@ -301,48 +372,78 @@ function CodePlaygroundInner() {
           passed: result?.passed ?? 0,
           total: result?.total ?? q.testCases.length,
           score: result?.score ?? 0,
-        };
+          evaluation: latestEvaluations[q.id] ?? null,
+        });
       });
 
-      const totalPassed = questionSummaries.reduce((sum, q) => sum + q.passed, 0);
-      const totalTests = questionSummaries.reduce((sum, q) => sum + q.total, 0);
-      const overallScore = totalTests ? Math.round((totalPassed / totalTests) * 100) : 0;
-
-      return {
-        generatedAt: new Date().toISOString(),
-        terminatedByTabSwitch,
-        level: accessConfig?.level ?? 'mid',
-        difficulty: accessConfig?.difficulty ?? 'medium',
-        sessionMode: accessConfig?.sessionMode ?? 'interview',
-        durationSeconds,
-        overallScore,
-        totalPassed,
-        totalTests,
-        questions: questionSummaries,
-      };
-    },
-    [accessConfig, durationSeconds, language, questions, resultsByQuestion]
-  );
-
-  const finishRound = useCallback(
-    (terminatedByTabSwitch = false) => {
-      if (roundFinishedRef.current) return;
-      roundFinishedRef.current = true;
-      setShowFullscreenWarning(false);
-      if (document.fullscreenElement) {
-        document.exitFullscreen().catch(() => {});
+      try {
+        const aiSummary = await interviewApi.dsaSummary(accessConfig.sessionId);
+        const summaryData: PlaygroundSummary = {
+          overallSummary: aiSummary.overallSummary ?? null,
+          strengths: aiSummary.strengths ?? null,
+          weaknesses: aiSummary.weaknesses ?? null,
+          finalScore: aiSummary.finalScore ?? null,
+          verdict: aiSummary.verdict ?? null,
+          generatedAt: new Date().toISOString(),
+          terminatedByTabSwitch,
+          level: accessConfig.level,
+          difficulty: accessConfig.difficulty,
+          sessionMode: accessConfig.sessionMode,
+          durationSeconds,
+          overallScore,
+          totalPassed,
+          totalTests,
+          questions: questionSummaries,
+        };
+        sessionStorage.setItem(PLAYGROUND_SUMMARY_STORAGE_KEY, JSON.stringify(summaryData));
+      } catch {
+        const fallback: PlaygroundSummary = {
+          overallSummary: null,
+          strengths: null,
+          weaknesses: null,
+          finalScore: null,
+          verdict: null,
+          generatedAt: new Date().toISOString(),
+          terminatedByTabSwitch,
+          level: accessConfig.level,
+          difficulty: accessConfig.difficulty,
+          sessionMode: accessConfig.sessionMode,
+          durationSeconds,
+          overallScore,
+          totalPassed,
+          totalTests,
+          questions: questionSummaries.map((q) => ({ ...q, evaluation: null })),
+        };
+        sessionStorage.setItem(PLAYGROUND_SUMMARY_STORAGE_KEY, JSON.stringify(fallback));
+      } finally {
+        setIsFinishing(false);
       }
-      const summary = buildSummary(terminatedByTabSwitch);
-      sessionStorage.setItem(PLAYGROUND_SUMMARY_STORAGE_KEY, JSON.stringify(summary));
+
       router.push('/user/playground/summary');
     },
-    [buildSummary, router]
+    [
+      accessConfig,
+      code,
+      durationSeconds,
+      evaluateQuestionWithAI,
+      evaluationsByQuestion,
+      language,
+      questions,
+      resultsByQuestion,
+      router,
+      setCollapsed,
+      submittedByQuestion,
+    ]
   );
 
   useEffect(() => {
     if (!isUnlocked) return;
     roundFinishedRef.current = false;
     setShowFullscreenWarning(false);
+    setShowEnterFullscreen(true);
+    setIsFinishing(false);
+    setEvaluationsByQuestion({});
+    setSubmittedByQuestion({});
   }, [isUnlocked]);
 
   useEffect(() => {
@@ -543,6 +644,15 @@ function CodePlaygroundInner() {
         ...prev,
         [activeQuestion.id]: result,
       }));
+      setSubmittedByQuestion((prev) => ({
+        ...prev,
+        [activeQuestion.id]: {
+          code,
+          language: result.language,
+        },
+      }));
+
+      await evaluateQuestionWithAI(activeQuestion, result, code);
 
       if (result.passed === result.total) {
         toast.success(`${activeQuestion.title}: all tests passed.`);
@@ -556,7 +666,7 @@ function CodePlaygroundInner() {
     } finally {
       setIsRunning(false);
     }
-  }, [activeQuestion, code, evaluateJavaScript, evaluatePython, isRunning, isUnlocked, language]);
+  }, [activeQuestion, code, evaluateJavaScript, evaluatePython, evaluateQuestionWithAI, isRunning, isUnlocked, language]);
 
   const resetCode = () => {
     if (!activeQuestion) return;
@@ -680,8 +790,8 @@ function CodePlaygroundInner() {
               <Play className='h-4 w-4' /> {isRunning ? 'Running...' : 'Run Test Cases'}
             </Button>
             {isUnlocked && (
-              <Button variant='outline' onClick={() => finishRound(false)} className='gap-2'>
-                Finish Round
+              <Button variant='outline' onClick={() => finishRound(false)} className='gap-2' disabled={isFinishing}>
+                {isFinishing ? 'Generating Summary...' : 'Finish Round'}
               </Button>
             )}
             <span className='text-xs text-muted-foreground'>
@@ -809,6 +919,29 @@ function CodePlaygroundInner() {
                 }}
               >
                 Return to Fullscreen
+              </Button>
+            </CardContent>
+          </Card>
+        </div>
+      )}
+
+      {isUnlocked && showEnterFullscreen && (
+        <div className='fixed inset-0 z-50 bg-black/85 backdrop-blur-sm flex items-center justify-center p-4'>
+          <Card className='max-w-md w-full'>
+            <CardContent className='p-6 text-center space-y-4'>
+              <div className='mx-auto h-14 w-14 rounded-full bg-primary/10 flex items-center justify-center'>
+                <Maximize2 className='h-7 w-7 text-primary' />
+              </div>
+              <h3 className='text-lg font-semibold'>Entering Interview Mode</h3>
+              <p className='text-sm text-muted-foreground'>This session requires fullscreen. Click below to continue.</p>
+              <Button
+                className='gap-2'
+                onClick={() => {
+                  document.documentElement.requestFullscreen().catch(() => {});
+                  setShowEnterFullscreen(false);
+                }}
+              >
+                Enter Fullscreen &amp; Start
               </Button>
             </CardContent>
           </Card>
