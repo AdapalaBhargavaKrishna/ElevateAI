@@ -127,7 +127,7 @@ function ScoreBars({ evaluation }: { evaluation: Evaluation }) {
     return (
         <div className="space-y-2">
             {bars.map((bar, i) => {
-                const pct = Math.round(bar.value * 20);
+                const pct = Math.min(Math.round(bar.value * 10), 100);
                 const bgColor = pct >= 80 ? "bg-green-500" : pct >= 60 ? "bg-blue-500" : pct >= 40 ? "bg-yellow-500" : "bg-red-500";
                 return (
                     <div key={bar.label}>
@@ -522,7 +522,7 @@ function InterviewSessionPageContent() {
     }[level] ?? 'bg-muted text-muted-foreground';
 
     const isPractice    = sessionMode === 'learning';
-    const scorePct      = Math.round((currentEvaluation?.overallScore ?? 0) * 20);
+    const scorePct      = Math.min(Math.round((currentEvaluation?.overallScore ?? 0) * 10), 100);
 
     // ── Full page error ────────────────────────────────────────────────────────
 

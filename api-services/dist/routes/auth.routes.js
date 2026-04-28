@@ -14,6 +14,7 @@ router.post("/logout", auth_controllers_1.logout);
 router.post("/refresh", auth_controllers_1.refresh);
 router.get("/me", auth_middleware_1.requireAuth, auth_controllers_1.me);
 router.post("/onboarding/complete", auth_middleware_1.requireAuth, auth_controllers_1.completeOnboarding);
+router.delete("/account", auth_middleware_1.requireAuth, auth_controllers_1.deleteAccount);
 // Google OAuth
 router.get("/google", passport_1.default.authenticate("google", {
     scope: ["profile", "email"],

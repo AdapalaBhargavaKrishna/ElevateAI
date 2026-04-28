@@ -2,13 +2,26 @@
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.startInterview = startInterview;
 exports.submitAnswer = submitAnswer;
+exports.terminateSession = terminateSession;
 exports.getSessionSummary = getSessionSummary;
 exports.getInterviewHistory = getInterviewHistory;
 exports.getSessionDetail = getSessionDetail;
 exports.runPythonCode = runPythonCode;
+exports.startDsaInterview = startDsaInterview;
+exports.evaluateDsaInterview = evaluateDsaInterview;
+exports.getDsaSessionSummary = getDsaSessionSummary;
 const prisma_1 = require("../utils/prisma");
 const child_process_1 = require("child_process");
 const fastapi_service_1 = require("../services/fastapi.service");
+const elevateScore_1 = require("../utils/elevateScore");
+function safeParseDsaQuestion(raw) {
+    try {
+        return JSON.parse(raw);
+    }
+    catch {
+        return null;
+    }
+}
 function normalizeInterviewType(rawType) {
     const normalized = (rawType || "").trim().toLowerCase().replace(/[-\s]+/g, "_");
     const aliases = {
@@ -39,7 +52,17 @@ async function startInterview(req, res) {
             timer_enabled: timerEnabled ?? false,
             time_per_question: timePerQuestion ?? null,
             mode: mode ?? "interview",
-        });
+        }, 90000);
+        const generatedQuestions = aiResponse.questions?.length
+            ? aiResponse.questions
+            : aiResponse.first_question
+                ? [aiResponse.first_question]
+                : [];
+        if (!generatedQuestions.length) {
+            return res.status(500).json({
+                message: "Interview generation failed: AI response did not include a first question.",
+            });
+        }
         // 2. Persist session in DB
         const session = await prisma_1.prisma.interviewSession.create({
             data: {
@@ -55,9 +78,6 @@ async function startInterview(req, res) {
                 status: "in_progress",
             },
         });
-        const generatedQuestions = aiResponse.questions?.length
-            ? aiResponse.questions
-            : [aiResponse.first_question];
         await prisma_1.prisma.interviewQuestion.createMany({
             data: generatedQuestions.map((question, index) => ({
                 sessionId: session.id,
@@ -182,6 +202,25 @@ async function submitAnswer(req, res) {
         return res.status(500).json({ message: "Something went wrong." });
     }
 }
+async function terminateSession(req, res) {
+    try {
+        const userId = req.userId;
+        const { sessionId, reason } = req.body;
+        if (!sessionId) {
+            return res.status(400).json({ message: "sessionId is required." });
+        }
+        await prisma_1.prisma.interviewSession.updateMany({
+            where: { id: sessionId, userId },
+            data: { status: "terminated_proctoring" },
+        });
+        console.log(`[Interview] Session terminated. sessionId=${sessionId}, reason=${reason ?? "unspecified"}`);
+        return res.status(200).json({ message: "Session terminated." });
+    }
+    catch (err) {
+        console.error("Terminate session error:", err);
+        return res.status(500).json({ message: "Something went wrong." });
+    }
+}
 // ─── POST /interview/summary ──────────────────────────────────────────────────
 // Fetches all answered Q&A pairs for a session, calls Python AI for overall
 // summary, persists final score + verdict, and returns the summary.
@@ -198,22 +237,51 @@ async function getSessionSummary(req, res) {
         if (!session)
             return res.status(404).json({ message: "Session not found." });
         const answered = session.questions.filter((q) => q.userAnswer);
+        if (session.overallSummary) {
+            return res.status(200).json({
+                sessionId: session.id,
+                role: session.role,
+                level: session.level,
+                interviewType: session.interviewType,
+                difficulty: session.difficulty,
+                totalQuestions: session.questionCount,
+                questionsAnswered: answered.length,
+                overallSummary: session.overallSummary,
+                strengths: session.summaryStrengths ?? "",
+                weaknesses: session.summaryWeaknesses ?? "",
+                finalScore: session.totalScore ?? 0,
+                verdict: session.summaryVerdict ?? "Unscored",
+                completedAt: session.completedAt ?? new Date(),
+                questions: answered.map((q) => ({
+                    questionText: q.questionText,
+                    category: q.category,
+                    userAnswer: q.userAnswer,
+                    overallScore: q.overallScore !== null ? Math.min(Math.round((q.overallScore ?? 0) * 10), 100) : null,
+                    strengths: q.strengths,
+                    weaknesses: q.weaknesses,
+                    improvementSuggestions: q.improvementSuggestions,
+                })),
+            });
+        }
         if (answered.length === 0)
             return res.status(400).json({ message: "No answered questions found." });
-        // Call Python AI summary
         const aiSummary = await (0, fastapi_service_1.aiGetSummary)(userId, {
             questions: answered.map((q) => q.questionText),
             answers: answered.map((q) => q.userAnswer),
         });
-        // Persist final result
         await prisma_1.prisma.interviewSession.update({
             where: { id: sessionId },
             data: {
                 totalScore: aiSummary.final_score,
+                overallSummary: aiSummary.overall_summary,
+                summaryStrengths: aiSummary.strengths,
+                summaryWeaknesses: aiSummary.weaknesses,
+                summaryVerdict: aiSummary.verdict,
                 status: "completed",
                 completedAt: new Date(),
             },
         });
+        await (0, elevateScore_1.refreshElevateScore)(userId);
         return res.status(200).json({
             sessionId: session.id,
             role: session.role,
@@ -232,7 +300,7 @@ async function getSessionSummary(req, res) {
                 questionText: q.questionText,
                 category: q.category,
                 userAnswer: q.userAnswer,
-                overallScore: q.overallScore,
+                overallScore: q.overallScore !== null ? Math.min(Math.round((q.overallScore ?? 0) * 10), 100) : null,
                 strengths: q.strengths,
                 weaknesses: q.weaknesses,
                 improvementSuggestions: q.improvementSuggestions,
@@ -368,6 +436,277 @@ async function runPythonCode(req, res) {
     }
     catch (err) {
         console.error("runPythonCode error:", err);
+        return res.status(500).json({ message: "Something went wrong." });
+    }
+}
+async function startDsaInterview(req, res) {
+    try {
+        const userId = req.userId;
+        const { role, level, difficulty, questionCount, timerEnabled, timePerQuestion } = req.body;
+        if (!role || !level || !difficulty || !questionCount) {
+            return res.status(400).json({ message: "Missing required fields." });
+        }
+        if (questionCount < 1 || questionCount > 3) {
+            return res.status(400).json({ message: "questionCount must be between 1 and 3." });
+        }
+        const aiResponse = await (0, fastapi_service_1.aiStartDSAInterview)(userId, {
+            role,
+            level,
+            difficulty,
+            question_count: questionCount,
+        });
+        const session = await prisma_1.prisma.interviewSession.create({
+            data: {
+                userId,
+                role,
+                level,
+                interviewType: "dsa",
+                difficulty,
+                questionCount,
+                timerEnabled: timerEnabled ?? false,
+                timePerQuestion: timePerQuestion ?? null,
+                mode: "dsa",
+                status: "in_progress",
+            },
+        });
+        await prisma_1.prisma.interviewQuestion.createMany({
+            data: aiResponse.questions.map((question, index) => ({
+                sessionId: session.id,
+                questionIndex: index,
+                questionText: JSON.stringify(question),
+                category: question.category,
+                hintLevel1: question.hint_level_1,
+                hintLevel2: question.hint_level_2,
+            })),
+        });
+        return res.status(200).json({
+            sessionId: session.id,
+            questions: aiResponse.questions,
+            totalQuestions: aiResponse.questions.length,
+        });
+    }
+    catch (err) {
+        console.error("startDsaInterview error:", err);
+        if (err instanceof fastapi_service_1.AIServiceHttpError) {
+            return res.status(err.status).json({ message: err.detail });
+        }
+        return res.status(500).json({ message: "Something went wrong." });
+    }
+}
+async function evaluateDsaInterview(req, res) {
+    try {
+        const userId = req.userId;
+        const { sessionId, questionIndex, userCode, language, testResults } = req.body;
+        if (!sessionId || questionIndex === undefined || !userCode || !language) {
+            return res.status(400).json({ message: "sessionId, questionIndex, userCode, language are required." });
+        }
+        const session = await prisma_1.prisma.interviewSession.findFirst({
+            where: { id: sessionId, userId },
+            include: { questions: { orderBy: { questionIndex: "asc" } } },
+        });
+        if (!session)
+            return res.status(404).json({ message: "Session not found." });
+        const currentQuestion = session.questions.find((q) => q.questionIndex === questionIndex);
+        if (!currentQuestion)
+            return res.status(404).json({ message: "Question not found." });
+        const parsedQuestion = safeParseDsaQuestion(currentQuestion.questionText);
+        const nextQuestionRecord = session.questions.find((q) => q.questionIndex === questionIndex + 1);
+        const isLastQuestion = !nextQuestionRecord || questionIndex + 1 >= session.questionCount;
+        // Save user code first so summary can still proceed if AI evaluation fails.
+        await prisma_1.prisma.interviewQuestion.update({
+            where: { id: currentQuestion.id },
+            data: {
+                userAnswer: userCode,
+                answeredAt: new Date(),
+            },
+        });
+        let evaluation;
+        try {
+            evaluation = await (0, fastapi_service_1.aiEvaluateDSAInterview)(userId, {
+                problem_description: parsedQuestion?.problem_description ?? currentQuestion.questionText,
+                user_code: userCode,
+                language,
+                test_results: testResults ?? [],
+                role: session.role,
+                level: session.level,
+            });
+        }
+        catch (err) {
+            if (isLastQuestion) {
+                await prisma_1.prisma.interviewSession.update({
+                    where: { id: sessionId },
+                    data: { status: "awaiting_summary" },
+                });
+            }
+            throw err;
+        }
+        await prisma_1.prisma.interviewQuestion.update({
+            where: { id: currentQuestion.id },
+            data: {
+                technicalScore: Math.min((evaluation.correctness_score ?? 0) / 10, 10),
+                depthScore: Math.min((evaluation.code_quality_score ?? 0) / 10, 10),
+                clarityScore: Math.min((evaluation.overall_score ?? 0) / 10, 10),
+                relevanceScore: Math.min((evaluation.correctness_score ?? 0) / 10, 10),
+                structureScore: Math.min((evaluation.code_quality_score ?? 0) / 10, 10),
+                overallScore: Math.min((evaluation.overall_score ?? 0) / 10, 10),
+                strengths: (evaluation.strengths || []).join("\n"),
+                weaknesses: (evaluation.weaknesses || []).join("\n"),
+                improvementSuggestions: (evaluation.improvement_suggestions || []).join("\n"),
+            },
+        });
+        if (isLastQuestion) {
+            await prisma_1.prisma.interviewSession.update({
+                where: { id: sessionId },
+                data: { status: "awaiting_summary" },
+            });
+        }
+        return res.status(200).json({
+            ...evaluation,
+            isLastQuestion,
+        });
+    }
+    catch (err) {
+        console.error("evaluateDsaInterview error:", err);
+        if (err instanceof fastapi_service_1.AIServiceHttpError) {
+            return res.status(err.status).json({ message: err.detail });
+        }
+        return res.status(500).json({ message: "Something went wrong." });
+    }
+}
+async function getDsaSessionSummary(req, res) {
+    try {
+        const userId = req.userId;
+        const { sessionId } = req.body;
+        if (!sessionId)
+            return res.status(400).json({ message: "sessionId is required." });
+        const session = await prisma_1.prisma.interviewSession.findFirst({
+            where: { id: sessionId, userId },
+            include: { questions: { orderBy: { questionIndex: "asc" } } },
+        });
+        if (!session)
+            return res.status(404).json({ message: "Session not found." });
+        const answered = session.questions.filter((q) => q.userAnswer || q.answeredAt);
+        if (session.overallSummary) {
+            return res.status(200).json({
+                sessionId: session.id,
+                role: session.role,
+                level: session.level,
+                interviewType: session.interviewType,
+                difficulty: session.difficulty,
+                totalQuestions: session.questionCount,
+                questionsAnswered: answered.length,
+                overallSummary: session.overallSummary,
+                strengths: session.summaryStrengths ?? "",
+                weaknesses: session.summaryWeaknesses ?? "",
+                finalScore: session.totalScore ?? 0,
+                verdict: session.summaryVerdict ?? "Unscored",
+                completedAt: session.completedAt ?? new Date(),
+                questions: answered.map((q) => {
+                    const parsed = safeParseDsaQuestion(q.questionText);
+                    return {
+                        questionText: parsed?.problem_title ?? "DSA Problem",
+                        category: q.category,
+                        userAnswer: q.userAnswer,
+                        overallScore: q.overallScore !== null
+                            ? Math.min(Math.round((q.overallScore ?? 0) * 10), 100)
+                            : null,
+                        strengths: q.strengths,
+                        weaknesses: q.weaknesses,
+                        improvementSuggestions: q.improvementSuggestions,
+                    };
+                }),
+            });
+        }
+        if (answered.length === 0) {
+            await prisma_1.prisma.interviewSession.update({
+                where: { id: sessionId },
+                data: {
+                    totalScore: 0,
+                    status: "completed",
+                    completedAt: new Date(),
+                },
+            });
+            return res.status(200).json({
+                sessionId: session.id,
+                role: session.role,
+                level: session.level,
+                interviewType: session.interviewType,
+                difficulty: session.difficulty,
+                totalQuestions: session.questionCount,
+                questionsAnswered: 0,
+                overallSummary: "No answers were submitted for this DSA session.",
+                strengths: "",
+                weaknesses: "",
+                finalScore: 0,
+                verdict: "Unscored",
+                completedAt: new Date(),
+                questions: [],
+            });
+        }
+        const questionsPayload = answered.map((q) => {
+            const parsed = safeParseDsaQuestion(q.questionText);
+            return parsed?.problem_description ?? q.questionText;
+        });
+        const codesPayload = answered.map((q) => q.userAnswer);
+        const evaluationsPayload = answered.map((q) => ({
+            overall_score: q.overallScore,
+            strengths: q.strengths,
+            weaknesses: q.weaknesses,
+            improvement_suggestions: q.improvementSuggestions,
+        }));
+        const aiSummary = await (0, fastapi_service_1.aiGetDSASummary)(userId, {
+            questions: questionsPayload,
+            codes: codesPayload,
+            evaluations: evaluationsPayload,
+        });
+        await prisma_1.prisma.interviewSession.update({
+            where: { id: sessionId },
+            data: {
+                totalScore: aiSummary.final_score,
+                overallSummary: aiSummary.overall_summary,
+                summaryStrengths: aiSummary.strengths,
+                summaryWeaknesses: aiSummary.weaknesses,
+                summaryVerdict: aiSummary.verdict,
+                status: "completed",
+                completedAt: new Date(),
+            },
+        });
+        await (0, elevateScore_1.refreshElevateScore)(userId);
+        return res.status(200).json({
+            sessionId: session.id,
+            role: session.role,
+            level: session.level,
+            interviewType: session.interviewType,
+            difficulty: session.difficulty,
+            totalQuestions: session.questionCount,
+            questionsAnswered: answered.length,
+            overallSummary: aiSummary.overall_summary,
+            strengths: aiSummary.strengths,
+            weaknesses: aiSummary.weaknesses,
+            finalScore: aiSummary.final_score,
+            verdict: aiSummary.verdict,
+            completedAt: new Date(),
+            questions: answered.map((q) => {
+                const parsed = safeParseDsaQuestion(q.questionText);
+                return {
+                    questionText: parsed?.problem_title ?? "DSA Problem",
+                    category: q.category,
+                    userAnswer: q.userAnswer,
+                    overallScore: q.overallScore !== null
+                        ? Math.min(Math.round((q.overallScore ?? 0) * 10), 100)
+                        : null,
+                    strengths: q.strengths,
+                    weaknesses: q.weaknesses,
+                    improvementSuggestions: q.improvementSuggestions,
+                };
+            }),
+        });
+    }
+    catch (err) {
+        console.error("getDsaSessionSummary error:", err);
+        if (err instanceof fastapi_service_1.AIServiceHttpError) {
+            return res.status(err.status).json({ message: err.detail });
+        }
         return res.status(500).json({ message: "Something went wrong." });
     }
 }

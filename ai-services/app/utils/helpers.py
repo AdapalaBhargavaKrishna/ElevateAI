@@ -12,14 +12,14 @@ def calculate_overall_score(
     Weighted score calculation:
     Technical: 30%, Depth: 25%, Clarity: 20%, Relevance: 15%, Structure: 10%
     """
-    weighted = (
-        technical * 0.30 +
-        depth * 0.25 +
-        clarity * 0.20 +
-        relevance * 0.15 +
-        structure * 0.10
-    )
-    return round(weighted, 2)
+    t = min(max(float(technical), 0.0), 10.0)
+    d = min(max(float(depth), 0.0), 10.0)
+    c = min(max(float(clarity), 0.0), 10.0)
+    r = min(max(float(relevance), 0.0), 10.0)
+    s = min(max(float(structure), 0.0), 10.0)
+
+    weighted = (t * 0.30) + (d * 0.25) + (c * 0.20) + (r * 0.15) + (s * 0.10)
+    return round(min(weighted, 10.0), 2)
 
 
 def get_rating(score: float) -> tuple[str, str]:

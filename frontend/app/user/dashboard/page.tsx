@@ -4,7 +4,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { motion } from 'framer-motion';
 import { Area, AreaChart, CartesianGrid, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts';
-import { ArrowRight, BarChart3, BookOpen, Clock, FileText, Mic, Target } from 'lucide-react';
+import { ArrowRight, BarChart3, BookOpen, Clock, FileText, Info, Mic, Target } from 'lucide-react';
 
 import { getDashboardReport, type DashboardReport } from '@/app/lib/dashboard.api';
 import { Button } from '@/components/ui/button';
@@ -54,7 +54,7 @@ export default function DashboardPage() {
   const statItems = useMemo(() => {
     if (!report) return [];
     return [
-      { id: 'elevate', label: 'Elevate Score', value: `${report.elevateScore}%`, icon: BarChart3 },
+      { id: 'elevate', label: 'ElevateAI Score', value: `${report.elevateScore}/1000`, icon: BarChart3 },
       { id: 'interviews', label: 'Interviews Completed', value: String(report.interviewsCompleted), icon: Mic },
       { id: 'resume', label: 'Latest Resume Score', value: `${report.latestResumeScore}%`, icon: FileText },
       { id: 'roadmap', label: 'Roadmap Progress', value: `${report.roadmapProgress}%`, icon: BookOpen },
@@ -113,7 +113,17 @@ export default function DashboardPage() {
                   </div>
                   <div className='text-right'>
                     <p className='text-2xl font-bold tracking-tight'>{item.value}</p>
-                    <p className='text-xs font-medium text-muted-foreground mt-1'>{item.label}</p>
+                    <p className='text-xs font-medium text-muted-foreground mt-1 flex items-center justify-end gap-1'>
+                      {item.label}
+                      {item.id === 'elevate' && (
+                        <span
+                          title='ElevateAI Score is calculated from your interview performance, resume quality, roadmap progress, assessment results, and profile completeness.'
+                          className='inline-flex'
+                        >
+                          <Info className='h-3 w-3' />
+                        </span>
+                      )}
+                    </p>
                   </div>
                 </div>
               </CardContent>

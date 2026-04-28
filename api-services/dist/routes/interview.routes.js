@@ -15,6 +15,7 @@ router.post("/start", interview_controllers_1.startInterview);
 // POST /interview/answer
 // Body: { sessionId, questionIndex, answer }
 router.post("/answer", interview_controllers_1.submitAnswer);
+router.post("/terminate", interview_controllers_1.terminateSession);
 // Get the final AI summary for a completed session
 // POST /interview/summary
 // Body: { sessionId }
@@ -28,4 +29,7 @@ router.get("/session/:sessionId", interview_controllers_1.getSessionDetail);
 // Run Python code in playground
 // POST /interview/run-python
 router.post("/run-python", interview_controllers_1.runPythonCode);
+router.post("/dsa-start", interview_controllers_1.startDsaInterview);
+router.post("/dsa-evaluate", interview_controllers_1.evaluateDsaInterview);
+router.post("/dsa-summary", interview_controllers_1.getDsaSessionSummary);
 exports.default = router;

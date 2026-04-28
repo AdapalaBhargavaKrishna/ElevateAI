@@ -3,7 +3,8 @@ Object.defineProperty(exports, "__esModule", { value: true });
 exports.requireAuth = requireAuth;
 const jwt_1 = require("../utils/jwt");
 function requireAuth(req, res, next) {
-    const token = req.cookies?.access_token;
+    const bearerToken = req.headers.authorization?.split(' ')[1];
+    const token = bearerToken || req.cookies?.access_token;
     if (!token) {
         return res.status(401).json({ message: 'Not authenticated.' });
     }
@@ -13,6 +14,6 @@ function requireAuth(req, res, next) {
         next();
     }
     catch {
-        return res.status(401).json({ message: "Invalid or expired token." });
+        return res.status(401).json({ message: 'Invalid or expired token.' });
     }
 }

@@ -11,6 +11,7 @@ exports.getResumeDetail = getResumeDetail;
 const prisma_1 = require("../utils/prisma");
 const fastapi_service_1 = require("../services/fastapi.service");
 const multer_1 = __importDefault(require("multer"));
+const elevateScore_1 = require("../utils/elevateScore");
 // Multer — memory storage (no disk writes needed)
 exports.upload = (0, multer_1.default)({
     storage: multer_1.default.memoryStorage(),
@@ -78,6 +79,7 @@ async function analyzeResumeFile(req, res) {
         const aiResult = await (0, fastapi_service_1.aiAnalyzeResumeFile)(userId, file.buffer, file.originalname, file.mimetype, targetRole || undefined, jobDescription || undefined);
         // 2. Save to Supabase via Prisma
         const saved = await saveResumeAnalysis(userId, aiResult, file.originalname);
+        await (0, elevateScore_1.refreshElevateScore)(userId);
         // 3. Return to frontend
         return res.status(200).json({
             analysisId: saved.id,
@@ -102,6 +104,7 @@ async function analyzeResumeText(req, res) {
         }
         const aiResult = await (0, fastapi_service_1.aiAnalyzeResumeText)(userId, resumeText, typeof targetRole === "string" ? targetRole.trim() || undefined : undefined, typeof jobDescription === "string" ? jobDescription.trim() || undefined : undefined);
         const saved = await saveResumeAnalysis(userId, aiResult);
+        await (0, elevateScore_1.refreshElevateScore)(userId);
         return res.status(200).json({
             analysisId: saved.id,
             parsed_resume: aiResult.parsed_resume,

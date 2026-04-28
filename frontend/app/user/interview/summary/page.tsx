@@ -88,7 +88,7 @@ function InterviewSummaryPageContent() {
     };
 
     const toDisplayScore100 = (overallScore: number | undefined) => {
-        const rawPct = Math.round((overallScore ?? 0) * 20);
+        const rawPct = Math.round((overallScore ?? 0) * 10);
         return Math.min(rawPct, 100);
     };
 
@@ -119,7 +119,7 @@ function InterviewSummaryPageContent() {
         );
     }
 
-    const scorePercentage = Math.round(summaryData.finalScore * 10);
+    const scorePercentage = Math.min(Math.round(summaryData.finalScore), 100);
     const scoreColor      = getScoreColor(summaryData.finalScore);
     const verdictColor    = getVerdictColor(summaryData.verdict);
     const circumference   = 2 * Math.PI * 56;

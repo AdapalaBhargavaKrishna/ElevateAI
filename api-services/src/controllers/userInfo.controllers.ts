@@ -1,6 +1,7 @@
 import { Request, Response } from "express";
 import { prisma } from "../utils/prisma";
 import { aiAnalyzeResumeFile } from "../services/fastapi.service";
+import { refreshElevateScore } from "../utils/elevateScore";
 
 type GenericRecord = Record<string, unknown>;
 
@@ -432,6 +433,7 @@ export async function saveUserInfo(req: Request, res: Response) {
             }
         }
 
+        await refreshElevateScore(userId);
         return res.status(200).json({ message: "Profile saved successfully." });
     } catch (err) {
         console.error("Save UserInfo Error:", err);
@@ -532,6 +534,7 @@ export async function importUserInfoFromResume(req: Request, res: Response) {
             });
         }
 
+        await refreshElevateScore(userId);
         return res.status(200).json({
             message: "Resume imported into My Info.",
             parsed_resume: analysis.parsed_resume,

@@ -9,6 +9,7 @@ exports.submitAssessment = submitAssessment;
 exports.updateRoadmapProgress = updateRoadmapProgress;
 const prisma_1 = require("../utils/prisma");
 const fastapi_service_1 = require("../services/fastapi.service");
+const elevateScore_1 = require("../utils/elevateScore");
 function normalizePhaseProgress(roadmapData, rawPhaseProgress) {
     let parsed = [];
     try {
@@ -398,6 +399,7 @@ async function submitAssessment(req, res) {
                 passed,
             },
         });
+        await (0, elevateScore_1.refreshElevateScore)(userId);
         // If passed, update phaseProgress to unlock next phase
         if (passed) {
             const roadmapData = JSON.parse(assessment.roadmap.roadmapData);
@@ -472,6 +474,7 @@ async function updateRoadmapProgress(req, res) {
             where: { id: roadmap.id },
             data: { phaseProgress: JSON.stringify(updated) },
         });
+        await (0, elevateScore_1.refreshElevateScore)(userId);
         return res.status(200).json({
             message: "Progress updated.",
             phaseNumber,

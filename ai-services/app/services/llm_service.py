@@ -205,11 +205,14 @@ IMPORTANT:
 - Return ONLY JSON
 - No explanations
 - No markdown
+- final_score: integer 0-100 representing overall session performance
 - final_score must be 0-100 integer (not 0-10).
 """
 
     response = _generate_content_with_retry(prompt)
-    return _parse_json_safe(response.text.strip())
+    summary = _parse_json_safe(response.text.strip())
+    summary["final_score"] = min(max(int(summary.get("final_score", 0)), 0), 100)
+    return summary
 
 
 # =========================

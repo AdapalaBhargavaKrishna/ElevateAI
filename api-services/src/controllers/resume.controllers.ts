@@ -2,6 +2,7 @@ import { Request, Response } from "express";
 import { prisma } from "../utils/prisma";
 import { aiAnalyzeResumeFile, aiAnalyzeResumeText, ResumeAIResult } from "../services/fastapi.service";
 import multer from "multer";
+import { refreshElevateScore } from "../utils/elevateScore";
 
 // Multer — memory storage (no disk writes needed)
 export const upload = multer({
@@ -84,6 +85,7 @@ export async function analyzeResumeFile(req: Request, res: Response) {
 
         // 2. Save to Supabase via Prisma
         const saved = await saveResumeAnalysis(userId, aiResult, file.originalname);
+        await refreshElevateScore(userId);
 
         // 3. Return to frontend
         return res.status(200).json({
@@ -117,6 +119,7 @@ export async function analyzeResumeText(req: Request, res: Response) {
             typeof jobDescription === "string" ? jobDescription.trim() || undefined : undefined
         );
         const saved    = await saveResumeAnalysis(userId, aiResult);
+        await refreshElevateScore(userId);
 
         return res.status(200).json({
             analysisId:      saved.id,

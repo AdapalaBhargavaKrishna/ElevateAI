@@ -11,6 +11,7 @@ import {
     aiEvaluateDSAInterview,
     aiGetDSASummary,
 } from "../services/fastapi.service";
+import { refreshElevateScore } from "../utils/elevateScore";
 
 type DSAQuestionPayload = {
     problem_title: string;
@@ -271,23 +272,55 @@ export async function getSessionSummary(req: Request, res: Response) {
         if (!session) return res.status(404).json({ message: "Session not found." });
 
         const answered = session.questions.filter((q) => q.userAnswer);
+
+        if (session.overallSummary) {
+            return res.status(200).json({
+                sessionId: session.id,
+                role: session.role,
+                level: session.level,
+                interviewType: session.interviewType,
+                difficulty: session.difficulty,
+                totalQuestions: session.questionCount,
+                questionsAnswered: answered.length,
+                overallSummary: session.overallSummary,
+                strengths: session.summaryStrengths ?? "",
+                weaknesses: session.summaryWeaknesses ?? "",
+                finalScore: session.totalScore ?? 0,
+                verdict: session.summaryVerdict ?? "Unscored",
+                completedAt: session.completedAt ?? new Date(),
+                questions: answered.map((q) => ({
+                    questionText: q.questionText,
+                    category: q.category,
+                    userAnswer: q.userAnswer,
+                    overallScore:
+                        q.overallScore !== null ? Math.min(Math.round((q.overallScore ?? 0) * 10), 100) : null,
+                    strengths: q.strengths,
+                    weaknesses: q.weaknesses,
+                    improvementSuggestions: q.improvementSuggestions,
+                })),
+            });
+        }
+
         if (answered.length === 0) return res.status(400).json({ message: "No answered questions found." });
 
-        // Call Python AI summary
         const aiSummary = await aiGetSummary(userId, {
             questions: answered.map((q) => q.questionText),
             answers: answered.map((q) => q.userAnswer as string),
         });
 
-        // Persist final result
         await prisma.interviewSession.update({
             where: { id: sessionId },
             data: {
                 totalScore: aiSummary.final_score,
+                overallSummary: aiSummary.overall_summary,
+                summaryStrengths: aiSummary.strengths,
+                summaryWeaknesses: aiSummary.weaknesses,
+                summaryVerdict: aiSummary.verdict,
                 status: "completed",
                 completedAt: new Date(),
             },
         });
+        await refreshElevateScore(userId);
 
         return res.status(200).json({
             sessionId: session.id,
@@ -307,7 +340,7 @@ export async function getSessionSummary(req: Request, res: Response) {
                 questionText: q.questionText,
                 category: q.category,
                 userAnswer: q.userAnswer,
-                overallScore: q.overallScore,
+                overallScore: q.overallScore !== null ? Math.min(Math.round((q.overallScore ?? 0) * 10), 100) : null,
                 strengths: q.strengths,
                 weaknesses: q.weaknesses,
                 improvementSuggestions: q.improvementSuggestions,
@@ -575,12 +608,12 @@ export async function evaluateDsaInterview(req: Request, res: Response) {
         await prisma.interviewQuestion.update({
             where: { id: currentQuestion.id },
             data: {
-                technicalScore: evaluation.correctness_score,
-                depthScore: evaluation.code_quality_score,
-                clarityScore: evaluation.overall_score,
-                relevanceScore: evaluation.correctness_score,
-                structureScore: evaluation.code_quality_score,
-                overallScore: evaluation.overall_score,
+                technicalScore: Math.min((evaluation.correctness_score ?? 0) / 10, 10),
+                depthScore: Math.min((evaluation.code_quality_score ?? 0) / 10, 10),
+                clarityScore: Math.min((evaluation.overall_score ?? 0) / 10, 10),
+                relevanceScore: Math.min((evaluation.correctness_score ?? 0) / 10, 10),
+                structureScore: Math.min((evaluation.code_quality_score ?? 0) / 10, 10),
+                overallScore: Math.min((evaluation.overall_score ?? 0) / 10, 10),
                 strengths: (evaluation.strengths || []).join("\n"),
                 weaknesses: (evaluation.weaknesses || []).join("\n"),
                 improvementSuggestions: (evaluation.improvement_suggestions || []).join("\n"),
@@ -620,6 +653,38 @@ export async function getDsaSessionSummary(req: Request, res: Response) {
         if (!session) return res.status(404).json({ message: "Session not found." });
 
         const answered = session.questions.filter((q) => q.userAnswer || q.answeredAt);
+        if (session.overallSummary) {
+            return res.status(200).json({
+                sessionId: session.id,
+                role: session.role,
+                level: session.level,
+                interviewType: session.interviewType,
+                difficulty: session.difficulty,
+                totalQuestions: session.questionCount,
+                questionsAnswered: answered.length,
+                overallSummary: session.overallSummary,
+                strengths: session.summaryStrengths ?? "",
+                weaknesses: session.summaryWeaknesses ?? "",
+                finalScore: session.totalScore ?? 0,
+                verdict: session.summaryVerdict ?? "Unscored",
+                completedAt: session.completedAt ?? new Date(),
+                questions: answered.map((q) => {
+                    const parsed = safeParseDsaQuestion(q.questionText);
+                    return {
+                        questionText: parsed?.problem_title ?? "DSA Problem",
+                        category: q.category,
+                        userAnswer: q.userAnswer,
+                        overallScore:
+                            q.overallScore !== null
+                                ? Math.min(Math.round((q.overallScore ?? 0) * 10), 100)
+                                : null,
+                        strengths: q.strengths,
+                        weaknesses: q.weaknesses,
+                        improvementSuggestions: q.improvementSuggestions,
+                    };
+                }),
+            });
+        }
         if (answered.length === 0) {
             await prisma.interviewSession.update({
                 where: { id: sessionId },
@@ -670,10 +735,15 @@ export async function getDsaSessionSummary(req: Request, res: Response) {
             where: { id: sessionId },
             data: {
                 totalScore: aiSummary.final_score,
+                overallSummary: aiSummary.overall_summary,
+                summaryStrengths: aiSummary.strengths,
+                summaryWeaknesses: aiSummary.weaknesses,
+                summaryVerdict: aiSummary.verdict,
                 status: "completed",
                 completedAt: new Date(),
             },
         });
+        await refreshElevateScore(userId);
 
         return res.status(200).json({
             sessionId: session.id,
@@ -695,7 +765,10 @@ export async function getDsaSessionSummary(req: Request, res: Response) {
                     questionText: parsed?.problem_title ?? "DSA Problem",
                     category: q.category,
                     userAnswer: q.userAnswer,
-                    overallScore: ((q.overallScore ?? 0) / 20),
+                    overallScore:
+                        q.overallScore !== null
+                            ? Math.min(Math.round((q.overallScore ?? 0) * 10), 100)
+                            : null,
                     strengths: q.strengths,
                     weaknesses: q.weaknesses,
                     improvementSuggestions: q.improvementSuggestions,

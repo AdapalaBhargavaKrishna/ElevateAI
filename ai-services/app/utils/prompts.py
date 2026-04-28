@@ -92,6 +92,8 @@ def get_evaluation_prompt(
     """
     return f"""{mode_instruction}You are an expert technical interviewer evaluating a candidate's interview answer.
 
+IMPORTANT: All scores MUST be floats strictly in range [0.0, 10.0]. Never exceed 10.
+
 CANDIDATE PROFILE:
 - Role: {role}
 - Experience Level: {level}
@@ -105,7 +107,7 @@ CANDIDATE'S ANSWER:
 
 Evaluate the answer strictly and fairly on these 5 axes, each scored 0-10:
 
-1. TECHNICAL ACCURACY (0-10): Are the facts, concepts, and terminology correct?
+1. TECHNICAL ACCURACY (0-10, STRICTLY no value above 10): Are the facts, concepts, and terminology correct?
 2. DEPTH OF EXPLANATION (0-10): Is the answer thorough, layered, and nuanced?
 3. CLARITY & COMMUNICATION (0-10): Is the answer logically structured and clearly expressed?
 4. REAL-WORLD RELEVANCE (0-10): Does the answer include practical examples or industry awareness?

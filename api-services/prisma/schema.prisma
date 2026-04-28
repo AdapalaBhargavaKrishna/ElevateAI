@@ -135,6 +135,10 @@ model InterviewSession {
   difficulty      String
   questionCount   Int
   totalScore      Float?
+  overallSummary  String?
+  summaryStrengths String?
+  summaryWeaknesses String?
+  summaryVerdict  String?
   status          String              @default("in_progress")
   timerEnabled    Boolean             @default(false)
   timePerQuestion Int?
@@ -174,8 +178,6 @@ model InterviewQuestion {
 
   @@map("interview_questions")
 }
-
-// ─── Resume Models ────────────────────────────────────────────────────────────
 
 model ResumeAnalysis {
   id     String @id @default(uuid())
@@ -218,8 +220,6 @@ model ResumeAnalysis {
 
   @@map("resume_analyses")
 }
-
-// ─── Roadmap Models ───────────────────────────────────────────────────────────
 
 model Roadmap {
   id              String       @id @default(uuid())

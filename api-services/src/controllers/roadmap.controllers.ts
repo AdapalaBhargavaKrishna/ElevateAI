@@ -6,6 +6,7 @@ import {
     aiGenerateRoadmap,
     aiGenerateAssessmentsBatch,
 } from "../services/fastapi.service";
+import { refreshElevateScore } from "../utils/elevateScore";
 
 type PhaseProgressItem = {
     phaseNumber: number;
@@ -456,6 +457,7 @@ export async function submitAssessment(req: Request, res: Response) {
                 passed,
             },
         });
+        await refreshElevateScore(userId);
 
         // If passed, update phaseProgress to unlock next phase
         if (passed) {
@@ -544,6 +546,7 @@ export async function updateRoadmapProgress(req: Request, res: Response) {
             where: { id: roadmap.id },
             data: { phaseProgress: JSON.stringify(updated) },
         });
+        await refreshElevateScore(userId);
 
         return res.status(200).json({
             message: "Progress updated.",

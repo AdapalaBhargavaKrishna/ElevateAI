@@ -17,7 +17,19 @@ const roadmap_routes_1 = __importDefault(require("./routes/roadmap.routes"));
 const app = (0, express_1.default)();
 const PORT = process.env.PORT || 5000;
 app.use((0, cors_1.default)({
-    origin: process.env.FRONTEND_URL || "http://localhost:3000",
+    origin: (origin, callback) => {
+        const allowed = (process.env.FRONTEND_URL || "http://localhost:3000")
+            .split(",")
+            .map(o => o.trim())
+            .filter(Boolean);
+        if (!origin || allowed.includes(origin)) {
+            callback(null, true);
+        }
+        else {
+            console.error(`[CORS] Blocked origin: ${origin}`);
+            callback(new Error(`CORS: origin ${origin} not allowed`));
+        }
+    },
     credentials: true,
 }));
 app.use(express_1.default.json());

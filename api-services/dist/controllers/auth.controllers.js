@@ -10,6 +10,7 @@ exports.logout = logout;
 exports.refresh = refresh;
 exports.me = me;
 exports.googleCallback = googleCallback;
+exports.deleteAccount = deleteAccount;
 const bcryptjs_1 = __importDefault(require("bcryptjs"));
 const prisma_1 = require("../utils/prisma");
 const jwt_1 = require("../utils/jwt");
@@ -46,7 +47,9 @@ async function signup(req, res) {
         res.cookie("access_token", accessToken, { ...COOKIE_OPTIONS, maxAge: 15 * 60 * 1000 });
         res.cookie("refresh_token", refreshToken, { ...COOKIE_OPTIONS, maxAge: 7 * 24 * 60 * 60 * 1000 });
         return res.status(201).json({
-            user: { id: user.id, email: user.email, fullName: user.fullName },
+            user: { id: user.id, email: user.email, fullName: user.fullName, isNewUser: user.isNewUser },
+            access_token: accessToken,
+            refresh_token: refreshToken,
         });
     }
     catch (err) {
@@ -79,6 +82,8 @@ async function login(req, res) {
         res.cookie("refresh_token", refreshToken, { ...COOKIE_OPTIONS, maxAge: 7 * 24 * 60 * 60 * 1000 });
         return res.status(200).json({
             user: { id: user.id, email: user.email, fullName: user.fullName, isNewUser: user.isNewUser },
+            access_token: accessToken,
+            refresh_token: refreshToken,
         });
     }
     catch (err) {
@@ -127,12 +132,8 @@ async function googleCallback(req, res) {
     }
     const accessToken = (0, jwt_1.generateAccessToken)(user.id);
     const refreshToken = (0, jwt_1.generateRefreshToken)(user.id);
-    res.cookie("access_token", accessToken, { ...COOKIE_OPTIONS, maxAge: 15 * 60 * 1000 });
-    res.cookie("refresh_token", refreshToken, { ...COOKIE_OPTIONS, maxAge: 7 * 24 * 60 * 60 * 1000 });
-    if (user.isNewUser) {
-        return res.redirect(`${process.env.FRONTEND_URL}/onboarding/user`);
-    }
-    return res.redirect(`${process.env.FRONTEND_URL}/user/dashboard`);
+    const redirectPath = user.isNewUser ? "/onboarding/user" : "/user/dashboard";
+    return res.redirect(`${process.env.FRONTEND_URL}/auth/callback?access_token=${accessToken}&refresh_token=${refreshToken}&redirect=${redirectPath}`);
 }
 const completeOnboarding = async (req, res) => {
     const userId = req.userId;
@@ -152,3 +153,18 @@ const completeOnboarding = async (req, res) => {
     return res.status(200).json({ message: "Onboarding complete." });
 };
 exports.completeOnboarding = completeOnboarding;
+async function deleteAccount(req, res) {
+    try {
+        const userId = req.userId;
+        await prisma_1.prisma.user.delete({
+            where: { id: userId },
+        });
+        res.clearCookie("access_token", COOKIE_OPTIONS);
+        res.clearCookie("refresh_token", COOKIE_OPTIONS);
+        return res.status(200).json({ message: "Account deleted successfully." });
+    }
+    catch (err) {
+        console.error("Delete Account Error:", err);
+        return res.status(500).json({ message: "Something went wrong, Please try again" });
+    }
+}
