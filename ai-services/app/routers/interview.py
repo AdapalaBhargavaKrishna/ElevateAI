@@ -110,13 +110,18 @@ def dsa_evaluate(
     if x_internal_key != settings.INTERNAL_API_KEY:
         raise HTTPException(status_code=403, detail="Forbidden")
 
-    evaluation = interview_service.evaluate_dsa_answer(
-        problem_description=request.problem_description,
-        user_code=request.user_code,
-        language=request.language,
-        test_results=request.test_results
-    )
-    return schemas.DSAEvaluationResponse(**evaluation)
+    try:
+        evaluation = interview_service.evaluate_dsa_answer(
+            problem_description=request.problem_description,
+            user_code=request.user_code,
+            language=request.language,
+            test_results=request.test_results
+        )
+        return schemas.DSAEvaluationResponse(**evaluation)
+    except Exception as e:
+        import traceback
+        traceback.print_exc()
+        raise HTTPException(status_code=503, detail=f"AI evaluation failed: {str(e)}")
 
 
 @router.post("/dsa-summary", response_model=schemas.SessionSummaryResponse)

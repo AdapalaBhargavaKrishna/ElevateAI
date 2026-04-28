@@ -10,8 +10,10 @@ export function HotToaster() {
         duration: 3500,
         style: {
           border: '1px solid hsl(var(--border))',
-          background: 'hsl(var(--background))',
+          background: 'hsl(var(--card))',
           color: 'hsl(var(--foreground))',
+          boxShadow: '0 4px 12px rgba(0, 0, 0, 0.15)',
+          backdropFilter: 'none',
         },
         success: {
           duration: 2800,

@@ -440,7 +440,16 @@ function CodePlaygroundInner() {
         setFinishingStatus('Preparing results...');
       }
 
-      router.push('/user/playground/summary');
+      if (terminatedByTabSwitch && accessConfig?.sessionId) {
+        try {
+          await interviewApi.terminateSession(accessConfig.sessionId, 'tab_switch');
+        } catch {
+          // best-effort
+        }
+        router.push('/user/interview');
+      } else {
+        router.push('/user/playground/summary');
+      }
     },
     [
       accessConfig,
@@ -675,8 +684,6 @@ function CodePlaygroundInner() {
       }));
 
       setIsRunning(false);
-      setIsAIEvaluating(true);
-      await evaluateQuestionWithAI(activeQuestion, result, code);
 
       if (result.passed === result.total) {
         toast.success(`${activeQuestion.title}: all tests passed.`);
@@ -689,9 +696,8 @@ function CodePlaygroundInner() {
       toast.error(message);
     } finally {
       setIsRunning(false);
-      setIsAIEvaluating(false);
     }
-  }, [activeQuestion, code, evaluateJavaScript, evaluatePython, evaluateQuestionWithAI, isRunning, isUnlocked, language]);
+  }, [activeQuestion, code, evaluateJavaScript, evaluatePython, isRunning, isUnlocked, language]);
 
   const resetCode = () => {
     if (!activeQuestion) return;
@@ -974,6 +980,20 @@ function CodePlaygroundInner() {
               >
                 Enter Fullscreen &amp; Start
               </Button>
+            </CardContent>
+          </Card>
+        </div>
+      )}
+
+      {isFinishing && (
+        <div className='fixed inset-0 z-[200] bg-black/80 backdrop-blur-sm flex items-center justify-center p-4'>
+          <Card className='max-w-md w-full'>
+            <CardContent className='p-8 text-center space-y-4'>
+              <div className='mx-auto h-14 w-14 rounded-full bg-primary/10 flex items-center justify-center'>
+                <Loader2 className='h-7 w-7 text-primary animate-spin' />
+              </div>
+              <h3 className='text-lg font-semibold'>Evaluating Your Code</h3>
+              <p className='text-sm text-muted-foreground'>{finishingStatus || 'Please wait while AI evaluates your solutions...'}</p>
             </CardContent>
           </Card>
         </div>

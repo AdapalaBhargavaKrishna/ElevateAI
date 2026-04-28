@@ -101,7 +101,18 @@ function GenerateRoadmapForm({ onGenerated }: { onGenerated: (roadmap: Roadmap) 
             });
             onGenerated(res.roadmap);
         } catch (err: any) {
-            setError(err?.response?.data?.message || 'Failed to generate roadmap. Please try again.');
+            console.error('[Roadmap] Generate error:', err?.response?.status, err?.response?.data, err?.message);
+            const status = err?.response?.status;
+            const message = err?.response?.data?.message;
+            if (err?.code === 'ECONNABORTED' || err?.message?.includes('timeout')) {
+                setError('Roadmap generation timed out. The AI is taking too long — please try again.');
+            } else if (status === 429) {
+                setError('AI rate limit hit. Please wait a minute and try again.');
+            } else if (status === 503 || status === 502) {
+                setError(message || 'AI service temporarily unavailable. Please ensure FastAPI is running and try again.');
+            } else {
+                setError(message || 'Failed to generate roadmap. Please try again.');
+            }
         } finally {
             setLoading(false);
         }

@@ -44,16 +44,22 @@ export async function generateRoadmap(req: Request, res: Response) {
         const userId = (req as any).userId as string;
         const { targetRole, experienceLevel, currentSkills } = req.body;
 
+        console.log(`[Roadmap] Generate request received. userId=${userId}, targetRole=${targetRole}, experienceLevel=${experienceLevel}`);
+
         if (!targetRole || !experienceLevel) {
             return res.status(400).json({ message: "targetRole and experienceLevel are required." });
         }
 
         // 1. Call Python AI to generate roadmap
+        console.log(`[Roadmap] Calling AI service at ${process.env.AI_SERVICE_URL}/roadmap/generate`);
         const roadmapData = await aiGenerateRoadmap(userId, {
             target_role: targetRole,
             experience_level: experienceLevel,
             current_skills: currentSkills || [],
         });
+
+        console.log(`[Roadmap] AI roadmap generated successfully. Phases: ${roadmapData.phases?.length ?? 0}`);
+        console.log(`[Roadmap] Now generating assessments for ${roadmapData.phases?.length ?? 0} phases...`);
 
         // 2. Generate all phase assessments in a single AI request
         const assessmentsBatch = await aiGenerateAssessmentsBatch(userId, {
@@ -66,6 +72,8 @@ export async function generateRoadmap(req: Request, res: Response) {
                 goals: phase.goals || [],
             })),
         });
+
+        console.log(`[Roadmap] Assessments batch generated. Count: ${assessmentsBatch.assessments?.length ?? 0}`);
 
         const assessmentByPhase = new Map<number, any>();
         for (const item of assessmentsBatch.assessments || []) {
@@ -136,6 +144,7 @@ export async function generateRoadmap(req: Request, res: Response) {
             return res.status(err.status).json({ message: err.detail });
         }
         console.error("generateRoadmap error:", err);
+        console.error("generateRoadmap error details:", JSON.stringify(err, Object.getOwnPropertyNames(err as object), 2));
         return res.status(500).json({ message: "Internal server error." });
     }
 }
@@ -219,8 +228,8 @@ export async function getUserRoadmap(req: Request, res: Response) {
                             lockReason: !prevPhasePassed
                                 ? "Complete the previous phase assessment first."
                                 : !checklistComplete
-                                ? "Complete all checklist items in this phase first."
-                                : null,
+                                    ? "Complete all checklist items in this phase first."
+                                    : null,
                             checklistDone,
                             checklistTotal,
                             bestScore: bestAttempt
@@ -317,8 +326,8 @@ export async function getUserAssessments(req: Request, res: Response) {
                     lockReason: !prevPhasePassed
                         ? "Complete the previous phase assessment first."
                         : !checklistComplete
-                        ? "Complete all checklist items in this phase first."
-                        : null,
+                            ? "Complete all checklist items in this phase first."
+                            : null,
                     checklistDone,
                     checklistTotal,
                     passed: bestAttempt?.passed ?? false,
@@ -535,10 +544,10 @@ export async function updateRoadmapProgress(req: Request, res: Response) {
         const updated = phaseProgress.map((p) =>
             p.phaseNumber === phaseNumber
                 ? {
-                      ...p,
-                      goalChecks: dedupedAndSorted,
-                      lastUpdatedAt: new Date().toISOString(),
-                  }
+                    ...p,
+                    goalChecks: dedupedAndSorted,
+                    lastUpdatedAt: new Date().toISOString(),
+                }
                 : p
         );
 

@@ -27,18 +27,52 @@ def _clean_json_response(raw: str) -> str:
     raw = raw.strip()
     raw = re.sub(r'^```(?:json)?\s*', '', raw)
     raw = re.sub(r'\s*```$', '', raw)
+    raw = raw.strip()
+    # If the response has text before the first {, strip it
+    first_brace = raw.find('{')
+    if first_brace > 0:
+        raw = raw[first_brace:]
     return raw.strip()
 
 
 def _parse_json_safe(raw: str) -> Dict[str, Any]:
     cleaned = _clean_json_response(raw)
+    # First try normal parse
     try:
         return json.loads(cleaned)
-    except json.JSONDecodeError as e:
-        raise HTTPException(
-            status_code=status.HTTP_502_BAD_GATEWAY,
-            detail=f"LLM returned invalid JSON: {str(e)}"
-        )
+    except json.JSONDecodeError:
+        pass
+
+    # If "Extra data" error, use raw_decode to get just the first JSON object
+    try:
+        decoder = json.JSONDecoder()
+        obj, _ = decoder.raw_decode(cleaned)
+        if isinstance(obj, dict):
+            return obj
+    except json.JSONDecodeError:
+        pass
+
+    # Last resort: find the last } and try parsing up to it
+    try:
+        depth = 0
+        end_idx = -1
+        for i, ch in enumerate(cleaned):
+            if ch == '{':
+                depth += 1
+            elif ch == '}':
+                depth -= 1
+                if depth == 0:
+                    end_idx = i
+                    break
+        if end_idx > 0:
+            return json.loads(cleaned[:end_idx + 1])
+    except json.JSONDecodeError:
+        pass
+
+    raise HTTPException(
+        status_code=status.HTTP_502_BAD_GATEWAY,
+        detail=f"LLM returned invalid JSON that could not be parsed"
+    )
 
 
 def _extract_retry_delay_seconds(error_text: str, default_seconds: float = 2.0) -> float:
@@ -63,12 +97,19 @@ def _generate_content_with_retry(prompt: str, max_attempts: int = 3):
 
     for attempt in range(1, max_attempts + 1):
         try:
-            return client.models.generate_content(
+            print(f"[LLM] Attempt {attempt}/{max_attempts} — calling {settings.LLM_MODEL}...")
+            import time as _t
+            _start = _t.time()
+            result = client.models.generate_content(
                 model=settings.LLM_MODEL,
                 contents=prompt
             )
+            elapsed = _t.time() - _start
+            print(f"[LLM] Success in {elapsed:.1f}s (attempt {attempt})")
+            return result
         except Exception as e:
             last_error = str(e)
+            print(f"[LLM] Attempt {attempt} failed: {last_error[:200]}")
 
             if not _is_rate_limit_error(last_error):
                 raise HTTPException(
@@ -87,6 +128,7 @@ def _generate_content_with_retry(prompt: str, max_attempts: int = 3):
                 )
 
             wait_for = _extract_retry_delay_seconds(last_error)
+            print(f"[LLM] Rate limited — waiting {wait_for:.1f}s before retry...")
             time.sleep(wait_for)
 
     raise HTTPException(

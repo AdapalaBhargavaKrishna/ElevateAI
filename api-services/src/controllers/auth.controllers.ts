@@ -114,7 +114,7 @@ export async function refresh(req: Request, res: Response) {
         const accessToken = generateAccessToken(userId)
 
         res.cookie("access_token", accessToken, { ...COOKIE_OPTIONS, maxAge: 15 * 60 * 1000 });
-        return res.status(200).json({ message: "Token refreshed." });
+        return res.status(200).json({ message: "Token refreshed.", access_token: accessToken });
 
     } catch (err) {
         console.log("Refresh Error:", err)
@@ -126,7 +126,7 @@ export async function me(req: Request, res: Response) {
     try {
         const user = await prisma.user.findUnique({
             where: { id: (req as any).userId },
-            select: { id: true, email: true, fullName: true, createdAt: true }
+            select: { id: true, email: true, fullName: true, createdAt: true, elevateScore: true }
         })
 
         if (!user) return res.status(404).json({ message: "User not found." });

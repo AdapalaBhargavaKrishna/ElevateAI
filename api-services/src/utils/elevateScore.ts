@@ -91,7 +91,7 @@ export async function computeElevateScore(userId: string): Promise<number> {
     clamp100(assessmentPct) * 0.1 +
     clamp100(profilePct) * 0.1;
 
-  return Math.min(Math.round(rawScore * 10), 1000);
+  return Math.min(Math.round(rawScore), 100);
 }
 
 export async function refreshElevateScore(userId: string): Promise<number> {

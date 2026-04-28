@@ -13,6 +13,7 @@ interface FastAPIRequestOptions {
 const DEFAULT_AI_TIMEOUT_MS = 60000;
 const DSA_AI_TIMEOUT_MS = 120000;
 const START_INTERVIEW_TIMEOUT_MS = 90000;
+const ROADMAP_AI_TIMEOUT_MS = 180000;
 const AI_RETRY_DELAYS_MS = [1200, 2400];
 
 export class AIServiceHttpError extends Error {
@@ -476,7 +477,7 @@ export async function aiGenerateRoadmap(
         userId,
         path: "/roadmap/generate",
         body: payload as unknown as Record<string, unknown>,
-    });
+    }, ROADMAP_AI_TIMEOUT_MS);
 }
 
 export async function aiGenerateAssessments(
@@ -498,5 +499,5 @@ export async function aiGenerateAssessmentsBatch(
         userId,
         path: "/roadmap/assessments/bulk-generate",
         body: payload as unknown as Record<string, unknown>,
-    });
+    }, ROADMAP_AI_TIMEOUT_MS);
 }
