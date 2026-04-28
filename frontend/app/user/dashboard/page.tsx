@@ -54,7 +54,7 @@ export default function DashboardPage() {
   const statItems = useMemo(() => {
     if (!report) return [];
     return [
-      { id: 'elevate', label: 'ElevateAI Score', value: `${report.elevateScore}/1000`, icon: BarChart3 },
+      { id: 'elevate', label: 'ElevateAI Score', value: `${report.elevateScore}/100`, icon: BarChart3 },
       { id: 'interviews', label: 'Interviews Completed', value: String(report.interviewsCompleted), icon: Mic },
       { id: 'resume', label: 'Latest Resume Score', value: `${report.latestResumeScore}%`, icon: FileText },
       { id: 'roadmap', label: 'Roadmap Progress', value: `${report.roadmapProgress}%`, icon: BookOpen },
