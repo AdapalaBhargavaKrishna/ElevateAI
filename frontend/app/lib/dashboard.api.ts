@@ -1,12 +1,21 @@
 import { api } from './axios';
 import { interviewApi, SessionHistory } from './interview.api';
 import { resumeApi, ResumeHistoryItem } from './resume.api';
-import { roadmapApi } from './roadmap.api';
+import { roadmapApi, type AssessmentSummary } from './roadmap.api';
 import { fetchUserProfile } from '../user/data/profile';
 
-export type TrendPoint = {
-  month: string;
+export type CategoryScore = {
+  category: string;
+  avgScore: number;
+  count: number;
+  source: 'interview' | 'assessment' | 'resume';
+};
+
+export type ScoreProgressionPoint = {
+  label: string;
   score: number;
+  type: string;
+  date: string;
 };
 
 export type DashboardReport = {
@@ -17,7 +26,7 @@ export type DashboardReport = {
   latestResumeScore: number;
   roadmapProgress: number;
   recentActivities: Array<{ id: string; title: string; time: string; score: string; iconName: string }>;
-  performanceData: TrendPoint[];
+  categoryScores: CategoryScore[];
 };
 
 export type AnalyticsReport = {
@@ -27,14 +36,14 @@ export type AnalyticsReport = {
   latestResumeAts: number;
   roadmapProgress: number;
   weeklyInterviews: Array<{ day: string; interviews: number; score: number }>;
-  monthlyTrend: TrendPoint[];
+  scoreProgression: ScoreProgressionPoint[];
   interviewTypeBreakdown: Array<{ type: string; count: number }>;
   topSkills: Array<{ skill: string; confidence: number }>;
 };
 
 function asPercentScore(value: number | null | undefined): number {
   if (value == null) return 0;
-  return value <= 10 ? Math.round(value * 10) : Math.round(value);
+  return Math.round(value);
 }
 
 function relativeTime(dateStr: string): string {
@@ -48,71 +57,82 @@ function relativeTime(dateStr: string): string {
   return `${days}d ago`;
 }
 
-function aggregateMonthlyTrend(sessions: SessionHistory[]): TrendPoint[] {
-  const monthMap = new Map<string, { total: number; count: number }>();
-  const monthNames = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+function buildCategoryScores(
+  sessions: SessionHistory[],
+  assessments: AssessmentSummary[],
+  latestResumeAts: number
+): CategoryScore[] {
+  const completed = sessions.filter((s) => s.status === 'completed' && s.totalScore != null);
+  const results: CategoryScore[] = [];
 
-  sessions
-    .filter((s) => s.completedAt && s.totalScore != null)
-    .forEach((session) => {
-      const date = new Date(session.completedAt as string);
-      const key = `${date.getFullYear()}-${date.getMonth()}`;
-      const current = monthMap.get(key) ?? { total: 0, count: 0 };
-      current.total += asPercentScore(session.totalScore);
-      current.count += 1;
-      monthMap.set(key, current);
-    });
-
-  const sorted = [...monthMap.entries()].sort((a, b) => (a[0] > b[0] ? 1 : -1)).slice(-6);
-
-  return sorted.map(([key, value]) => {
-    const [, monthRaw] = key.split('-');
-    const month = Number(monthRaw);
-    return {
-      month: monthNames[month] ?? key,
-      score: Math.round(value.total / Math.max(value.count, 1)),
-    };
+  // Interview categories
+  const typeMap = new Map<string, { total: number; count: number }>();
+  completed.forEach((s) => {
+    const key = s.interviewType || 'other';
+    const current = typeMap.get(key) ?? { total: 0, count: 0 };
+    current.total += asPercentScore(s.totalScore);
+    current.count += 1;
+    typeMap.set(key, current);
   });
+
+  const labelMap: Record<string, string> = {
+    technical: 'Technical Interview',
+    behavioral: 'Behavioral Interview',
+    dsa: 'DSA / Coding',
+    hr: 'HR Interview',
+    system_design: 'System Design',
+    other: 'Other Interview',
+  };
+
+  for (const [type, { total, count }] of typeMap.entries()) {
+    results.push({
+      category: labelMap[type] || type.charAt(0).toUpperCase() + type.slice(1),
+      avgScore: Math.round(total / count),
+      count,
+      source: 'interview',
+    });
+  }
+
+  // Roadmap assessments
+  const attempted = assessments.filter((a) => a.attemptCount > 0 && a.bestScore != null);
+  if (attempted.length > 0) {
+    const totalAssessmentScore = attempted.reduce((acc, a) => acc + (a.bestScore ?? 0), 0);
+    results.push({
+      category: 'Roadmap Assessments',
+      avgScore: Math.round(totalAssessmentScore / attempted.length),
+      count: attempted.length,
+      source: 'assessment',
+    });
+  }
+
+  // Resume ATS
+  if (latestResumeAts > 0) {
+    results.push({
+      category: 'Resume ATS',
+      avgScore: latestResumeAts,
+      count: 1,
+      source: 'resume',
+    });
+  }
+
+  return results.sort((a, b) => b.avgScore - a.avgScore);
 }
 
-function aggregateDailyTrend(sessions: SessionHistory[]): TrendPoint[] {
-  const dayMap = new Map<string, { total: number; count: number }>();
+function buildScoreProgression(sessions: SessionHistory[]): ScoreProgressionPoint[] {
   const monthNames = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
-
-  sessions
-    .filter((s) => s.completedAt && s.totalScore != null)
-    .forEach((session) => {
-      const date = new Date(session.completedAt as string);
-      const key = `${date.getFullYear()}-${(date.getMonth() + 1).toString().padStart(2, '0')}-${date.getDate().toString().padStart(2, '0')}`;
-      const current = dayMap.get(key) ?? { total: 0, count: 0 };
-      current.total += asPercentScore(session.totalScore);
-      current.count += 1;
-      dayMap.set(key, current);
+  return sessions
+    .filter((s) => s.status === 'completed' && s.totalScore != null)
+    .sort((a, b) => new Date(a.completedAt || a.createdAt).getTime() - new Date(b.completedAt || b.createdAt).getTime())
+    .map((s, idx) => {
+      const d = new Date(s.completedAt || s.createdAt);
+      const typeName = s.interviewType === 'dsa' ? 'DSA' : s.interviewType.charAt(0).toUpperCase() + s.interviewType.slice(1);
+      return {
+        label: `#${idx + 1}`,
+        score: asPercentScore(s.totalScore),
+        type: typeName,
+        date: `${monthNames[d.getMonth()]} ${d.getDate()}`,
+      };
     });
-
-  const result: TrendPoint[] = [];
-  const now = new Date();
-  for (let i = 13; i >= 0; i--) {
-    const d = new Date(now);
-    d.setDate(now.getDate() - i);
-    const key = `${d.getFullYear()}-${(d.getMonth() + 1).toString().padStart(2, '0')}-${d.getDate().toString().padStart(2, '0')}`;
-    const value = dayMap.get(key);
-    result.push({
-      month: `${monthNames[d.getMonth()]} ${d.getDate()}`,
-      score: value ? Math.round(value.total / Math.max(value.count, 1)) : 0,
-    });
-  }
-
-  let lastScore = 0;
-  for (const r of result) {
-    if (r.score === 0 && lastScore !== 0) {
-      r.score = lastScore;
-    } else if (r.score !== 0) {
-      lastScore = r.score;
-    }
-  }
-
-  return result;
 }
 
 function buildRecentActivities(sessions: SessionHistory[], resumes: ResumeHistoryItem[]) {
@@ -158,6 +178,8 @@ export async function getDashboardReport(): Promise<DashboardReport> {
     : 0;
 
   const latestResumeScore = resumes[0]?.overallScore == null ? 0 : Math.round(resumes[0].overallScore);
+  const latestAts = resumes[0]?.atsScore ? Math.round(resumes[0].atsScore as number) : 0;
+  const assessments = roadmapRes.roadmap?.assessments ?? [];
 
   return {
     fullName: meData.user?.fullName || 'User',
@@ -167,7 +189,7 @@ export async function getDashboardReport(): Promise<DashboardReport> {
     latestResumeScore,
     roadmapProgress,
     recentActivities: buildRecentActivities(sessions, resumes),
-    performanceData: aggregateDailyTrend(sessions),
+    categoryScores: buildCategoryScores(sessions, assessments, latestAts),
   };
 }
 
@@ -187,8 +209,8 @@ export async function getAnalyticsReport(): Promise<AnalyticsReport> {
 
   const avgInterviewScore = completed.length
     ? Math.round(
-        completed.reduce((acc, session) => acc + asPercentScore(session.totalScore), 0) / completed.length
-      )
+      completed.reduce((acc, session) => acc + asPercentScore(session.totalScore), 0) / completed.length
+    )
     : 0;
 
   const roadmapPhases = roadmapRes.roadmap?.phaseProgress ?? [];
@@ -228,7 +250,7 @@ export async function getAnalyticsReport(): Promise<AnalyticsReport> {
     latestResumeAts: resumesRes.analyses?.[0]?.atsScore ? Math.round(resumesRes.analyses[0].atsScore as number) : 0,
     roadmapProgress,
     weeklyInterviews,
-    monthlyTrend: aggregateMonthlyTrend(sessions),
+    scoreProgression: buildScoreProgression(sessions),
     interviewTypeBreakdown: [...typeMap.entries()].map(([type, count]) => ({ type, count })),
     topSkills,
   };

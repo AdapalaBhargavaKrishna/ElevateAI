@@ -2,8 +2,8 @@
 
 import { useEffect, useMemo, useState } from 'react';
 import { motion } from 'framer-motion';
-import { Bar, BarChart, CartesianGrid, Cell, Pie, PieChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts';
-import { Award, BarChart3, FileText, Mic, Target, TrendingUp } from 'lucide-react';
+import { Area, AreaChart, CartesianGrid, Cell, Pie, PieChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts';
+import { Award, FileText, Mic, Target, TrendingUp } from 'lucide-react';
 
 import { getAnalyticsReport, type AnalyticsReport } from '@/app/lib/dashboard.api';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -110,16 +110,23 @@ export default function AnalyticsPage() {
         <Card>
           <CardHeader>
             <CardTitle className='flex items-center gap-2'>
-              <BarChart3 className='h-4 w-4 text-primary' /> Monthly Interview Trend
+              <TrendingUp className='h-4 w-4 text-primary' /> Score Progression
             </CardTitle>
+            <p className='text-xs text-muted-foreground -mt-1'>Track how your interview scores improve over time. Each point is one completed interview.</p>
           </CardHeader>
           <CardContent>
-            {report.monthlyTrend.length ? (
+            {report.scoreProgression.length >= 2 ? (
               <div className='h-72'>
                 <ResponsiveContainer width='100%' height='100%'>
-                  <BarChart data={report.monthlyTrend}>
+                  <AreaChart data={report.scoreProgression} margin={{ top: 10, right: 20, left: 0, bottom: 0 }}>
+                    <defs>
+                      <linearGradient id='progressionFill' x1='0' y1='0' x2='0' y2='1'>
+                        <stop offset='5%' stopColor='#3b82f6' stopOpacity={0.35} />
+                        <stop offset='95%' stopColor='#3b82f6' stopOpacity={0} />
+                      </linearGradient>
+                    </defs>
                     <CartesianGrid strokeDasharray='3 3' stroke='hsl(var(--border))' vertical={false} />
-                    <XAxis dataKey='month' stroke='#888888' tickLine={false} axisLine={false} />
+                    <XAxis dataKey='label' stroke='#888888' tickLine={false} axisLine={false} fontSize={11} />
                     <YAxis domain={[0, 100]} stroke='#888888' tickLine={false} axisLine={false} />
                     <Tooltip
                       contentStyle={{
@@ -130,14 +137,25 @@ export default function AnalyticsPage() {
                         boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)'
                       }}
                       itemStyle={{ color: 'hsl(var(--foreground))', fontWeight: 500 }}
+                      formatter={(value: number, _: string, props: { payload: { type: string; date: string } }) => [
+                        `${value}/100 · ${props.payload.type} · ${props.payload.date}`,
+                        'Score'
+                      ]}
                     />
-                    <Bar dataKey='score' radius={[8, 8, 0, 0]} fill='#3b82f6' />
-                  </BarChart>
+                    <Area type='monotone' dataKey='score' stroke='#3b82f6' strokeWidth={2.5} fill='url(#progressionFill)' dot={{ r: 4, fill: '#3b82f6', strokeWidth: 2, stroke: 'hsl(var(--card))' }} activeDot={{ r: 6 }} />
+                  </AreaChart>
                 </ResponsiveContainer>
               </div>
             ) : (
-              <div className='h-72 flex items-center justify-center text-sm text-muted-foreground'>
-                No completed interview trend yet.
+              <div className='h-72 flex flex-col items-center justify-center text-sm text-muted-foreground gap-2'>
+                {report.scoreProgression.length === 1 ? (
+                  <>
+                    <p className='font-medium text-foreground text-lg'>{report.scoreProgression[0].score}/100</p>
+                    <p>Complete more interviews to see your progression trend.</p>
+                  </>
+                ) : (
+                  <p>Complete at least 2 interviews to see your score progression.</p>
+                )}
               </div>
             )}
           </CardContent>

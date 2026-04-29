@@ -3,7 +3,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { motion } from 'framer-motion';
-import { Area, AreaChart, CartesianGrid, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts';
 import { ArrowRight, BarChart3, BookOpen, Clock, FileText, Info, Mic, Target } from 'lucide-react';
 
 import { getDashboardReport, type DashboardReport } from '@/app/lib/dashboard.api';
@@ -135,39 +134,51 @@ export default function DashboardPage() {
       <div className='grid grid-cols-1 lg:grid-cols-3 gap-6'>
         <Card className='lg:col-span-2'>
           <CardHeader>
-            <CardTitle>Performance Trend</CardTitle>
+            <CardTitle className='flex items-center gap-2'>
+              <BarChart3 className='h-4 w-4 text-primary' /> Performance by Category
+            </CardTitle>
+            <p className='text-xs text-muted-foreground -mt-1'>Your scores across interviews, roadmap assessments, and resume — all in one view.</p>
           </CardHeader>
           <CardContent>
-            {report.performanceData.length ? (
-              <div className='h-80'>
-                <ResponsiveContainer width='100%' height='100%'>
-                  <AreaChart data={report.performanceData} margin={{ top: 10, right: 20, left: 0, bottom: 0 }}>
-                    <defs>
-                      <linearGradient id='scoreFill' x1='0' y1='0' x2='0' y2='1'>
-                        <stop offset='5%' stopColor='#3b82f6' stopOpacity={0.35} />
-                        <stop offset='95%' stopColor='#3b82f6' stopOpacity={0} />
-                      </linearGradient>
-                    </defs>
-                    <CartesianGrid strokeDasharray='3 3' stroke='hsl(var(--border))' vertical={false} />
-                    <XAxis dataKey='month' stroke='#888888' tickLine={false} axisLine={false} />
-                    <YAxis domain={[0, 100]} stroke='#888888' tickLine={false} axisLine={false} />
-                    <Tooltip
-                      contentStyle={{
-                        background: 'hsl(var(--card))',
-                        border: '1px solid hsl(var(--border))',
-                        borderRadius: '12px',
-                        color: 'hsl(var(--foreground))',
-                        boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)'
-                      }}
-                      itemStyle={{ color: 'hsl(var(--foreground))', fontWeight: 500 }}
-                    />
-                    <Area type='monotone' dataKey='score' stroke='#3b82f6' strokeWidth={2.5} fill='url(#scoreFill)' />
-                  </AreaChart>
-                </ResponsiveContainer>
+            {report.categoryScores.length ? (
+              <div className='space-y-5'>
+                {report.categoryScores.map((cat, idx) => {
+                  const color = cat.avgScore >= 70 ? '#10b981' : cat.avgScore >= 40 ? '#f59e0b' : '#ef4444';
+                  const SourceIcon = cat.source === 'assessment' ? BookOpen : cat.source === 'resume' ? FileText : Mic;
+                  const sourceLabel = cat.source === 'assessment' ? 'assessment' : cat.source === 'resume' ? 'analysis' : 'interview';
+                  return (
+                    <motion.div
+                      key={cat.category}
+                      initial={{ opacity: 0, x: -12 }}
+                      animate={{ opacity: 1, x: 0 }}
+                      transition={{ delay: idx * 0.08 }}
+                    >
+                      <div className='flex items-center justify-between text-sm mb-1.5'>
+                        <span className='font-medium flex items-center gap-1.5'>
+                          <SourceIcon className='h-3.5 w-3.5 text-muted-foreground' />
+                          {cat.category}
+                        </span>
+                        <span className='text-muted-foreground text-xs'>
+                          {cat.avgScore}/100
+                          <span className='opacity-60 ml-1'>({cat.count} {cat.count === 1 ? sourceLabel : sourceLabel + 's'})</span>
+                        </span>
+                      </div>
+                      <div className='h-3 rounded-full bg-muted overflow-hidden'>
+                        <motion.div
+                          className='h-full rounded-full'
+                          style={{ backgroundColor: color }}
+                          initial={{ width: 0 }}
+                          animate={{ width: `${cat.avgScore}%` }}
+                          transition={{ duration: 0.8, ease: 'easeOut', delay: idx * 0.08 }}
+                        />
+                      </div>
+                    </motion.div>
+                  );
+                })}
               </div>
             ) : (
               <div className='h-80 flex items-center justify-center text-sm text-muted-foreground'>
-                Complete interview sessions to unlock trend data.
+                Complete interviews or assessments to see your performance breakdown.
               </div>
             )}
           </CardContent>
