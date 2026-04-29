@@ -137,10 +137,13 @@ export default function AnalyticsPage() {
                         boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)'
                       }}
                       itemStyle={{ color: 'hsl(var(--foreground))', fontWeight: 500 }}
-                      formatter={(value: number, _: string, props: { payload: { type: string; date: string } }) => [
-                        `${value}/100 · ${props.payload.type} · ${props.payload.date}`,
-                        'Score'
-                      ]}
+                      formatter={(value, _name, props) => {
+                        const p = (props as { payload?: { type?: string; date?: string } })?.payload;
+                        return [
+                          `${value}/100 · ${p?.type ?? ''} · ${p?.date ?? ''}`,
+                          'Score'
+                        ];
+                      }}
                     />
                     <Area type='monotone' dataKey='score' stroke='#3b82f6' strokeWidth={2.5} fill='url(#progressionFill)' dot={{ r: 4, fill: '#3b82f6', strokeWidth: 2, stroke: 'hsl(var(--card))' }} activeDot={{ r: 6 }} />
                   </AreaChart>
