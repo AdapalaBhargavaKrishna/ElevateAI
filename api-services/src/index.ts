@@ -10,6 +10,7 @@ import interviewRoutes from "./routes/interview.routes";
 import userInfoRoutes from "./routes/userInfo.routes";
 import resumeRoutes from "./routes/resume.routes";
 import roadmapRoutes from "./routes/roadmap.routes";
+import chatRoutes from "./routes/chat.routes";
 
 const app = express()
 const PORT = process.env.PORT || 5000
@@ -39,6 +40,7 @@ app.use("/interview", interviewRoutes);
 app.use("/user-info", userInfoRoutes);
 app.use("/resume", resumeRoutes);
 app.use("/roadmap", roadmapRoutes);
+app.use("/chat", chatRoutes);
 
 app.get('/health', (req, res) => {
     res.json({ status: 'ok' })

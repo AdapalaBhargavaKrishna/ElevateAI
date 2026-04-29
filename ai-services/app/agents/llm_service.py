@@ -197,3 +197,31 @@ class LLMService:
             f"[LLMService] Failed to get valid JSON after {self.MAX_RETRIES} attempts. "
             f"Last error: {error}"
         )
+
+    def stream_chat(self, messages: list, system: str):
+        """Yields SSE: 'data: <token>\n\n', ends with 'data: [DONE]\n\n'"""
+        full_messages = [{"role": "system", "content": system}, *messages]
+        try:
+            stream = self.client.chat.completions.create(
+                model="llama-3.3-70b-versatile",
+                messages=full_messages,
+                temperature=0.7,
+                max_tokens=1024,
+                stream=True,
+            )
+            for chunk in stream:
+                delta = chunk.choices[0].delta.content or ""
+                if delta:
+                    yield f"data: {delta}\n\n"
+        except Exception as exc:
+            if self._is_auth_error(str(exc)):
+                try:
+                    response = self._call_gemini(full_messages)
+                    for word in response.split(" "):
+                        yield f"data: {word} \n\n"
+                except Exception:
+                    yield "data: Sorry, I'm having trouble connecting right now.\n\n"
+            else:
+                yield "data: Sorry, something went wrong. Please try again.\n\n"
+        finally:
+            yield "data: [DONE]\n\n"

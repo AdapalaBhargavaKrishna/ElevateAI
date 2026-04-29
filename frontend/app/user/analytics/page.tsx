@@ -1,8 +1,11 @@
 'use client';
 
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { motion } from 'framer-motion';
-import { Area, AreaChart, CartesianGrid, Cell, Pie, PieChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts';
+import {
+  Cell, Line, LineChart, Pie, PieChart,
+  ResponsiveContainer, Tooltip, XAxis, YAxis,
+} from 'recharts';
 import { Award, FileText, Mic, Target, TrendingUp } from 'lucide-react';
 
 import { getAnalyticsReport, type AnalyticsReport } from '@/app/lib/dashboard.api';
@@ -24,10 +27,19 @@ const AnalyticsSkeleton = () => (
       <div className='h-96 rounded-xl animate-pulse bg-card border border-border shadow-sm' />
       <div className='h-96 rounded-xl animate-pulse bg-card border border-border shadow-sm' />
     </div>
+    <div className='h-64 rounded-xl animate-pulse bg-card border border-border shadow-sm' />
   </div>
 );
 
 const PIE_COLORS = ['#3b82f6', '#8b5cf6', '#ec4899', '#f43f5e', '#f59e0b', '#10b981'];
+
+const TOOLTIP_STYLE = {
+  background: 'hsl(var(--card))',
+  border: '1px solid hsl(var(--border))',
+  borderRadius: '12px',
+  color: 'hsl(var(--foreground))',
+  boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)',
+};
 
 export default function AnalyticsPage() {
   const [loading, setLoading] = useState(true);
@@ -50,7 +62,7 @@ export default function AnalyticsPage() {
     load();
   }, []);
 
-  const stats = useMemo(() => {
+  const stats = (() => {
     if (!report) return [];
     return [
       { id: 'avg', label: 'Avg Interview Score', value: `${report.avgInterviewScore}%`, icon: TrendingUp },
@@ -58,7 +70,7 @@ export default function AnalyticsPage() {
       { id: 'resume', label: 'Latest ATS Score', value: `${report.latestResumeAts}%`, icon: FileText },
       { id: 'roadmap', label: 'Roadmap Completion', value: `${report.roadmapProgress}%`, icon: Target },
     ];
-  }, [report]);
+  })();
 
   if (loading) return <AnalyticsSkeleton />;
 
@@ -84,6 +96,7 @@ export default function AnalyticsPage() {
         <p className='text-muted-foreground mt-2 text-sm font-medium'>Live report for {report.fullName} based on interview, resume, and roadmap data.</p>
       </div>
 
+      {/* Row 1: 4 stat cards */}
       <div className='grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4'>
         {stats.map((stat, idx) => (
           <motion.div key={stat.id} initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: idx * 0.06 }}>
@@ -106,64 +119,80 @@ export default function AnalyticsPage() {
         ))}
       </div>
 
+      {/* Row 2: Resume Score History | Interview Type Distribution */}
       <div className='grid grid-cols-1 lg:grid-cols-2 gap-6'>
-        <Card>
-          <CardHeader>
-            <CardTitle className='flex items-center gap-2'>
-              <TrendingUp className='h-4 w-4 text-primary' /> Score Progression
-            </CardTitle>
-            <p className='text-xs text-muted-foreground -mt-1'>Track how your interview scores improve over time. Each point is one completed interview.</p>
-          </CardHeader>
-          <CardContent>
-            {report.scoreProgression.length >= 2 ? (
-              <div className='h-72'>
-                <ResponsiveContainer width='100%' height='100%'>
-                  <AreaChart data={report.scoreProgression} margin={{ top: 10, right: 20, left: 0, bottom: 0 }}>
-                    <defs>
-                      <linearGradient id='progressionFill' x1='0' y1='0' x2='0' y2='1'>
-                        <stop offset='5%' stopColor='#3b82f6' stopOpacity={0.35} />
-                        <stop offset='95%' stopColor='#3b82f6' stopOpacity={0} />
-                      </linearGradient>
-                    </defs>
-                    <CartesianGrid strokeDasharray='3 3' stroke='hsl(var(--border))' vertical={false} />
-                    <XAxis dataKey='label' stroke='#888888' tickLine={false} axisLine={false} fontSize={11} />
-                    <YAxis domain={[0, 100]} stroke='#888888' tickLine={false} axisLine={false} />
-                    <Tooltip
-                      contentStyle={{
-                        background: 'hsl(var(--card))',
-                        border: '1px solid hsl(var(--border))',
-                        borderRadius: '12px',
-                        color: 'hsl(var(--foreground))',
-                        boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)'
-                      }}
-                      itemStyle={{ color: 'hsl(var(--foreground))', fontWeight: 500 }}
-                      formatter={(value, _name, props) => {
-                        const p = (props as { payload?: { type?: string; date?: string } })?.payload;
-                        return [
-                          `${value}/100 · ${p?.type ?? ''} · ${p?.date ?? ''}`,
-                          'Score'
-                        ];
-                      }}
-                    />
-                    <Area type='monotone' dataKey='score' stroke='#3b82f6' strokeWidth={2.5} fill='url(#progressionFill)' dot={{ r: 4, fill: '#3b82f6', strokeWidth: 2, stroke: 'hsl(var(--card))' }} activeDot={{ r: 6 }} />
-                  </AreaChart>
-                </ResponsiveContainer>
-              </div>
-            ) : (
-              <div className='h-72 flex flex-col items-center justify-center text-sm text-muted-foreground gap-2'>
-                {report.scoreProgression.length === 1 ? (
-                  <>
-                    <p className='font-medium text-foreground text-lg'>{report.scoreProgression[0].score}/100</p>
-                    <p>Complete more interviews to see your progression trend.</p>
-                  </>
-                ) : (
-                  <p>Complete at least 2 interviews to see your score progression.</p>
-                )}
-              </div>
-            )}
-          </CardContent>
-        </Card>
+        {/* Resume Score History */}
+        <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }}>
+          <Card>
+            <CardHeader>
+              <CardTitle className='flex items-center gap-2'>
+                <FileText className='h-4 w-4 text-primary' /> Resume Score History
+              </CardTitle>
+              <p className='text-xs text-muted-foreground -mt-1'>
+                Overall quality and ATS compatibility across your resume uploads
+              </p>
+            </CardHeader>
+            <CardContent>
+              {report.resumeHistory.length === 0 ? (
+                <div className='h-72 flex items-center justify-center text-sm text-muted-foreground text-center px-4'>
+                  Upload your resume to start tracking your score history.
+                </div>
+              ) : report.resumeHistory.length === 1 ? (
+                <div className='h-72 flex flex-col items-center justify-center gap-4'>
+                  <div className='flex gap-8'>
+                    <div className='text-center'>
+                      <p className='text-4xl font-bold text-[#3b82f6]'>{report.resumeHistory[0].overall}</p>
+                      <p className='text-xs text-muted-foreground mt-1'>Overall</p>
+                    </div>
+                    <div className='text-center'>
+                      <p className='text-4xl font-bold text-[hsl(172,66%,40%)]'>{report.resumeHistory[0].ats}</p>
+                      <p className='text-xs text-muted-foreground mt-1'>ATS Score</p>
+                    </div>
+                  </div>
+                  <p className='text-xs text-muted-foreground'>Upload more resumes to see progression</p>
+                </div>
+              ) : (
+                <div className='h-72'>
+                  <ResponsiveContainer width='100%' height='100%'>
+                    <LineChart data={report.resumeHistory}>
+                      <XAxis
+                        dataKey='label'
+                        tick={{ fill: 'hsl(var(--muted-foreground))', fontSize: 11 }}
+                        axisLine={false}
+                        tickLine={false}
+                      />
+                      <YAxis
+                        domain={[0, 100]}
+                        tick={{ fill: 'hsl(var(--muted-foreground))', fontSize: 11 }}
+                        axisLine={false}
+                        tickLine={false}
+                      />
+                      <Tooltip contentStyle={TOOLTIP_STYLE} itemStyle={{ fontWeight: 500 }} />
+                      <Line
+                        type='monotone'
+                        dataKey='overall'
+                        stroke='#3b82f6'
+                        strokeWidth={2.5}
+                        name='Overall Score'
+                        dot={{ r: 4, fill: '#3b82f6' }}
+                      />
+                      <Line
+                        type='monotone'
+                        dataKey='ats'
+                        stroke='hsl(172, 66%, 40%)'
+                        strokeWidth={2.5}
+                        name='ATS Score'
+                        dot={{ r: 4, fill: 'hsl(172, 66%, 40%)' }}
+                      />
+                    </LineChart>
+                  </ResponsiveContainer>
+                </div>
+              )}
+            </CardContent>
+          </Card>
+        </motion.div>
 
+        {/* Interview Type Distribution */}
         <Card>
           <CardHeader>
             <CardTitle className='flex items-center gap-2'>
@@ -202,49 +231,48 @@ export default function AnalyticsPage() {
         </Card>
       </div>
 
-      <div className='grid grid-cols-1 lg:grid-cols-2 gap-6'>
+      {/* Row 3: Roadmap Phase Progress (full width) */}
+      <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }}>
         <Card>
           <CardHeader>
-            <CardTitle>Weekly Interview Activity</CardTitle>
+            <CardTitle className='flex items-center gap-2'>
+              <Target className='h-4 w-4 text-primary' /> Roadmap Phase Progress
+            </CardTitle>
           </CardHeader>
-          <CardContent className='space-y-3'>
-            {report.weeklyInterviews.map((day) => (
-              <div key={day.day}>
-                <div className='flex items-center justify-between text-xs mb-1'>
-                  <span className='text-muted-foreground'>{day.day}</span>
-                  <span>{day.interviews} interviews • {day.score}%</span>
-                </div>
-                <div className='h-2 rounded-full bg-muted overflow-hidden'>
-                  <div className='h-full bg-primary rounded-full' style={{ width: `${day.score}%` }} />
-                </div>
+          <CardContent>
+            {report.roadmapPhases.length > 0 ? (
+              <div className='grid grid-cols-1 lg:grid-cols-2 gap-4'>
+                {report.roadmapPhases.map((phase) => (
+                  <div key={phase.phaseNumber}>
+                    <div className='flex items-center justify-between text-xs mb-1'>
+                      <span className='font-medium'>Phase {phase.phaseNumber}: {phase.title}</span>
+                      <span className={
+                        phase.status === 'completed' ? 'text-green-500' :
+                          phase.status === 'locked' ? 'text-muted-foreground' : 'text-primary'
+                      }>
+                        {phase.status === 'completed' ? 'Completed' :
+                          phase.status === 'locked' ? 'Locked' :
+                            `${phase.percentage}%`}
+                      </span>
+                    </div>
+                    <div className='h-2 rounded-full bg-muted overflow-hidden'>
+                      <div className='h-full rounded-full transition-all duration-500' style={{
+                        width: `${phase.percentage}%`,
+                        backgroundColor: phase.status === 'completed' ? 'rgb(34 197 94 / 0.7)' :
+                          phase.status === 'locked' ? 'transparent' : 'hsl(172, 66%, 40%)'
+                      }} />
+                    </div>
+                  </div>
+                ))}
               </div>
-            ))}
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader>
-            <CardTitle>Top Skill Signals</CardTitle>
-          </CardHeader>
-          <CardContent className='space-y-3'>
-            {report.topSkills.length ? (
-              report.topSkills.map((item) => (
-                <div key={item.skill}>
-                  <div className='flex items-center justify-between text-xs mb-1'>
-                    <span className='font-medium'>{item.skill}</span>
-                    <span className='text-muted-foreground'>{item.confidence}%</span>
-                  </div>
-                  <div className='h-2 rounded-full bg-muted overflow-hidden'>
-                    <div className='h-full bg-primary rounded-full' style={{ width: `${item.confidence}%` }} />
-                  </div>
-                </div>
-              ))
             ) : (
-              <p className='text-sm text-muted-foreground'>Add skills in My Info to see this section.</p>
+              <div className='h-32 flex items-center justify-center text-sm text-muted-foreground text-center px-4'>
+                Generate your roadmap to see phase progress here.
+              </div>
             )}
           </CardContent>
         </Card>
-      </div>
+      </motion.div>
     </div>
   );
 }

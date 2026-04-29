@@ -11,12 +11,7 @@ export type CategoryScore = {
   source: 'interview' | 'assessment' | 'resume';
 };
 
-export type ScoreProgressionPoint = {
-  label: string;
-  score: number;
-  type: string;
-  date: string;
-};
+
 
 export type DashboardReport = {
   fullName: string;
@@ -35,10 +30,15 @@ export type AnalyticsReport = {
   totalInterviews: number;
   latestResumeAts: number;
   roadmapProgress: number;
-  weeklyInterviews: Array<{ day: string; interviews: number; score: number }>;
-  scoreProgression: ScoreProgressionPoint[];
   interviewTypeBreakdown: Array<{ type: string; count: number }>;
-  topSkills: Array<{ skill: string; confidence: number }>;
+  resumeHistory: Array<{ label: string; overall: number; ats: number; date: string }>;
+  roadmapPhases: Array<{
+    phaseNumber: number;
+    title: string;
+    percentage: number;
+    status: 'completed' | 'in-progress' | 'locked';
+  }>;
+  skillGaps: Array<{ skill: string; requiredScore: number }>;
 };
 
 function asPercentScore(value: number | null | undefined): number {
@@ -118,22 +118,7 @@ function buildCategoryScores(
   return results.sort((a, b) => b.avgScore - a.avgScore);
 }
 
-function buildScoreProgression(sessions: SessionHistory[]): ScoreProgressionPoint[] {
-  const monthNames = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
-  return sessions
-    .filter((s) => s.status === 'completed' && s.totalScore != null)
-    .sort((a, b) => new Date(a.completedAt || a.createdAt).getTime() - new Date(b.completedAt || b.createdAt).getTime())
-    .map((s, idx) => {
-      const d = new Date(s.completedAt || s.createdAt);
-      const typeName = s.interviewType === 'dsa' ? 'DSA' : s.interviewType.charAt(0).toUpperCase() + s.interviewType.slice(1);
-      return {
-        label: `#${idx + 1}`,
-        score: asPercentScore(s.totalScore),
-        type: typeName,
-        date: `${monthNames[d.getMonth()]} ${d.getDate()}`,
-      };
-    });
-}
+
 
 function buildRecentActivities(sessions: SessionHistory[], resumes: ResumeHistoryItem[]) {
   const interviewActivities = sessions.slice(0, 3).map((s) => ({
@@ -213,24 +198,11 @@ export async function getAnalyticsReport(): Promise<AnalyticsReport> {
     )
     : 0;
 
-  const roadmapPhases = roadmapRes.roadmap?.phaseProgress ?? [];
-  const completedPhases = roadmapPhases.filter((p) => p.completed).length;
-  const roadmapProgress = roadmapPhases.length
-    ? Math.round((completedPhases / roadmapPhases.length) * 100)
+  const phaseProgressArr = roadmapRes.roadmap?.phaseProgress ?? [];
+  const completedPhases = phaseProgressArr.filter((p) => p.completed).length;
+  const roadmapProgress = phaseProgressArr.length
+    ? Math.round((completedPhases / phaseProgressArr.length) * 100)
     : 0;
-
-  const now = new Date();
-  const dayNames = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
-  const weeklyInterviews = Array.from({ length: 7 }).map((_, offset) => {
-    const d = new Date(now);
-    d.setDate(now.getDate() - (6 - offset));
-    const iso = d.toISOString().slice(0, 10);
-    const daySessions = completed.filter((s) => (s.completedAt || s.createdAt).slice(0, 10) === iso);
-    const avg = daySessions.length
-      ? Math.round(daySessions.reduce((acc, item) => acc + asPercentScore(item.totalScore), 0) / daySessions.length)
-      : 0;
-    return { day: dayNames[d.getDay()], interviews: daySessions.length, score: avg };
-  });
 
   const typeMap = new Map<string, number>();
   completed.forEach((s) => {
@@ -238,10 +210,55 @@ export async function getAnalyticsReport(): Promise<AnalyticsReport> {
     typeMap.set(key, (typeMap.get(key) ?? 0) + 1);
   });
 
-  const topSkills = (profile.skills || []).slice(0, 8).map((skill, idx) => ({
-    skill,
-    confidence: Math.max(55, 95 - idx * 6),
-  }));
+  // Resume score history from real resume analyses
+  const resumeHistory = (resumesRes.analyses ?? [])
+    .filter(r => r.overallScore != null)
+    .sort((a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime())
+    .map((r, idx) => ({
+      label: `#${idx + 1}`,
+      overall: Math.round(r.overallScore!),
+      ats: r.atsScore ? Math.round(r.atsScore as number) : 0,
+      date: new Date(r.createdAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
+    }));
+
+  // Roadmap phase progress from real roadmap data
+  const roadmapPhases = (roadmapRes.roadmap?.roadmapData?.phases ?? []).map(phase => {
+    const prog = (roadmapRes.roadmap?.phaseProgress ?? [])
+      .find(p => p.phaseNumber === phase.phase_number);
+    const goalsTotal = phase.goals?.length ?? 0;
+    const goalsDone = prog?.goalChecks?.length ?? 0;
+    const isCompleted = prog?.completed ?? false;
+    const unlocked = !!prog?.unlockedAt;
+
+    const percentage = isCompleted ? 100
+      : goalsTotal > 0 ? Math.round((goalsDone / goalsTotal) * 100)
+        : 0;
+
+    const status: 'completed' | 'in-progress' | 'locked' =
+      isCompleted ? 'completed' : unlocked ? 'in-progress' : 'locked';
+
+    return {
+      phaseNumber: phase.phase_number,
+      title: phase.title,
+      percentage,
+      status
+    };
+  });
+
+  // Build skill gaps from roadmap skill_gaps with profile skills
+  const profileSkills = (profile.skills || []).slice(0, 8);
+  const roadmapSkillGaps: Array<{ skill: string; priority: string }> =
+    roadmapRes.roadmap?.roadmapData?.skill_gaps ?? [];
+  const priorityScoreMap: Record<string, number> = { high: 90, medium: 75, low: 60 };
+  const skillGaps = profileSkills.map((skill) => {
+    const match = roadmapSkillGaps.find(
+      (g) => g.skill.toLowerCase() === skill.toLowerCase()
+    );
+    return {
+      skill,
+      requiredScore: match ? (priorityScoreMap[match.priority] ?? 80) : 80,
+    };
+  });
 
   return {
     fullName: meData.user?.fullName || 'User',
@@ -249,9 +266,9 @@ export async function getAnalyticsReport(): Promise<AnalyticsReport> {
     totalInterviews: completed.length,
     latestResumeAts: resumesRes.analyses?.[0]?.atsScore ? Math.round(resumesRes.analyses[0].atsScore as number) : 0,
     roadmapProgress,
-    weeklyInterviews,
-    scoreProgression: buildScoreProgression(sessions),
     interviewTypeBreakdown: [...typeMap.entries()].map(([type, count]) => ({ type, count })),
-    topSkills,
+    resumeHistory,
+    roadmapPhases,
+    skillGaps,
   };
 }

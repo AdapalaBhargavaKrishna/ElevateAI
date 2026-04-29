@@ -271,3 +271,15 @@ model AssessmentAttempt {
 
   @@map("assessment_attempts")
 }
+
+model ChatMessage {
+  id        String   @id @default(uuid())
+  userId    String
+  sessionId String
+  role      String   // 'user' or 'assistant'
+  content   String
+  createdAt DateTime @default(now())
+
+  @@index([userId, sessionId, createdAt])
+  @@map("chat_messages")
+}

@@ -3,7 +3,8 @@ from fastapi.middleware.cors import CORSMiddleware
 from app.config import settings
 from app.routers import interview
 from app.routers import resume
-from app.routers import roadmap   # ← NEW
+from app.routers import roadmap
+from app.routers import chat
 
 app = FastAPI(
     title="ElevateAI AI Engine",
@@ -25,7 +26,10 @@ app.include_router(interview.router, tags=["Interview"])
 app.include_router(resume.router, tags=["Resume"])
 
 # Roadmap routes (/roadmap/generate, /roadmap/assessments/generate)
-app.include_router(roadmap.router, tags=["Roadmap"])  # ← NEW
+app.include_router(roadmap.router, tags=["Roadmap"])
+
+# Chat routes (/chat/stream)
+app.include_router(chat.router, tags=["Chat"])
 
 
 @app.get("/health")
