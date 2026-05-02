@@ -8,6 +8,7 @@ import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { motion } from "framer-motion";
 import { useRouter } from 'next/navigation';
+import toast from 'react-hot-toast';
 import {
     Github, Linkedin, MapPin, ExternalLink, Code, Share2,
     Eye, Plus, Briefcase, GraduationCap, Sparkles,
@@ -91,8 +92,10 @@ export default function ProfilePage() {
         if (!me?.id) return;
         try {
             await navigator.clipboard.writeText(`https://elevateai-career.vercel.app/profile/${me.id}`);
+            toast.success('Profile link copied to clipboard.');
         } catch (err) {
             console.error("Copy profile link failed:", err);
+            toast.error('Failed to copy profile link. Please try again.');
         }
     };
 
