@@ -2,7 +2,7 @@
 
 <img src="frontend/public/logo.png" alt="ElevateAI Logo" width="180"/>
 
-# ElevateAI
+<!-- # ElevateAI -->
 
 ### Your AI-Powered Career Acceleration Platform
 
