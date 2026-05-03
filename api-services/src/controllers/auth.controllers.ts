@@ -107,7 +107,7 @@ export async function logout(_req: Request, res: Response) {
 
 export async function refresh(req: Request, res: Response) {
     try {
-        const token = req.cookies?.refresh_token;
+        const token = req.cookies?.refresh_token || req.body?.refresh_token;
         if (!token) return res.status(401).json({ message: "No refresh token." });
 
         const { userId } = verifyRefreshToken(token);

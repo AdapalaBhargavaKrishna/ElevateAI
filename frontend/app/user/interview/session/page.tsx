@@ -183,6 +183,7 @@ function InterviewSessionPageContent() {
     const [cameraEnabled, setCameraEnabled]           = useState(true);
     const [cameraVisible, setCameraVisible]           = useState(true);   // user's layout pref
     const [isListening, setIsListening]               = useState(false);
+    const [interimText, setInterimText]               = useState('');
 
     // [VOICE FEATURE] TTS state
     const [isSpeaking, setIsSpeaking]                 = useState(false);
@@ -193,6 +194,7 @@ function InterviewSessionPageContent() {
     const mediaStreamRef  = useRef<MediaStream | null>(null);
     const recognitionRef  = useRef<BrowserSpeechRecognition | null>(null);
     const tabViolationRef = useRef(false);
+    const tabViolationTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
     const [tabSwitchCount, setTabSwitchCount] = useState(0);
     const [showFullscreenWarn, setShowFullscreenWarn] = useState(false);
     const speechSupported = typeof window !== "undefined" && !!(window.SpeechRecognition || window.webkitSpeechRecognition);
@@ -286,7 +288,8 @@ function InterviewSessionPageContent() {
                     interim = t;
                 }
             }
-            setAnswer(finalTranscript + (interim ? ' ' + interim : ''));
+            setAnswer(finalTranscript);
+            setInterimText(interim);
         };
 
         recognition.onerror = (event: SpeechErrorEvent) => {
@@ -343,11 +346,29 @@ function InterviewSessionPageContent() {
         recognitionRef.current?.stop();
         recognitionRef.current = null;
         setIsListening(false);
+        setInterimText('');
     }, []);
 
     const toggleListening = () => { if (isListening) stopListening(); else startListening(); };
 
     useEffect(() => () => stopListening(), []);
+
+    useEffect(() => {
+        if (!isListening) {
+            setInterimText('');
+        }
+    }, [isListening]);
+
+    useEffect(() => {
+        const suppressSaveAndPrint = (e: KeyboardEvent) => {
+            if ((e.ctrlKey || e.metaKey) && ['s', 'p', 'u', 'j'].includes(e.key.toLowerCase())) {
+                e.preventDefault();
+            }
+        };
+
+        window.addEventListener('keydown', suppressSaveAndPrint);
+        return () => window.removeEventListener('keydown', suppressSaveAndPrint);
+    }, []);
 
     // ── Text-to-Speech ── [VOICE FEATURE] ───────────────────────────────────────
 
@@ -575,22 +596,41 @@ function InterviewSessionPageContent() {
     useEffect(() => {
         if (!sessionId) return;
 
-        const onVisibilityChange = () => {
-            if (document.hidden) {
-                setTabSwitchCount((prev) => {
-                    const next = prev + 1;
-                    toast.error(`⚠️ Tab switch detected! (${next}/3). After 3 switches your session will be auto-submitted.`);
-                    if (next >= 3) {
-                        terminateRef.current();
-                    }
-                    return next;
-                });
+        const clearViolationTimer = () => {
+            if (tabViolationTimerRef.current) {
+                clearTimeout(tabViolationTimerRef.current);
+                tabViolationTimerRef.current = null;
             }
         };
-        document.addEventListener('visibilitychange', onVisibilityChange);
+
+        const onViolationCheck = () => {
+            if (document.hidden) {
+                clearViolationTimer();
+                tabViolationTimerRef.current = setTimeout(() => {
+                    if (!document.hidden) return;
+                    setTabSwitchCount((prev) => {
+                        const next = prev + 1;
+                        toast.error(`⚠️ Tab switch detected! (${next}/3). After 3 switches your session will be auto-submitted.`);
+                        if (next >= 3) {
+                            terminateRef.current();
+                        }
+                        return next;
+                    });
+                }, 300);
+            } else {
+                clearViolationTimer();
+            }
+        };
+
+        document.addEventListener('visibilitychange', onViolationCheck);
+        window.addEventListener('blur', onViolationCheck);
+        window.addEventListener('focus', clearViolationTimer);
 
         return () => {
-            document.removeEventListener('visibilitychange', onVisibilityChange);
+            document.removeEventListener('visibilitychange', onViolationCheck);
+            window.removeEventListener('blur', onViolationCheck);
+            window.removeEventListener('focus', clearViolationTimer);
+            clearViolationTimer();
             if (document.fullscreenElement) {
                 document.exitFullscreen().catch(() => undefined);
             }
@@ -924,16 +964,22 @@ function InterviewSessionPageContent() {
                                         {/* Answer area */}
                                         {!currentEvaluation && (
                                             <div className="space-y-3">
+                                                {isListening && (
+                                                    <div className="flex items-center gap-2 rounded-lg border border-destructive/20 bg-destructive/5 px-3 py-2 text-sm text-destructive">
+                                                        <span className="inline-flex h-2.5 w-2.5 rounded-full bg-destructive animate-pulse" />
+                                                        <span>🎙️ Listening... speak your answer</span>
+                                                    </div>
+                                                )}
                                                 <div className="relative">
                                                     <textarea
                                                         value={answer}
                                                         onChange={e => setAnswer(e.target.value)}
                                                         placeholder={
-                                                            isListening
-                                                                ? "🎤 Listening… speak your answer…"
+                                                            !isListening && !answer
+                                                                ? "Click the mic button and speak your answer..."
                                                                 : interviewType === 'dsa'
-                                                                    ? "Type your answer here…"
-                                                                    : "Type your answer here, or click 🎤 to speak…"
+                                                                    ? "Type your answer here..."
+                                                                    : "Type your answer here, or click the mic button to speak..."
                                                         }
                                                         className={`w-full min-h-[300px] rounded-xl border bg-background px-4 py-3 text-sm text-foreground resize-none focus:outline-none focus:ring-2 focus:ring-primary transition-all ${
                                                             isListening ? 'border-destructive ring-2 ring-destructive/30' : 'border-border'
@@ -947,6 +993,12 @@ function InterviewSessionPageContent() {
                                                         </div>
                                                     )}
                                                 </div>
+
+                                                {isListening && interimText && (
+                                                    <p className="text-sm italic text-muted-foreground">
+                                                        {interimText}
+                                                    </p>
+                                                )}
 
                                                 {error && (
                                                     <div className="bg-destructive/10 border border-destructive/20 rounded-lg p-3 text-sm text-destructive">

@@ -2,10 +2,10 @@ from fastapi import APIRouter, Header, HTTPException
 from fastapi.responses import StreamingResponse
 from pydantic import BaseModel
 from app.config import settings
-from app.agents.llm_service import LLMService
+from app.agents.chat.orchestrator import ChatOrchestrator
 
 router = APIRouter(prefix="/chat", tags=["Chat"])
-llm = LLMService()
+chat_orchestrator = ChatOrchestrator()
 
 
 class ChatMessage(BaseModel):
@@ -46,7 +46,7 @@ Be specific, actionable, encouraging, and concise."""
     messages = [{"role": m.role, "content": m.content} for m in request.messages]
 
     return StreamingResponse(
-        llm.stream_chat(messages=messages, system=system),
+        chat_orchestrator.stream(messages=messages, system=system),
         media_type="text/event-stream",
         headers={"Cache-Control": "no-cache", "X-Accel-Buffering": "no"},
     )

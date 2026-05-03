@@ -1,6 +1,6 @@
 import json
 import logging
-from app.agents.llm_service import LLMService
+from app.core.llm_client import LLMService
 
 logger = logging.getLogger(__name__)
 

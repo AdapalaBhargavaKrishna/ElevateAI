@@ -1,9 +1,11 @@
 from fastapi import APIRouter, Header, HTTPException
 from app import schemas
-from app.services import interview_service
+from app.agents.interview.orchestrator import InterviewOrchestrator
 from app.config import settings
 
 router = APIRouter(prefix="/interview", tags=["Interview"])
+
+interview_orchestrator = InterviewOrchestrator()
 
 
 # ✅ START INTERVIEW (AI generates questions)
@@ -17,7 +19,7 @@ def start_interview(
     if x_internal_key != settings.INTERNAL_API_KEY:
         raise HTTPException(status_code=403, detail="Forbidden")
 
-    result = interview_service.generate_questions(
+    result = interview_orchestrator.generate_questions(
         role=request.role,
         level=request.level,
         interview_type=request.interview_type,
@@ -43,7 +45,7 @@ def submit_answer(
     if x_internal_key != settings.INTERNAL_API_KEY:
         raise HTTPException(status_code=403, detail="Forbidden")
 
-    evaluation = interview_service.evaluate_answer(
+    evaluation = interview_orchestrator.evaluate_answer(
         question=request.question,
         answer=request.answer,
         role=request.role,
@@ -69,7 +71,7 @@ def get_summary(
     if x_internal_key != settings.INTERNAL_API_KEY:
         raise HTTPException(status_code=403, detail="Forbidden")
 
-    summary = interview_service.generate_summary(
+    summary = interview_orchestrator.generate_summary(
         questions=request.questions,
         answers=request.answers
     )
@@ -92,7 +94,7 @@ def dsa_start(
     if x_internal_key != settings.INTERNAL_API_KEY:
         raise HTTPException(status_code=403, detail="Forbidden")
 
-    result = interview_service.generate_dsa_questions(
+    result = interview_orchestrator.generate_dsa_questions(
         role=request.role,
         level=request.level,
         difficulty=request.difficulty,
@@ -111,7 +113,7 @@ def dsa_evaluate(
         raise HTTPException(status_code=403, detail="Forbidden")
 
     try:
-        evaluation = interview_service.evaluate_dsa_answer(
+        evaluation = interview_orchestrator.evaluate_dsa_answer(
             problem_description=request.problem_description,
             user_code=request.user_code,
             language=request.language,
@@ -133,7 +135,7 @@ def dsa_summary(
     if x_internal_key != settings.INTERNAL_API_KEY:
         raise HTTPException(status_code=403, detail="Forbidden")
 
-    summary = interview_service.generate_dsa_summary(
+    summary = interview_orchestrator.generate_dsa_summary(
         questions=request.questions,
         codes=request.codes,
         evaluations=request.evaluations

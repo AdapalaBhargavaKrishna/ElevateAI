@@ -1,7 +1,7 @@
-from app.agents.parser_agent import ResumeParserAgent
-from app.agents.skills_agent import SkillsExtractionAgent
-from app.agents.scoring_agent import ScoringAgent
-from app.agents.ats_agent import ATSAgent
+from app.agents.resume.parser_agent import ResumeParserAgent
+from app.agents.resume.skills_agent import SkillsExtractionAgent
+from app.agents.resume.scoring_agent import ScoringAgent
+from app.agents.resume.ats_agent import ATSAgent
 
 
 class ResumeOrchestrator:

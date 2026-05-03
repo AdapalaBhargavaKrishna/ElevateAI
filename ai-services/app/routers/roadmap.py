@@ -1,10 +1,12 @@
 from fastapi import APIRouter, Header, HTTPException
 from app import schemas
-from app.services import llm_service
+from app.agents.roadmap.orchestrator import RoadmapOrchestrator
 from app.config import settings
 import traceback
 
 router = APIRouter(prefix="/roadmap", tags=["Roadmap"])
+
+roadmap_orchestrator = RoadmapOrchestrator()
 
 
 def _check_internal_key(x_internal_key: str):
@@ -23,7 +25,7 @@ def generate_roadmap(
     print(f"[Roadmap AI] generate_roadmap called: role={request.target_role}, level={request.experience_level}, user={x_user_id}")
 
     try:
-        roadmap_data = llm_service.generate_roadmap(
+        roadmap_data = roadmap_orchestrator.generate_roadmap(
             target_role=request.target_role,
             experience_level=request.experience_level,
             current_skills=request.current_skills or [],
@@ -47,7 +49,7 @@ def generate_assessments(
     _check_internal_key(x_internal_key)
 
     try:
-        result = llm_service.generate_assessments(
+        result = roadmap_orchestrator.generate_assessments(
             target_role=request.target_role,
             phase_number=request.phase_number,
             phase_title=request.phase_title,
@@ -74,7 +76,7 @@ def generate_assessments_batch(
     print(f"[Roadmap AI] bulk-generate called: {len(request.phases)} phases, {request.questions_per_phase} questions each")
 
     try:
-        result = llm_service.generate_assessments_batch(
+        result = roadmap_orchestrator.generate_assessments_batch(
             target_role=request.target_role,
             phases=[
                 {
@@ -93,4 +95,4 @@ def generate_assessments_batch(
         raise
     except Exception as e:
         traceback.print_exc()
-        raise HTTPException(status_code=503, detail=f"Batch assessment generation failed: {str(e)}")
+        raise HTTPException(status_code=503, detail=f"Batch assessment generation failed: {str(e)}")

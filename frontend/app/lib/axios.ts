@@ -59,15 +59,49 @@ api.interceptors.response.use(
                 );
 
                 const newToken = response.data?.access_token;
+                const newRefreshToken = response.data?.refresh_token;
                 if (newToken) {
                     localStorage.setItem('access_token', newToken);
                     originalRequest.headers.Authorization = `Bearer ${newToken}`;
+                }
+                if (newRefreshToken) {
+                    localStorage.setItem('refresh_token', newRefreshToken);
                 }
 
                 isRefreshing = false;
                 processQueue(null, newToken);
                 return api(originalRequest);
             } catch (refreshError) {
+                const localRefreshToken = typeof window !== 'undefined'
+                    ? localStorage.getItem('refresh_token')
+                    : null;
+
+                if (localRefreshToken) {
+                    try {
+                        const retryResponse = await axios.post(
+                            `${process.env.NEXT_PUBLIC_API_URL}/auth/refresh`,
+                            { refresh_token: localRefreshToken },
+                            { withCredentials: true }
+                        );
+
+                        const retryAccessToken = retryResponse.data?.access_token;
+                        const retryRefreshToken = retryResponse.data?.refresh_token;
+                        if (retryAccessToken) {
+                            localStorage.setItem('access_token', retryAccessToken);
+                            originalRequest.headers.Authorization = `Bearer ${retryAccessToken}`;
+                        }
+                        if (retryRefreshToken) {
+                            localStorage.setItem('refresh_token', retryRefreshToken);
+                        }
+
+                        isRefreshing = false;
+                        processQueue(null, retryAccessToken);
+                        return api(originalRequest);
+                    } catch (retryError) {
+                        refreshError = retryError;
+                    }
+                }
+
                 isRefreshing = false;
                 processQueue(refreshError, null);
                 localStorage.removeItem('access_token');
