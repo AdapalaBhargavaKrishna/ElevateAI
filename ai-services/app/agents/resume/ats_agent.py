@@ -30,6 +30,146 @@ class ATSAgent:
         if not parsed_resume:
             raise ValueError("Parsed resume data cannot be empty.")
 
+        has_jd = bool(job_description and job_description.strip())
+
+        if has_jd:
+            return self._run_jd_mode(
+                parsed_resume, skills_data, target_role, job_description
+            )
+        else:
+            return self._run_format_mode(parsed_resume, skills_data)
+
+    # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+    #  JD-MATCH MODE  –  AI-driven comparison against job description
+    # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+    def _run_jd_mode(self, parsed_resume, skills_data, target_role, job_description):
+
+        resume_text = json.dumps(parsed_resume)
+
+        prompt = f"""
+You are a strict ATS (Applicant Tracking System) evaluator.
+
+A candidate has submitted their resume for a specific job.
+Your job is to score how well this resume matches the job description — be STRICT and REALISTIC.
+
+JOB DESCRIPTION:
+{job_description}
+
+RESUME:
+{resume_text}
+
+SCORING CRITERIA (total 100 points):
+
+1. Skills Match (30 pts)
+   - Check every required skill/technology in the JD
+   - Award points proportional to how many the resume has
+   - Missing critical required skills = heavy penalty
+   - "Nice to have" skills count for partial credit
+
+2. Experience Level Match (30 pts)
+   - JD asks for X years → compare with resume's actual experience
+   - 0 yrs experience vs 5 yr JD requirement = 0-5 pts max here
+   - Partial credit for related project experience
+   - Be very strict: internships ≠ full-time experience
+
+3. Domain/Role Alignment (20 pts)
+   - Does the candidate's domain match the role?
+   - Is their background relevant to this specific position?
+   - Consider industry, tech stack overlap, role type
+
+4. Keyword Coverage (20 pts)
+   - How many JD-specific keywords, tools, and phrases appear in the resume?
+   - Check job title keywords, tech stack, methodologies
+   - Missing important JD keywords = lower score
+
+IMPORTANT RULES:
+- A resume with 0 years experience against a 5yr JD must score no more than 25/100
+- A resume with mismatched tech stack should score below 40
+- Be honest — a 75+ score means this resume is genuinely a strong match for this specific job
+- Do not inflate scores to be kind
+
+Return ONLY valid JSON:
+{{
+  "skills_match_score": 0-30,
+  "experience_match_score": 0-30,
+  "domain_alignment_score": 0-20,
+  "keyword_coverage_score": 0-20,
+  "skills_matched": ["skill1", "skill2"],
+  "skills_missing": ["skill3", "skill4"],
+  "experience_gap": "brief explanation string",
+  "keyword_coverage_percent": 0-100,
+  "found_keywords": ["kw1", "kw2"],
+  "missing_keywords": ["kw3", "kw4"]
+}}
+"""
+
+        try:
+            result = self.llm.generate_json(prompt, expected_keys=[
+                "skills_match_score", "experience_match_score",
+                "domain_alignment_score", "keyword_coverage_score",
+                "skills_matched", "skills_missing",
+                "experience_gap", "keyword_coverage_percent",
+                "found_keywords", "missing_keywords"
+            ])
+
+            skills_score  = min(int(result.get("skills_match_score", 0)), 30)
+            exp_score     = min(int(result.get("experience_match_score", 0)), 30)
+            domain_score  = min(int(result.get("domain_alignment_score", 0)), 20)
+            keyword_score = min(int(result.get("keyword_coverage_score", 0)), 20)
+            ats_score     = skills_score + exp_score + domain_score + keyword_score
+
+            breakdown = {
+                "mode": "jd_match",
+                "skills_match": {
+                    "score": skills_score, "max": 30,
+                    "matched": result.get("skills_matched", []),
+                    "missing": result.get("skills_missing", []),
+                },
+                "experience_match": {
+                    "score": exp_score, "max": 30,
+                    "gap_analysis": result.get("experience_gap", ""),
+                },
+                "domain_alignment": {
+                    "score": domain_score, "max": 20,
+                },
+                "keyword_coverage": {
+                    "score": keyword_score, "max": 20,
+                    "coverage_percent": result.get("keyword_coverage_percent", 0),
+                    "found_keywords": result.get("found_keywords", []),
+                    "missing_keywords": result.get("missing_keywords", [])[:8],
+                },
+            }
+
+            ats_grade = (
+                "Excellent" if ats_score >= 85 else
+                "Good"      if ats_score >= 70 else
+                "Average"   if ats_score >= 55 else
+                "Poor"      if ats_score >= 40 else
+                "Critical"
+            )
+
+            recommendations = self._get_recommendations(ats_score, breakdown)
+
+            return {
+                "ats_score":       ats_score,
+                "ats_grade":       ats_grade,
+                "will_pass_ats":   ats_score >= 70,
+                "breakdown":       breakdown,
+                "recommendations": recommendations,
+                "mode":            "jd_match",
+            }
+
+        except Exception as e:
+            logger.error(f"[ATSAgent] JD mode failed: {e}")
+            # Fallback to format mode if AI call fails
+            return self._run_format_mode(parsed_resume, skills_data)
+
+    # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+    #  FORMAT-ONLY MODE  –  resume formatting / parsability quality
+    # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+    def _run_format_mode(self, parsed_resume, skills_data):
         breakdown   = {}
         resume_text = json.dumps(parsed_resume).lower()
 
@@ -85,8 +225,8 @@ class ATSAgent:
         keyword_result = self._ai_keyword_analysis(
             parsed_resume=parsed_resume,
             skills_data=skills_data,
-            target_role=target_role,
-            job_description=job_description,
+            target_role=None,
+            job_description=None,   # always None in format mode
         )
         keyword_score = keyword_result["score"]
         breakdown["keywords"] = keyword_result["breakdown"]
@@ -141,6 +281,7 @@ class ATSAgent:
             "will_pass_ats":   ats_score >= 70,
             "breakdown":       breakdown,
             "recommendations": recommendations,
+            "mode":            "format_only",
         }
 
     def _ai_keyword_analysis(

@@ -37,7 +37,7 @@ class ResumeOrchestrator:
         skills = self.skills_agent.run(parsed)
 
         print("[Orchestrator] Step 3a: Scoring resume...")
-        score = self.scoring_agent.run(parsed, skills)
+        score = self.scoring_agent.run(parsed, skills, job_description=job_description)
 
         print("[Orchestrator] Step 3b: Running ATS check...")
         ats = self.ats_agent.run(

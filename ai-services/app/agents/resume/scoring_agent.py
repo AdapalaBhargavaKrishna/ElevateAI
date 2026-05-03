@@ -11,7 +11,7 @@ class ScoringAgent:
     def __init__(self):
         self.llm = LLMService()
 
-    def run(self, parsed_resume: dict, skills_data: dict) -> dict:
+    def run(self, parsed_resume: dict, skills_data: dict, job_description: str = None) -> dict:
         if not parsed_resume:
             raise ValueError("Parsed resume data cannot be empty.")
 
@@ -151,7 +151,7 @@ class ScoringAgent:
         # ── Final Score ───────────────────────────────────────────
         overall_score = sum([contact_score, skills_score, exp_score, edu_score, proj_score, extras_score])
         grade = "A" if overall_score >= 85 else "B" if overall_score >= 70 else "C" if overall_score >= 55 else "D" if overall_score >= 40 else "F"
-        feedback = self._get_llm_feedback(parsed_resume, overall_score, breakdown)
+        feedback = self._get_llm_feedback(parsed_resume, overall_score, breakdown, job_description=job_description)
         return {
             "overall_score": overall_score,
             "grade":         grade,
@@ -162,7 +162,15 @@ class ScoringAgent:
             "verdict":       feedback.get("verdict", ""),
         }
 
-    def _get_llm_feedback(self, parsed_resume: dict, score: int, breakdown: dict) -> dict:
+    def _get_llm_feedback(self, parsed_resume: dict, score: int, breakdown: dict, job_description: str = None) -> dict:
+        jd_context = ""
+        if job_description and job_description.strip():
+            jd_context = f"""
+The candidate applied for this specific role.
+Consider this Job Description when writing feedback:
+{job_description[:800]}
+"""
+
         prompt = f"""
 A resume has been scored {score}/100 with this breakdown:
 {json.dumps(breakdown, indent=2)}
@@ -172,6 +180,8 @@ Candidate profile summary:
 - Skills count: {len(parsed_resume.get('skills') or [])}
 - Experience roles: {len(parsed_resume.get('experience') or [])}
 - Projects: {len(parsed_resume.get('projects') or [])}
+
+{jd_context}
 
 Return ONLY valid JSON with:
 - strengths (list of 2-3 strings)
