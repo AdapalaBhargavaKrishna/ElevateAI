@@ -20,8 +20,8 @@ import { resumeApi, ResumeAnalysis, ResumeHistoryItem } from "@/app/lib/resume.a
 
 const scoreColor = (s: number) =>
     s >= 75 ? "text-green-600 dark:text-green-400"
-    : s >= 50 ? "text-yellow-600 dark:text-yellow-400"
-    : "text-red-600 dark:text-red-400";
+        : s >= 50 ? "text-yellow-600 dark:text-yellow-400"
+            : "text-red-600 dark:text-red-400";
 
 const scoreBarColor = (s: number) =>
     s >= 75 ? "bg-green-500" : s >= 50 ? "bg-yellow-500" : "bg-red-500";
@@ -47,15 +47,15 @@ const ScoreBar = ({ label, score, max = 100 }: { label: string; score: number; m
 // ─── Main page ────────────────────────────────────────────────────────────────
 
 export default function ResumeAnalyzerPage() {
-    const [file, setFile]                       = useState<File | null>(null);
-    const [targetRole, setTargetRole]           = useState('');
-    const [jobDescription, setJobDescription]   = useState('');
-    const [loading, setLoading]                 = useState(false);
-    const [result, setResult]                   = useState<ResumeAnalysis | null>(null);
-    const [error, setError]                     = useState<string | null>(null);
-    const [history, setHistory]                 = useState<ResumeHistoryItem[]>([]);
-    const [historyLoading, setHistoryLoading]   = useState(false);
-    const [showHistory, setShowHistory]         = useState(false);
+    const [file, setFile] = useState<File | null>(null);
+    const [targetRole, setTargetRole] = useState('');
+    const [jobDescription, setJobDescription] = useState('');
+    const [loading, setLoading] = useState(false);
+    const [result, setResult] = useState<ResumeAnalysis | null>(null);
+    const [error, setError] = useState<string | null>(null);
+    const [history, setHistory] = useState<ResumeHistoryItem[]>([]);
+    const [historyLoading, setHistoryLoading] = useState(false);
+    const [showHistory, setShowHistory] = useState(false);
 
     const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
         if (e.target.files?.[0]) setFile(e.target.files[0]);
@@ -104,22 +104,24 @@ export default function ResumeAnalyzerPage() {
     // ── Derived display values ─────────────────────────────────────────────
 
     const overallScore = result?.score?.overall_score ?? 0;
-    const atsScore     = result?.ats?.ats_score ?? 0;
-    const grade        = result?.score?.grade;
-    const atsGrade     = result?.ats?.ats_grade;
-    const willPass     = result?.ats?.will_pass_ats;
+    const atsScore = result?.ats?.ats_score ?? null;
+    const atsMode = result?.ats?.mode;           // "jd_match" | "no_jd" | "format_only"
+    const hasAtsScore = atsMode !== "no_jd" && atsScore !== null;
+    const grade = result?.score?.grade;
+    const atsGrade = result?.ats?.ats_grade;
+    const willPass = result?.ats?.will_pass_ats;
 
-    const breakdown     = result?.score?.breakdown ?? {};
+    const breakdown = result?.score?.breakdown ?? {};
     const atsBreakdown: any = result?.ats?.breakdown ?? {};
     const atsFoundKeywords: string[] = Array.from(new Set((atsBreakdown?.keywords?.found_keywords ?? []).map((k: string) => k.toLowerCase())));
     const atsMissingKeywords: string[] = Array.from(new Set((atsBreakdown?.keywords?.missing_keywords ?? []).map((k: string) => k.toLowerCase())));
 
-    const deductions      = result?.score?.deductions ?? [];
+    const deductions = result?.score?.deductions ?? [];
     const recommendations = result?.ats?.recommendations ?? [];
-    const strengths       = result?.score?.strengths ?? [];
-    const weaknesses      = result?.score?.weaknesses ?? [];
+    const strengths = result?.score?.strengths ?? [];
+    const weaknesses = result?.score?.weaknesses ?? [];
 
-    const parsed        = result?.parsed_resume ?? {};
+    const parsed = result?.parsed_resume ?? {};
     const skillsAnalysis = result?.skills_analysis ?? {};
 
     return (
@@ -243,9 +245,8 @@ export default function ResumeAnalyzerPage() {
                                     Resume File
                                     <span className="text-destructive text-xs">*</span>
                                 </label>
-                                <div className={`border-2 border-dashed rounded-xl p-6 text-center transition-colors ${
-                                    file ? "border-primary/40 bg-primary/3" : "border-border hover:border-primary/30"
-                                }`}>
+                                <div className={`border-2 border-dashed rounded-xl p-6 text-center transition-colors ${file ? "border-primary/40 bg-primary/3" : "border-border hover:border-primary/30"
+                                    }`}>
                                     <input
                                         type="file" accept=".pdf,.docx"
                                         onChange={handleFileChange}
@@ -362,27 +363,45 @@ export default function ResumeAnalyzerPage() {
                                                     <p className="text-xs text-muted-foreground mt-0.5">Resume Score</p>
                                                 </div>
                                                 <div className="text-center p-3 rounded-lg bg-muted/40 border border-border">
-                                                    <p className={`text-xl font-bold ${scoreColor(atsScore)}`}>{atsScore}</p>
-                                                    <p className="text-xs text-muted-foreground mt-0.5">ATS Score</p>
-                                                    {atsGrade && <Badge variant="outline" className="text-xs mt-1">{atsGrade}</Badge>}
+                                                    {hasAtsScore ? (
+                                                        <>
+                                                            <p className={`text-xl font-bold ${scoreColor(atsScore!)}`}>{atsScore}</p>
+                                                            <p className="text-xs text-muted-foreground mt-0.5">ATS Score</p>
+                                                            {atsGrade && <Badge variant="outline" className="text-xs mt-1">{atsGrade}</Badge>}
+                                                        </>
+                                                    ) : (
+                                                        <>
+                                                            <p className="text-xl font-bold text-muted-foreground">—</p>
+                                                            <p className="text-xs text-muted-foreground mt-0.5">ATS Score</p>
+                                                            <p className="text-[10px] text-muted-foreground/70 mt-0.5">Paste a JD to score</p>
+                                                        </>
+                                                    )}
                                                 </div>
                                             </div>
 
                                             {/* ATS pass/fail */}
-                                            <div className={`flex items-center gap-2 text-sm p-2.5 rounded-lg ${
-                                                willPass
-                                                    ? "bg-green-500/10 text-green-600 dark:text-green-400"
-                                                    : "bg-yellow-500/10 text-yellow-600 dark:text-yellow-400"
-                                            }`}>
-                                                {willPass
-                                                    ? <CheckCircle2 className="h-4 w-4 shrink-0" />
-                                                    : <AlertTriangle className="h-4 w-4 shrink-0" />}
-                                                <span className="font-medium">
+                                            {hasAtsScore ? (
+                                                <div className={`flex items-center gap-2 text-sm p-2.5 rounded-lg ${willPass
+                                                        ? "bg-green-500/10 text-green-600 dark:text-green-400"
+                                                        : "bg-yellow-500/10 text-yellow-600 dark:text-yellow-400"
+                                                    }`}>
                                                     {willPass
-                                                        ? "Likely to pass ATS filters"
-                                                        : "May not pass ATS filters — see recommendations below"}
-                                                </span>
-                                            </div>
+                                                        ? <CheckCircle2 className="h-4 w-4 shrink-0" />
+                                                        : <AlertTriangle className="h-4 w-4 shrink-0" />}
+                                                    <span className="font-medium">
+                                                        {willPass
+                                                            ? "Likely to pass ATS filters"
+                                                            : "May not pass ATS filters — see recommendations below"}
+                                                    </span>
+                                                </div>
+                                            ) : (
+                                                <div className="flex items-center gap-2 text-sm p-2.5 rounded-lg bg-blue-500/10 text-blue-600 dark:text-blue-400">
+                                                    <AlertTriangle className="h-4 w-4 shrink-0" />
+                                                    <span className="font-medium">
+                                                        Paste a job description above to get your ATS match score
+                                                    </span>
+                                                </div>
+                                            )}
 
                                             {/* Verdict */}
                                             {result.score.verdict && (
@@ -426,9 +445,9 @@ export default function ResumeAnalyzerPage() {
                                         </CardTitle>
                                     </CardHeader>
                                     <CardContent className="space-y-2 text-sm">
-                                        {parsed.name     && <p><span className="font-medium text-foreground">Name:</span> <span className="text-muted-foreground">{parsed.name}</span></p>}
-                                        {parsed.email    && <p><span className="font-medium text-foreground">Email:</span> <span className="text-muted-foreground">{parsed.email}</span></p>}
-                                        {parsed.phone    && <p><span className="font-medium text-foreground">Phone:</span> <span className="text-muted-foreground">{parsed.phone}</span></p>}
+                                        {parsed.name && <p><span className="font-medium text-foreground">Name:</span> <span className="text-muted-foreground">{parsed.name}</span></p>}
+                                        {parsed.email && <p><span className="font-medium text-foreground">Email:</span> <span className="text-muted-foreground">{parsed.email}</span></p>}
+                                        {parsed.phone && <p><span className="font-medium text-foreground">Phone:</span> <span className="text-muted-foreground">{parsed.phone}</span></p>}
                                         {parsed.location && <p><span className="font-medium text-foreground">Location:</span> <span className="text-muted-foreground">{parsed.location}</span></p>}
                                         {skillsAnalysis.domain && <p><span className="font-medium text-foreground">Domain:</span> <span className="text-muted-foreground">{skillsAnalysis.domain}</span></p>}
                                     </CardContent>

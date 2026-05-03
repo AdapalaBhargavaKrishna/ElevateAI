@@ -37,7 +37,32 @@ class ATSAgent:
                 parsed_resume, skills_data, target_role, job_description
             )
         else:
-            return self._run_format_mode(parsed_resume, skills_data)
+            return self._run_no_jd_mode()
+
+    # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+    #  NO-JD MODE  –  ATS score is not applicable without a JD
+    # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+    def _run_no_jd_mode(self) -> dict:
+        """
+        Without a job description there is nothing to match the resume against,
+        so ATS scoring is meaningless.  Return a sentinel response that the
+        frontend can use to hide the ATS panel and prompt the user to paste a JD.
+        """
+        return {
+            "ats_score":       None,
+            "ats_grade":       None,
+            "will_pass_ats":   None,
+            "breakdown":       {},
+            "recommendations": [
+                "Paste a job description to get an accurate ATS match score.",
+            ],
+            "mode":            "no_jd",
+            "message": (
+                "ATS score requires a job description. "
+                "Paste the JD to see how well your resume matches."
+            ),
+        }
 
     # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
     #  JD-MATCH MODE  –  AI-driven comparison against job description
@@ -418,5 +443,3 @@ Each recommendation must be a specific actionable string.
         except Exception as e:
             logger.error(f"[ATSAgent] Recommendations failed: {e}")
             return []
-
-
