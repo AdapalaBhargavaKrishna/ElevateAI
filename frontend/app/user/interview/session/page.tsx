@@ -12,7 +12,7 @@ import { Progress } from "@/components/ui/progress";
 import {
     Mic, MicOff, Camera, CameraOff, Send, Loader2, ArrowLeft,
     Clock, Lightbulb, CheckCircle2, AlertCircle, ArrowRight,
-    Maximize2, Minimize2
+    Maximize2, Minimize2, Volume2 // [VOICE FEATURE]
 } from "lucide-react";
 import Link from "next/link";
 import toast from 'react-hot-toast';
@@ -162,6 +162,9 @@ function InterviewSessionPageContent() {
     const difficulty   = searchParams.get('difficulty')    || 'medium';
     const questionCount = parseInt(searchParams.get('questionCount') || '7');
 
+    // [VOICE FEATURE] interviewType alias for gating voice features
+    const interviewType = mode;
+
     const [sessionId, setSessionId]                   = useState<string | null>(null);
     const [currentQuestionIndex, setCurrentQuestionIndex] = useState(0);
     const [currentQuestion, setCurrentQuestion]       = useState<Question | null>(null);
@@ -180,6 +183,11 @@ function InterviewSessionPageContent() {
     const [cameraEnabled, setCameraEnabled]           = useState(true);
     const [cameraVisible, setCameraVisible]           = useState(true);   // user's layout pref
     const [isListening, setIsListening]               = useState(false);
+
+    // [VOICE FEATURE] TTS state
+    const [isSpeaking, setIsSpeaking]                 = useState(false);
+    const utteranceRef = useRef<SpeechSynthesisUtterance | null>(null);
+    const manualStopRef = useRef(false); // [VOICE FEATURE] tracks if user manually stopped mic
 
     const videoRef        = useRef<HTMLVideoElement>(null);
     const mediaStreamRef  = useRef<MediaStream | null>(null);
@@ -251,14 +259,16 @@ function InterviewSessionPageContent() {
         return () => { stopCamera(); };
     }, []);
 
-    // ── Speech to Text ─────────────────────────────────────────────────────────
+    // ── Speech to Text (enhanced) ── [VOICE FEATURE] ──────────────────────────
 
     const startListening = useCallback(() => {
+        if (interviewType === 'dsa') return; // [VOICE FEATURE] no mic for DSA
         const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
         if (!SR) {
             toast.error('Speech recognition is not supported in this browser. Please use Chrome.');
             return;
         }
+        manualStopRef.current = false; // [VOICE FEATURE]
         const recognition = new SR();
         recognition.continuous     = true;
         recognition.interimResults = true;
@@ -285,6 +295,12 @@ function InterviewSessionPageContent() {
                 return;
             }
 
+            // [VOICE FEATURE] silently restart on no-speech
+            if (event.error === 'no-speech') {
+                try { recognition.stop(); } catch { /* noop */ }
+                return;
+            }
+
             let userMessage = "";
             switch (event.error) {
                 case "network":
@@ -292,10 +308,7 @@ function InterviewSessionPageContent() {
                     break;
                 case "not-allowed":
                 case "permission-denied":
-                    userMessage = "Microphone permission denied. Please allow microphone access and try again.";
-                    break;
-                case "no-speech":
-                    userMessage = "No speech detected. Try speaking closer to the microphone.";
+                    userMessage = "Please allow microphone access to use voice input";
                     break;
                 case "audio-capture":
                     userMessage = "Microphone not found. Please check your microphone and try again.";
@@ -306,17 +319,27 @@ function InterviewSessionPageContent() {
 
             console.error("[SpeechRecognition] Error:", event.error);
             toast.error(userMessage);
+            manualStopRef.current = true; // [VOICE FEATURE] prevent auto-restart on real errors
             setIsListening(false);
         };
-        recognition.onend = () => setIsListening(false);
+
+        // [VOICE FEATURE] auto-restart if user didn't manually stop
+        recognition.onend = () => {
+            if (!manualStopRef.current && recognitionRef.current) {
+                try { recognition.start(); } catch { setIsListening(false); }
+            } else {
+                setIsListening(false);
+            }
+        };
 
         recognitionRef.current = recognition;
         recognition.start();
         setIsListening(true);
         setError(null);
-    }, [answer]);
+    }, [answer, interviewType]);
 
     const stopListening = useCallback(() => {
+        manualStopRef.current = true; // [VOICE FEATURE] prevent auto-restart
         recognitionRef.current?.stop();
         recognitionRef.current = null;
         setIsListening(false);
@@ -325,6 +348,41 @@ function InterviewSessionPageContent() {
     const toggleListening = () => { if (isListening) stopListening(); else startListening(); };
 
     useEffect(() => () => stopListening(), []);
+
+    // ── Text-to-Speech ── [VOICE FEATURE] ───────────────────────────────────────
+
+    const speakQuestion = useCallback((text: string) => {
+        if (interviewType === 'dsa') return; // [VOICE FEATURE] no TTS for DSA
+        if (typeof window === 'undefined' || !window.speechSynthesis) return;
+
+        window.speechSynthesis.cancel();
+
+        const utter = new SpeechSynthesisUtterance(text);
+        utter.rate  = 0.92;
+        utter.pitch = 1.0;
+        utter.lang  = 'en-US';
+
+        // [VOICE FEATURE] prefer Google / Natural voices
+        const voices = window.speechSynthesis.getVoices();
+        const preferred = voices.find(v => /google|natural/i.test(v.name) && v.lang.startsWith('en'));
+        const fallback  = voices.find(v => v.lang.startsWith('en-US'));
+        if (preferred) utter.voice = preferred;
+        else if (fallback) utter.voice = fallback;
+
+        utter.onstart = () => setIsSpeaking(true);
+        utter.onend   = () => setIsSpeaking(false);
+        utter.onerror = () => setIsSpeaking(false);
+
+        utteranceRef.current = utter;
+        window.speechSynthesis.speak(utter);
+    }, [interviewType]);
+
+    const stopSpeaking = useCallback(() => {
+        if (typeof window !== 'undefined' && window.speechSynthesis) {
+            window.speechSynthesis.cancel();
+        }
+        setIsSpeaking(false);
+    }, []);
 
     // ── Load First Question ────────────────────────────────────────────────────
 
@@ -357,6 +415,34 @@ function InterviewSessionPageContent() {
         }
     };
 
+    // [VOICE FEATURE] Auto-read question aloud when it changes
+    useEffect(() => {
+        if (currentQuestion && interviewType !== 'dsa') {
+            // Small delay to let voices load on first use
+            const timeout = setTimeout(() => {
+                speakQuestion(currentQuestion.questionText);
+            }, 400);
+            return () => clearTimeout(timeout);
+        }
+    }, [currentQuestion, interviewType, speakQuestion]);
+
+    // [VOICE FEATURE] Ensure voices are loaded (Chrome lazy-loads them)
+    useEffect(() => {
+        if (typeof window !== 'undefined' && window.speechSynthesis) {
+            window.speechSynthesis.getVoices(); // trigger load
+            window.speechSynthesis.onvoiceschanged = () => { /* voices ready */ };
+        }
+    }, []);
+
+    // [VOICE FEATURE] Cleanup TTS + STT on unmount
+    useEffect(() => {
+        return () => {
+            if (typeof window !== 'undefined' && window.speechSynthesis) {
+                window.speechSynthesis.cancel();
+            }
+        };
+    }, []);
+
     // ── Submit Answer ──────────────────────────────────────────────────────────
 
     const submitAnswer = async () => {
@@ -364,6 +450,7 @@ function InterviewSessionPageContent() {
         console.log('Answer submitted')
         if (!answer.trim() || !currentQuestion || !sessionId || isSubmitting) return;
         if (isListening) stopListening();
+        stopSpeaking(); // [VOICE FEATURE] stop TTS on submit
 
         setIsSubmitting(true);
         setError(null);
@@ -381,6 +468,7 @@ function InterviewSessionPageContent() {
 
             if (sessionMode === "interview" && !response.isLastQuestion && response.nextQuestion) {
                 setTimeout(() => {
+                    stopSpeaking(); // [VOICE FEATURE] cancel TTS before next question
                     setCurrentQuestion(response.nextQuestion!);
                     setCurrentQuestionIndex(i => i + 1);
                     setAnswer("");
@@ -409,6 +497,8 @@ function InterviewSessionPageContent() {
 
     const goToNextQuestion = () => {
         if (!nextQuestionData) return;
+        stopSpeaking(); // [VOICE FEATURE] cancel current TTS
+        if (isListening) stopListening(); // [VOICE FEATURE] reset mic to idle
         setCurrentQuestion(nextQuestionData);
         setCurrentQuestionIndex(i => i + 1);
         setAnswer('');
@@ -626,6 +716,8 @@ function InterviewSessionPageContent() {
                                         >
                                             {cameraEnabled ? <CameraOff className="h-4 w-4" /> : <Camera className="h-4 w-4" />}
                                         </Button>
+                                        {/* [VOICE FEATURE] Hide mic for DSA */}
+                                        {interviewType !== 'dsa' && (
                                         <Button
                                             size="icon"
                                             variant={isListening ? "destructive" : "ghost"}
@@ -636,6 +728,7 @@ function InterviewSessionPageContent() {
                                         >
                                             {isListening ? <MicOff className="h-4 w-4" /> : <Mic className="h-4 w-4" />}
                                         </Button>
+                                        )}
                                     </div>
                                 </CardHeader>
                                 
@@ -691,6 +784,8 @@ function InterviewSessionPageContent() {
                                             <Button size="icon" variant="ghost" className="h-8 w-8" onClick={toggleCamera}>
                                                 {cameraEnabled ? <CameraOff className="h-4 w-4" /> : <Camera className="h-4 w-4" />}
                                             </Button>
+                                            {/* [VOICE FEATURE] Hide mic for DSA */}
+                                            {interviewType !== 'dsa' && (
                                             <Button
                                                 size="icon"
                                                 variant={isListening ? "destructive" : "ghost"}
@@ -701,6 +796,7 @@ function InterviewSessionPageContent() {
                                             >
                                                 {isListening ? <MicOff className="h-4 w-4" /> : <Mic className="h-4 w-4" />}
                                             </Button>
+                                            )}
                                         </div>
                                     )}
                                 </div>
@@ -761,6 +857,70 @@ function InterviewSessionPageContent() {
                                             </AnimatePresence>
                                         </div>
 
+                                        {/* [VOICE FEATURE] Voice control bar — hidden for DSA */}
+                                        {interviewType !== 'dsa' && !currentEvaluation && (
+                                            <motion.div
+                                                initial={{ opacity: 0, y: -8 }}
+                                                animate={{ opacity: 1, y: 0 }}
+                                                className="flex items-center justify-between bg-muted/20 rounded-lg px-4 py-2.5 border border-border"
+                                            >
+                                                {/* Left: TTS status + re-read button */}
+                                                <div className="flex items-center gap-3">
+                                                    {/* [VOICE FEATURE] TTS speaking indicator — animated sound bars */}
+                                                    {isSpeaking && (
+                                                        <div className="flex items-end gap-0.5 h-4" title="Reading question aloud…">
+                                                            <span className="w-1 bg-primary rounded-full animate-[voice-bar1_0.6s_ease-in-out_infinite]" style={{ height: '60%' }} />
+                                                            <span className="w-1 bg-primary rounded-full animate-[voice-bar2_0.6s_ease-in-out_infinite_0.15s]" style={{ height: '100%' }} />
+                                                            <span className="w-1 bg-primary rounded-full animate-[voice-bar3_0.6s_ease-in-out_infinite_0.3s]" style={{ height: '40%' }} />
+                                                        </div>
+                                                    )}
+                                                    <Button
+                                                        variant="ghost"
+                                                        size="sm"
+                                                        className="gap-2 text-xs h-7"
+                                                        onClick={() => {
+                                                            if (isSpeaking) {
+                                                                stopSpeaking();
+                                                            } else if (currentQuestion) {
+                                                                speakQuestion(currentQuestion.questionText);
+                                                            }
+                                                        }}
+                                                        title={isSpeaking ? "Stop reading" : "Read question aloud"}
+                                                    >
+                                                        <Volume2 className={`h-3.5 w-3.5 ${isSpeaking ? 'text-primary' : 'text-muted-foreground'}`} />
+                                                        {isSpeaking ? 'Stop' : 'Read aloud'}
+                                                    </Button>
+                                                </div>
+
+                                                {/* Right: Mic toggle with pulsing ring */}
+                                                <div className="flex items-center gap-2">
+                                                    {!speechSupported && (
+                                                        <span className="text-xs text-muted-foreground">Voice not supported in this browser</span>
+                                                    )}
+                                                    {speechSupported && (
+                                                        <div className="relative">
+                                                            {/* [VOICE FEATURE] Pulsing ring animation when listening */}
+                                                            {isListening && (
+                                                                <span className="absolute inset-0 rounded-md bg-destructive/30 animate-ping" />
+                                                            )}
+                                                            <Button
+                                                                variant={isListening ? "destructive" : "ghost"}
+                                                                size="sm"
+                                                                className="gap-2 text-xs h-7 relative z-10"
+                                                                onClick={toggleListening}
+                                                                disabled={!!currentEvaluation}
+                                                                title={isListening ? "Listening... click to stop" : "Click to speak your answer"}
+                                                            >
+                                                                {isListening
+                                                                    ? <><MicOff className="h-3.5 w-3.5" /> Listening…</>
+                                                                    : <><Mic className="h-3.5 w-3.5" /> Speak</>}
+                                                            </Button>
+                                                        </div>
+                                                    )}
+                                                </div>
+                                            </motion.div>
+                                        )}
+
                                         {/* Answer area */}
                                         {!currentEvaluation && (
                                             <div className="space-y-3">
@@ -771,7 +931,9 @@ function InterviewSessionPageContent() {
                                                         placeholder={
                                                             isListening
                                                                 ? "🎤 Listening… speak your answer…"
-                                                                : "Type your answer here, or click 🎤 to speak…"
+                                                                : interviewType === 'dsa'
+                                                                    ? "Type your answer here…"
+                                                                    : "Type your answer here, or click 🎤 to speak…"
                                                         }
                                                         className={`w-full min-h-[300px] rounded-xl border bg-background px-4 py-3 text-sm text-foreground resize-none focus:outline-none focus:ring-2 focus:ring-primary transition-all ${
                                                             isListening ? 'border-destructive ring-2 ring-destructive/30' : 'border-border'
@@ -793,16 +955,25 @@ function InterviewSessionPageContent() {
                                                 )}
 
                                                 <div className="flex gap-2">
+                                                    {/* [VOICE FEATURE] Mic button hidden for DSA */}
+                                                    {interviewType !== 'dsa' && (
                                                     <Button
                                                         variant={isListening ? "destructive" : "outline"}
                                                         onClick={toggleListening}
                                                         disabled={!speechSupported}
-                                                        className="gap-2 shrink-0"
+                                                        className="gap-2 shrink-0 relative"
                                                     >
+                                                        {/* [VOICE FEATURE] pulsing ring behind button */}
+                                                        {isListening && (
+                                                            <span className="absolute inset-0 rounded-md bg-destructive/25 animate-ping" />
+                                                        )}
+                                                        <span className="relative z-10 flex items-center gap-2">
                                                         {isListening
                                                             ? <><MicOff className="h-4 w-4" /> Stop</>
                                                             : <><Mic className="h-4 w-4" /> Speak</>}
+                                                        </span>
                                                     </Button>
+                                                    )}
                                                     <Button
                                                         onClick={submitAnswer}
                                                         disabled={!answer.trim() || isSubmitting}

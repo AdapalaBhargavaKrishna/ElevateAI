@@ -123,3 +123,21 @@
 .scrollbar-thin::-webkit-scrollbar-thumb:hover {
   background: hsl(220 10% 46% / 0.3);
 }
+
+/* =========================
+   [VOICE FEATURE] TTS Speaking Indicator Bars
+========================= */
+@keyframes voice-bar1 {
+  0%, 100% { height: 30%; }
+  50% { height: 80%; }
+}
+
+@keyframes voice-bar2 {
+  0%, 100% { height: 50%; }
+  50% { height: 100%; }
+}
+
+@keyframes voice-bar3 {
+  0%, 100% { height: 20%; }
+  50% { height: 65%; }
+}
