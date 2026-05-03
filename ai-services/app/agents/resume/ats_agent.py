@@ -1,7 +1,7 @@
 import re
 import json
 import logging
-from typing import List, Optional
+from typing import Optional
 from app.core.llm_client import LLMService
 
 logger = logging.getLogger(__name__)
@@ -15,37 +15,7 @@ class ATSAgent:
         (r'\t{2,}',       "Multiple tabs used for layout — use spaces instead"),
     ]
 
-    DOMAIN_KEYWORDS = {
-        "backend":   ["api", "rest", "microservices", "sql", "database", "server", "python", "java", "node", "docker", "aws", "authentication"],
-        "frontend":  ["react", "angular", "vue", "html", "css", "javascript", "typescript", "responsive", "ui", "ux", "webpack", "figma"],
-        "data":      ["python", "pandas", "numpy", "machine learning", "sql", "tensorflow", "pytorch", "visualization", "etl", "pipeline"],
-        "devops":    ["ci/cd", "docker", "kubernetes", "jenkins", "aws", "azure", "terraform", "monitoring", "linux", "bash", "ansible"],
-        "fullstack": ["react", "node", "api", "database", "sql", "javascript", "python", "docker", "git", "rest", "html", "css"],
-        "mobile":    ["android", "ios", "flutter", "react native", "swift", "kotlin", "java", "mobile", "app", "firebase"],
-        "general":   ["git", "agile", "scrum", "communication", "teamwork", "problem solving", "leadership", "project management"]
-    }
 
-    KEYWORD_CATALOG = [
-        "python", "java", "javascript", "typescript", "react", "angular", "vue", "node", "node.js",
-        "api", "rest", "graphql", "microservices", "sql", "postgresql", "mysql", "mongodb", "redis",
-        "docker", "kubernetes", "aws", "azure", "gcp", "ci/cd", "jenkins", "terraform", "linux",
-        "machine learning", "deep learning", "tensorflow", "pytorch", "pandas", "numpy", "etl", "pipeline",
-        "html", "css", "responsive", "ui", "ux", "figma", "webpack",
-        "git", "agile", "scrum", "communication", "teamwork", "problem solving", "leadership", "project management",
-        "testing", "unit testing", "integration testing", "system design", "authentication", "oauth",
-        "spring", "django", "flask", "fastapi", "express", "next.js", "nextjs",
-        "tailwind", "bootstrap", "sass", "scss",
-        "firebase", "supabase", "prisma", "sequelize", "mongoose",
-        "jest", "cypress", "selenium", "pytest", "mocha",
-        "github actions", "gitlab ci", "circleci",
-        "kafka", "rabbitmq", "celery", "websocket",
-        "oauth2", "jwt", "ssl", "tls", "encryption",
-        "nlp", "computer vision", "data science",
-        "scikit-learn", "spark", "hadoop", "airflow", "dbt",
-        "c++", "c#", "go", "golang", "rust", "kotlin", "swift",
-        "mobile", "android", "ios", "react native", "flutter",
-        "serverless", "event-driven", "message queue",
-    ]
 
     def __init__(self):
         self.llm = LLMService()
@@ -111,40 +81,15 @@ class ATSAgent:
         section_score = min(section_score, 20)
         breakdown["section_headings"] = {"score": section_score, "max": 20, "found_sections": found_sections, "issues": section_issues}
 
-        # ── 3. Keyword Density (25 pts) ───────────────────────────
-        role_domain_hint = (target_role or "").lower()
-        domain = skills_data.get("domain", "general").lower()
-        if role_domain_hint:
-            domain = f"{domain} {role_domain_hint}".strip()
-        matched_domain = "general"
-        for key in self.DOMAIN_KEYWORDS:
-            if re.search(rf'\b{re.escape(key)}\b', domain):
-                matched_domain = key
-                break
-
-        domain_kws = self.DOMAIN_KEYWORDS[matched_domain] + self.DOMAIN_KEYWORDS["general"]
-        required_keywords = self._build_required_keywords(domain_kws, job_description)
-        print(f"[ATS DEBUG] required_keywords: {required_keywords}")
-
-        found_keywords = [kw for kw in required_keywords if re.search(rf'\b{re.escape(kw)}\b', resume_text)]
-        missing_keywords = [kw for kw in required_keywords if kw not in found_keywords]
-        keyword_ratio = len(found_keywords) / len(required_keywords) if required_keywords else 0
-        print(f"[ATS DEBUG] found_keywords: {found_keywords}")
-        print(f"[ATS DEBUG] keyword_ratio: {keyword_ratio}")
-        print(f"[ATS DEBUG] match_ratio: {round(keyword_ratio * 100)}%")
-        if keyword_ratio >= 0.7:    keyword_score = 25
-        elif keyword_ratio >= 0.5:  keyword_score = 20
-        elif keyword_ratio >= 0.35: keyword_score = 14
-        elif keyword_ratio >= 0.2:  keyword_score = 8
-        else:                       keyword_score = 3
-        breakdown["keywords"] = {
-            "score": keyword_score,
-            "max": 25,
-            "found_keywords": found_keywords,
-            "missing_keywords": missing_keywords[:8],
-            "match_ratio": f"{round(keyword_ratio * 100)}%",
-            "keyword_source": "job_description" if job_description and job_description.strip() else "domain_defaults",
-        }
+        # ── 3. Keyword Density (25 pts) ──────────────────────────
+        keyword_result = self._ai_keyword_analysis(
+            parsed_resume=parsed_resume,
+            skills_data=skills_data,
+            target_role=target_role,
+            job_description=job_description,
+        )
+        keyword_score = keyword_result["score"]
+        breakdown["keywords"] = keyword_result["breakdown"]
 
         # ── 4. Date Formats (15 pts) ──────────────────────────────
         date_score  = 15
@@ -198,6 +143,127 @@ class ATSAgent:
             "recommendations": recommendations,
         }
 
+    def _ai_keyword_analysis(
+        self,
+        parsed_resume: dict,
+        skills_data: dict,
+        target_role: Optional[str] = None,
+        job_description: Optional[str] = None,
+    ) -> dict:
+
+        resume_text = json.dumps(parsed_resume)
+        domain = skills_data.get("domain", "general")
+
+        if job_description and job_description.strip():
+            keyword_source = "job_description"
+            context = f"""
+Job Description provided:
+{job_description}
+
+The candidate's domain: {domain}
+"""
+        else:
+            keyword_source = "domain_defaults"
+            context = f"""
+No job description provided.
+The candidate's domain is: {domain}
+Target role: {target_role or "not specified"}
+"""
+
+        prompt = f"""
+You are an ATS (Applicant Tracking System) keyword analyst.
+
+TASK:
+Analyze this resume and determine what relevant industry keywords 
+are expected for this candidate's domain/role, then check how 
+many are present in the resume.
+
+{context}
+
+RESUME CONTENT:
+{resume_text}
+
+INSTRUCTIONS:
+1. Based on the domain and job description (if provided), generate 
+   a list of 15-20 relevant ATS keywords that recruiters and 
+   applicant tracking systems typically look for in this field.
+   
+   Include a mix of:
+   - Technical skills (languages, frameworks, tools, platforms)
+   - Soft skills (communication, leadership, teamwork etc.)
+   - Domain concepts (system design, agile, ci/cd etc.)
+   - Anything specific from the job description if provided
+   
+   Do NOT include generic filler words. Focus on real industry terms.
+
+2. For each keyword, check if it or a close variant appears in 
+   the resume content. Be smart about variants:
+   - "node" matches "node.js", "nodejs"
+   - "sql" matches "postgresql", "mysql", "sqlite"
+   - "python" matches "python3"
+   - "rest" matches "rest apis", "restful"
+   - "react" matches "react.js", "react (hooks)"
+   - "ci/cd" matches "github actions", "gitlab ci", "circleci"
+   - "testing" matches "unit testing", "jest", "pytest", "cypress"
+   Match intelligently, not just exact string match.
+
+3. Calculate match_ratio = found_count / total_keywords_checked
+
+Return ONLY valid JSON, no markdown, no explanation:
+{{{{
+  "required_keywords": ["keyword1", "keyword2", ...],
+  "found_keywords": ["keyword1", ...],
+  "missing_keywords": ["keyword3", ...],
+  "match_ratio_percent": 75,
+  "keyword_source": "{keyword_source}"
+}}}}
+"""
+
+        try:
+            result = self.llm.generate_json(prompt, expected_keys=[
+                "required_keywords",
+                "found_keywords",
+                "missing_keywords",
+                "match_ratio_percent"
+            ])
+
+            found        = result.get("found_keywords", [])
+            missing      = result.get("missing_keywords", [])
+            ratio_percent = int(result.get("match_ratio_percent", 0))
+            ratio        = ratio_percent / 100
+
+            if ratio >= 0.7:    score = 25
+            elif ratio >= 0.5:  score = 20
+            elif ratio >= 0.35: score = 14
+            elif ratio >= 0.2:  score = 8
+            else:               score = 3
+
+            return {
+                "score": score,
+                "breakdown": {
+                    "score": score,
+                    "max": 25,
+                    "found_keywords": found,
+                    "missing_keywords": missing[:8],
+                    "match_ratio": f"{ratio_percent}%",
+                    "keyword_source": result.get("keyword_source", keyword_source),
+                }
+            }
+
+        except Exception as e:
+            logger.error(f"[ATSAgent] AI keyword analysis failed: {e}")
+            return {
+                "score": 10,
+                "breakdown": {
+                    "score": 10,
+                    "max": 25,
+                    "found_keywords": [],
+                    "missing_keywords": [],
+                    "match_ratio": "N/A",
+                    "keyword_source": "fallback",
+                }
+            }
+
     def _get_recommendations(self, ats_score: int, breakdown: dict) -> list:
         prompt = f"""
 A resume scored {ats_score}/100 on ATS compatibility.
@@ -212,36 +278,4 @@ Each recommendation must be a specific actionable string.
             logger.error(f"[ATSAgent] Recommendations failed: {e}")
             return []
 
-    def _ordered_unique(self, items: List[str]) -> List[str]:
-        seen = set()
-        out: List[str] = []
-        for item in items:
-            key = item.strip().lower()
-            if not key or key in seen:
-                continue
-            seen.add(key)
-            out.append(key)
-        return out
 
-    def _build_required_keywords(self, domain_keywords: List[str], job_description: Optional[str]) -> List[str]:
-        base = self._ordered_unique(domain_keywords)
-        print(f"[ATS DEBUG] domain_keywords count: {len(base)}")
-        print(f"[ATS DEBUG] job_description provided: {bool(job_description and job_description.strip())}")
-        if not job_description or not job_description.strip():
-            print(f"[ATS DEBUG] No JD - using {len(base)} domain keywords as required")
-            return base
-
-        jd = job_description.lower()
-        jd_keywords = [kw for kw in self.KEYWORD_CATALOG if re.search(rf'\b{re.escape(kw)}\b', jd)]
-        print(f"[ATS DEBUG] JD keywords found in catalog: {jd_keywords}")
-
-        # If JD has extractable keywords, prioritize JD relevance while retaining a small stable baseline.
-        if jd_keywords:
-            jd_unique = self._ordered_unique(jd_keywords)
-            baseline = [kw for kw in base if kw in {"communication", "teamwork", "problem solving", "leadership"}]
-            result = self._ordered_unique(jd_unique + baseline)
-            print(f"[ATS DEBUG] Using {len(result)} JD-based required keywords")
-            return result
-
-        print(f"[ATS DEBUG] JD provided but no catalog matches - falling back to {len(base)} domain keywords")
-        return base
