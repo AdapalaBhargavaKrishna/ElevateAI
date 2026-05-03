@@ -39,6 +39,7 @@ export interface ResumeAnalysis {
         ats_score?:       number;
         ats_grade?:       string;
         will_pass_ats?:   boolean;
+        mode?:            'jd_match' | 'no_jd' | 'format_only';
         breakdown?:       Record<string, unknown>;
         recommendations?: string[];
     };
