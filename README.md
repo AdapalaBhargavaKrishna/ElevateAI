@@ -407,3 +407,8 @@ Start-Process powershell -ArgumentList "cd frontend; npm run dev"
 ```
 
 > Ensure all `.env` files are configured before running. See [Getting Started](#getting-started).
+
+## License
+
+This project is shared publicly for portfolio and evaluation purposes only.
+Unauthorized copying, reuse, modification, or redistribution of the code is not permitted.
