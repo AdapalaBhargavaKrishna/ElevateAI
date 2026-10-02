@@ -161,40 +161,128 @@ export async function submitAnswer(req: Request, res: Response) {
             answer,
             role: session.role,
             level: session.level,
+            interview_type: session.interviewType,
+            mode: session.mode,
         });
 
         console.log('AI Response FULL:', JSON.stringify(aiResponse, null, 2));
         console.log('Next question:', aiResponse.next_question);
+        console.log('Follow-up question:', aiResponse.follow_up_question);
         console.log('Is last question:', aiResponse.is_last_question);
 
         const { evaluation } = aiResponse;
-        const nextQuestionRecord = session.questions.find((q) => q.questionIndex === questionIndex + 1);
-        const isLastQuestion = !nextQuestionRecord || questionIndex + 1 >= session.questionCount;
 
-        // 3. Save answer + scores on current question
-        await prisma.interviewQuestion.update({
-            where: { id: currentQuestion.id },
-            data: {
-                userAnswer: answer,
-                technicalScore: evaluation.technical_score,
-                depthScore: evaluation.depth_score,
-                clarityScore: evaluation.clarity_score,
-                relevanceScore: evaluation.relevance_score,
-                structureScore: evaluation.structure_score,
-                overallScore: evaluation.overall_score,
-                strengths: evaluation.strengths,
-                weaknesses: evaluation.weaknesses,
-                improvementSuggestions: evaluation.improvement_suggestions,
-                answeredAt: new Date(),
-            },
-        });
+        let nextQuestionPayload: {
+            questionText: string;
+            category: string | null;
+            hintLevel1: string | null;
+            hintLevel2: string | null;
+        } | null = null;
+        let isLastQuestion = false;
+        let totalQuestions = session.questionCount;
 
-        // 4. If last question, mark session done temporarily (full complete happens on /summary)
-        if (isLastQuestion) {
-            await prisma.interviewSession.update({
-                where: { id: sessionId },
-                data: { status: "awaiting_summary" },
+        if (aiResponse.follow_up_question) {
+            const fq = aiResponse.follow_up_question;
+            const createdFollowup = await prisma.$transaction(async (tx) => {
+                // 1. Shift subsequent questions up by 1 (descending to avoid conflicts)
+                const laterQuestions = await tx.interviewQuestion.findMany({
+                    where: { sessionId, questionIndex: { gt: questionIndex } },
+                    orderBy: { questionIndex: "desc" },
+                });
+                for (const q of laterQuestions) {
+                    await tx.interviewQuestion.update({
+                        where: { id: q.id },
+                        data: { questionIndex: q.questionIndex + 1 },
+                    });
+                }
+
+                // 2. Insert new followup question right after current question
+                const newQuestion = await tx.interviewQuestion.create({
+                    data: {
+                        sessionId,
+                        questionIndex: questionIndex + 1,
+                        questionText: fq.question_text,
+                        category: fq.category ?? null,
+                        hintLevel1: fq.hint_level_1 ?? null,
+                        hintLevel2: fq.hint_level_2 ?? null,
+                        isFollowup: true,
+                        parentQuestionId: currentQuestion.id,
+                    },
+                });
+
+                // 3. Increment total questionCount on session
+                await tx.interviewSession.update({
+                    where: { id: sessionId },
+                    data: { questionCount: { increment: 1 } },
+                });
+
+                // 4. Save answer + scores on current question
+                await tx.interviewQuestion.update({
+                    where: { id: currentQuestion.id },
+                    data: {
+                        userAnswer: answer,
+                        technicalScore: evaluation.technical_score,
+                        depthScore: evaluation.depth_score,
+                        clarityScore: evaluation.clarity_score,
+                        relevanceScore: evaluation.relevance_score,
+                        structureScore: evaluation.structure_score,
+                        overallScore: evaluation.overall_score,
+                        strengths: evaluation.strengths,
+                        weaknesses: evaluation.weaknesses,
+                        improvementSuggestions: evaluation.improvement_suggestions,
+                        answeredAt: new Date(),
+                    },
+                });
+
+                return newQuestion;
             });
+
+            nextQuestionPayload = {
+                questionText: createdFollowup.questionText,
+                category: createdFollowup.category,
+                hintLevel1: createdFollowup.hintLevel1,
+                hintLevel2: createdFollowup.hintLevel2,
+            };
+            isLastQuestion = false;
+            totalQuestions = session.questionCount + 1;
+        } else {
+            const nextQuestionRecord = session.questions.find((q) => q.questionIndex === questionIndex + 1);
+            isLastQuestion = !nextQuestionRecord || questionIndex + 1 >= session.questionCount;
+
+            // 3. Save answer + scores on current question
+            await prisma.interviewQuestion.update({
+                where: { id: currentQuestion.id },
+                data: {
+                    userAnswer: answer,
+                    technicalScore: evaluation.technical_score,
+                    depthScore: evaluation.depth_score,
+                    clarityScore: evaluation.clarity_score,
+                    relevanceScore: evaluation.relevance_score,
+                    structureScore: evaluation.structure_score,
+                    overallScore: evaluation.overall_score,
+                    strengths: evaluation.strengths,
+                    weaknesses: evaluation.weaknesses,
+                    improvementSuggestions: evaluation.improvement_suggestions,
+                    answeredAt: new Date(),
+                },
+            });
+
+            // 4. If last question, mark session done temporarily (full complete happens on /summary)
+            if (isLastQuestion) {
+                await prisma.interviewSession.update({
+                    where: { id: sessionId },
+                    data: { status: "awaiting_summary" },
+                });
+            }
+
+            nextQuestionPayload = nextQuestionRecord
+                ? {
+                    questionText: nextQuestionRecord.questionText,
+                    category: nextQuestionRecord.category,
+                    hintLevel1: nextQuestionRecord.hintLevel1,
+                    hintLevel2: nextQuestionRecord.hintLevel2,
+                }
+                : null;
         }
 
         return res.status(200).json({
@@ -211,17 +299,10 @@ export async function submitAnswer(req: Request, res: Response) {
                 weaknesses: evaluation.weaknesses,
                 improvementSuggestions: evaluation.improvement_suggestions,
             },
-            nextQuestion: nextQuestionRecord
-                ? {
-                    questionText: nextQuestionRecord.questionText,
-                    category: nextQuestionRecord.category,
-                    hintLevel1: nextQuestionRecord.hintLevel1,
-                    hintLevel2: nextQuestionRecord.hintLevel2,
-                }
-                : null,
+            nextQuestion: nextQuestionPayload,
             isLastQuestion,
             questionsAnswered: questionIndex + 1,
-            totalQuestions: session.questionCount,
+            totalQuestions,
         });
     } catch (err) {
         console.error("submitAnswer error:", err);

@@ -121,6 +121,8 @@ export interface AnswerSubmitRequest {
     answer: string;
     role: string;
     level: string;
+    interview_type: string;
+    mode: string;
 }
 
 export interface EvaluationResult {
@@ -140,6 +142,7 @@ export interface EvaluationResult {
 export interface AnswerSubmitResponse {
     evaluation: EvaluationResult;
     next_question: QuestionOut | null;
+    follow_up_question?: QuestionOut | null;
     is_last_question: boolean;
     questions_answered: number;
     total_questions: number;
