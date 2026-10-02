@@ -3,15 +3,15 @@ from typing import Optional, List, Any, Dict
 from enum import Enum
 
 
-# =========================
-# ✅ ENUMS
-# =========================
+# ═══════════════════════════════════════════════════════════════════════
+# Structured-output wrapper models (used by get_structured_llm only,
+# not exposed in API responses)
+# ═══════════════════════════════════════════════════════════════════════
 
 class ExperienceLevel(str, Enum):
     junior = "junior"
     mid = "mid"
     senior = "senior"
-
 
 class InterviewType(str, Enum):
     technical = "technical"
@@ -19,16 +19,10 @@ class InterviewType(str, Enum):
     system_design = "system_design"
     hr = "hr"
 
-
 class Difficulty(str, Enum):
     easy = "easy"
     medium = "medium"
     hard = "hard"
-
-
-# =========================
-# 🚀 START INTERVIEW
-# =========================
 
 class InterviewStartRequest(BaseModel):
     role: str = Field(..., min_length=1, max_length=255)
@@ -57,13 +51,11 @@ class InterviewStartRequest(BaseModel):
             raise ValueError("time_per_question required when timer_enabled=True")
         return v
 
-
 class QuestionOut(BaseModel):
     question_text: str
     category: Optional[str] = None
     hint_level_1: Optional[str] = None
     hint_level_2: Optional[str] = None
-
 
 class InterviewStartResponse(BaseModel):
     session_id: str
@@ -71,17 +63,30 @@ class InterviewStartResponse(BaseModel):
     total_questions: int
     questions: List[QuestionOut]
 
-
-# =========================
-# 🧠 ANSWER EVALUATION
-# =========================
-
 class AnswerSubmitRequest(BaseModel):
     question: str
     answer: str = Field(..., min_length=1, max_length=5000)
     role: str
     level: str
+    interview_type: str = "technical"
+    mode: str = "interview"
 
+class EvaluationRaw(BaseModel):
+    """
+    What the LLM itself produces — no overall_score, since that's a
+    deterministic weighted calculation done in Python (calculate_overall_score),
+    not something the model should invent.
+    """
+    technical_score: float = Field(..., ge=0.0, le=10.0)
+    depth_score: float = Field(..., ge=0.0, le=10.0)
+    clarity_score: float = Field(..., ge=0.0, le=10.0)
+    relevance_score: float = Field(..., ge=0.0, le=10.0)
+    structure_score: float = Field(..., ge=0.0, le=10.0)
+    explanation: Optional[str] = None
+    teaching_note: Optional[str] = None
+    strengths: str
+    weaknesses: str
+    improvement_suggestions: str
 
 class EvaluationResult(BaseModel):
     technical_score: float
@@ -96,23 +101,17 @@ class EvaluationResult(BaseModel):
     weaknesses: str
     improvement_suggestions: str
 
-
 class AnswerSubmitResponse(BaseModel):
     evaluation: EvaluationResult
     next_question: Optional[QuestionOut] = None
+    follow_up_question: Optional[QuestionOut] = None
     is_last_question: bool = False
     questions_answered: int = 0
     total_questions: int = 0
 
-
-# =========================
-# 📊 SUMMARY
-# =========================
-
 class SummaryRequest(BaseModel):
     questions: List[str]
     answers: List[str]
-
 
 class SessionSummaryResponse(BaseModel):
     overall_summary: str
@@ -121,24 +120,20 @@ class SessionSummaryResponse(BaseModel):
     final_score: float
     verdict: str
 
-
 class DSAStartRequest(BaseModel):
     role: str = Field(..., min_length=1, max_length=255)
     level: ExperienceLevel
     difficulty: Difficulty
     question_count: int = Field(..., ge=1, le=3)
 
-
 class DSAExample(BaseModel):
     input: str
     output: str
     explanation: str
 
-
 class DSATestCase(BaseModel):
     input: Any
     expected_output: Any
-
 
 class DSAQuestion(BaseModel):
     problem_title: str
@@ -153,10 +148,8 @@ class DSAQuestion(BaseModel):
     category: str
     difficulty: str
 
-
 class DSAStartResponse(BaseModel):
     questions: List[DSAQuestion]
-
 
 class DSAEvaluationRequest(BaseModel):
     problem_description: str
@@ -165,7 +158,6 @@ class DSAEvaluationRequest(BaseModel):
     test_results: Any
     role: str
     level: str
-
 
 class DSAEvaluationResponse(BaseModel):
     correctness_score: int
@@ -178,22 +170,15 @@ class DSAEvaluationResponse(BaseModel):
     improvement_suggestions: List[str]
     optimal_approach_hint: str
 
-
 class DSASummaryRequest(BaseModel):
     questions: List[str]
     codes: List[str]
     evaluations: List[Dict[str, Any]]
 
-
-# =========================
-# 🗺️ ROADMAP
-# =========================
-
 class RoadmapGenerateRequest(BaseModel):
     target_role: str = Field(..., min_length=1, max_length=255)
     experience_level: str
     current_skills: Optional[List[str]] = []
-
 
 class RoadmapPhaseResource(BaseModel):
     type: str
@@ -201,12 +186,10 @@ class RoadmapPhaseResource(BaseModel):
     url: str = ""
     is_free: bool = True
 
-
 class RoadmapPhaseProject(BaseModel):
     title: str
     description: str
     tech_stack: List[str] = []
-
 
 class RoadmapPhase(BaseModel):
     phase_number: int
@@ -217,12 +200,10 @@ class RoadmapPhase(BaseModel):
     resources: List[RoadmapPhaseResource] = []
     projects: List[RoadmapPhaseProject] = []
 
-
 class SkillGap(BaseModel):
     skill: str
     priority: str
     reason: str
-
 
 class Certification(BaseModel):
     name: str
@@ -230,13 +211,11 @@ class Certification(BaseModel):
     priority: str
     is_free: bool = False
 
-
 class IndustryInsights(BaseModel):
     demand_level: str
     avg_salary_range: str
     top_companies_hiring: List[str]
     key_technologies: List[str]
-
 
 class RoadmapGenerateResponse(BaseModel):
     target_role: str
@@ -247,11 +226,6 @@ class RoadmapGenerateResponse(BaseModel):
     certifications: List[Certification] = []
     industry_insights: IndustryInsights
 
-
-# =========================
-# 📝 ASSESSMENTS
-# =========================
-
 class AssessmentsGenerateRequest(BaseModel):
     target_role: str
     phase_number: int
@@ -260,17 +234,14 @@ class AssessmentsGenerateRequest(BaseModel):
     goals: List[str]
     question_count: int = Field(default=10, ge=6, le=20)
 
-
 class MCQQuestion(BaseModel):
     question: str
     options: List[str]
     correct: int
     explanation: str
 
-
 class AssessmentsGenerateResponse(BaseModel):
     questions: List[MCQQuestion]
-
 
 class BatchAssessmentPhase(BaseModel):
     phase_number: int
@@ -278,18 +249,115 @@ class BatchAssessmentPhase(BaseModel):
     skills_to_learn: List[str]
     goals: List[str]
 
-
 class AssessmentsBatchGenerateRequest(BaseModel):
     target_role: str
     phases: List[BatchAssessmentPhase]
     questions_per_phase: int = Field(default=10, ge=6, le=20)
-
 
 class PhaseAssessmentQuestions(BaseModel):
     phase_number: int
     phase_title: str
     questions: List[MCQQuestion]
 
-
 class AssessmentsBatchGenerateResponse(BaseModel):
     assessments: List[PhaseAssessmentQuestions]
+
+
+# ═══════════════════════════════════════════════════════════════════════
+# Structured-output wrappers (used by get_structured_llm, not in APIs)
+# ═══════════════════════════════════════════════════════════════════════
+
+class QuestionListResponse(BaseModel):
+    """Wrapper for question generation — LLM returns this directly."""
+    questions: List[QuestionOut]
+
+class DSAQuestionList(BaseModel):
+    """Wrapper for DSA question generation."""
+    questions: List[DSAQuestion]
+
+
+# ── Resume structured-output models ──────────────────────────────────
+
+class ResumeExperience(BaseModel):
+    company: Optional[str] = None
+    role: Optional[str] = None
+    duration: Optional[str] = None
+    responsibilities: Optional[Any] = None
+
+class ResumeProject(BaseModel):
+    title: Optional[str] = None
+    description: Optional[str] = None
+    technologies: Optional[Any] = None
+    link: Optional[str] = None
+
+class ResumeEducation(BaseModel):
+    institution: Optional[str] = None
+    degree: Optional[str] = None
+    year: Optional[str] = None
+
+class ResumeAchievement(BaseModel):
+    title: Optional[str] = None
+    description: Optional[str] = None
+    date: Optional[str] = None
+
+class ResumeCodingProfile(BaseModel):
+    platform: Optional[str] = None
+    username: Optional[str] = None
+    link: Optional[str] = None
+
+class ResumeParseResult(BaseModel):
+    """Structured output from resume parsing LLM call."""
+    name: Optional[str] = None
+    email: Optional[str] = None
+    phone: Optional[str] = None
+    location: Optional[str] = None
+    summary: Optional[str] = None
+    experience: Optional[List[ResumeExperience]] = None
+    projects: Optional[List[ResumeProject]] = None
+    education: Optional[List[ResumeEducation]] = None
+    skills: Optional[List[str]] = None
+    certifications: Optional[List[str]] = None
+    languages: Optional[List[str]] = None
+    achievements: Optional[List[ResumeAchievement]] = None
+    coding_profiles: Optional[List[ResumeCodingProfile]] = None
+
+class SkillsAnalysis(BaseModel):
+    """Structured output from skills extraction LLM call."""
+    technical_skills: List[str] = []
+    soft_skills: List[str] = []
+    tools: List[str] = []
+    programming_languages: List[str] = []
+    skill_levels: Dict[str, str] = {}
+    in_demand_missing: List[str] = []
+    domain: str = "general"
+
+class ScoringFeedback(BaseModel):
+    """LLM-generated qualitative feedback for resume scoring."""
+    strengths: List[str] = []
+    weaknesses: List[str] = []
+    verdict: str = ""
+
+class ATSJDResult(BaseModel):
+    """Structured output from ATS JD-match analysis."""
+    skills_match_score: int = 0
+    experience_match_score: int = 0
+    domain_alignment_score: int = 0
+    keyword_coverage_score: int = 0
+    skills_matched: List[str] = []
+    skills_missing: List[str] = []
+    experience_gap: str = ""
+    keyword_coverage_percent: int = 0
+    found_keywords: List[str] = []
+    missing_keywords: List[str] = []
+
+class ATSKeywordResult(BaseModel):
+    """Structured output from ATS keyword analysis."""
+    required_keywords: List[str] = []
+    found_keywords: List[str] = []
+    missing_keywords: List[str] = []
+    match_ratio_percent: int = 0
+    keyword_source: str = ""
+
+class ATSRecommendations(BaseModel):
+    """Structured output from ATS recommendations."""
+    recommendations: List[str] = []

@@ -2,10 +2,10 @@ from fastapi import APIRouter, Header, HTTPException
 from fastapi.responses import StreamingResponse
 from pydantic import BaseModel
 from app.config import settings
-from app.agents.chat.orchestrator import ChatOrchestrator
+from app.graphs import chat_graph
+
 
 router = APIRouter(prefix="/chat", tags=["Chat"])
-chat_orchestrator = ChatOrchestrator()
 
 
 class ChatMessage(BaseModel):
@@ -27,7 +27,7 @@ class ChatRequest(BaseModel):
 
 
 @router.post("/stream")
-def chat_stream(
+async def chat_stream(
     request: ChatRequest,
     x_user_id: str = Header(..., alias="X-User-Id"),
     x_internal_key: str = Header(..., alias="X-Internal-Key"),
@@ -46,7 +46,11 @@ Be specific, actionable, encouraging, and concise."""
     messages = [{"role": m.role, "content": m.content} for m in request.messages]
 
     return StreamingResponse(
-        chat_orchestrator.stream(messages=messages, system=system),
+        chat_graph.stream_chat(
+            messages=messages,
+            system=system,
+            user_id=x_user_id,
+        ),
         media_type="text/event-stream",
         headers={"Cache-Control": "no-cache", "X-Accel-Buffering": "no"},
     )

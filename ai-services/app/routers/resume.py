@@ -2,12 +2,9 @@ from fastapi import APIRouter, Header, HTTPException, UploadFile, File, Form
 from pydantic import BaseModel
 from typing import Optional
 from app.config import settings
-from app.agents.resume.orchestrator import ResumeOrchestrator
+from app.graphs import resume_graph
 
 router = APIRouter(prefix="/resume", tags=["Resume"])
-
-# One shared instance
-resume_orchestrator = ResumeOrchestrator()
 
 
 class ResumeTextRequest(BaseModel):
@@ -49,7 +46,7 @@ async def analyze_resume_file(
         raise HTTPException(status_code=400, detail="Uploaded file is empty.")
 
     try:
-        result = resume_orchestrator.analyze_resume(
+        result = await resume_graph.analyze(
             file_bytes=file_bytes,
             filename=filename,
             target_role=target_role,
@@ -65,7 +62,7 @@ async def analyze_resume_file(
 
 
 @router.post("/analyze-text")
-def analyze_resume_text(
+async def analyze_resume_text(
     request: ResumeTextRequest,
     x_user_id: str = Header(..., alias="X-User-Id"),
     x_internal_key: str = Header(..., alias="X-Internal-Key"),
@@ -77,7 +74,7 @@ def analyze_resume_text(
     _check_auth(x_internal_key)
 
     try:
-        result = resume_orchestrator.analyze_resume(
+        result = await resume_graph.analyze(
             resume_text=request.resume_text,
             target_role=request.target_role,
             job_description=request.job_description,

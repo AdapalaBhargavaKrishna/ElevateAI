@@ -1,20 +1,15 @@
 from fastapi import APIRouter, Header, HTTPException
 from app import schemas
-from app.agents.roadmap.orchestrator import RoadmapOrchestrator
+from app.graphs import roadmap_graph
 from app.config import settings
 import traceback
 
 router = APIRouter(prefix="/roadmap", tags=["Roadmap"])
 
-roadmap_orchestrator = RoadmapOrchestrator()
-
-
 def _check_internal_key(x_internal_key: str):
     if x_internal_key != settings.INTERNAL_API_KEY:
         raise HTTPException(status_code=403, detail="Forbidden")
 
-
-# ─── POST /roadmap/generate ───────────────────────────────────────────────────
 @router.post("/generate", response_model=schemas.RoadmapGenerateResponse)
 def generate_roadmap(
     request: schemas.RoadmapGenerateRequest,
@@ -25,7 +20,7 @@ def generate_roadmap(
     print(f"[Roadmap AI] generate_roadmap called: role={request.target_role}, level={request.experience_level}, user={x_user_id}")
 
     try:
-        roadmap_data = roadmap_orchestrator.generate_roadmap(
+        roadmap_data = roadmap_graph.generate(
             target_role=request.target_role,
             experience_level=request.experience_level,
             current_skills=request.current_skills or [],
@@ -38,8 +33,6 @@ def generate_roadmap(
         traceback.print_exc()
         raise HTTPException(status_code=503, detail=f"Roadmap generation failed: {str(e)}")
 
-
-# ─── POST /roadmap/assessments/generate ──────────────────────────────────────
 @router.post("/assessments/generate", response_model=schemas.AssessmentsGenerateResponse)
 def generate_assessments(
     request: schemas.AssessmentsGenerateRequest,
@@ -49,7 +42,7 @@ def generate_assessments(
     _check_internal_key(x_internal_key)
 
     try:
-        result = roadmap_orchestrator.generate_assessments(
+        result = roadmap_graph.generate_assessments(
             target_role=request.target_role,
             phase_number=request.phase_number,
             phase_title=request.phase_title,
@@ -64,8 +57,6 @@ def generate_assessments(
         traceback.print_exc()
         raise HTTPException(status_code=503, detail=f"Assessment generation failed: {str(e)}")
 
-
-# ─── POST /roadmap/assessments/bulk-generate ─────────────────────────────────
 @router.post("/assessments/bulk-generate", response_model=schemas.AssessmentsBatchGenerateResponse)
 def generate_assessments_batch(
     request: schemas.AssessmentsBatchGenerateRequest,
@@ -76,7 +67,7 @@ def generate_assessments_batch(
     print(f"[Roadmap AI] bulk-generate called: {len(request.phases)} phases, {request.questions_per_phase} questions each")
 
     try:
-        result = roadmap_orchestrator.generate_assessments_batch(
+        result = roadmap_graph.generate_assessments_batch(
             target_role=request.target_role,
             phases=[
                 {
